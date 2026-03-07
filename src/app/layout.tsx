@@ -19,7 +19,11 @@ export const metadata: Metadata = {
   description:
     "Moving beyond traditional marketing. We build proprietary AI infrastructure that captures, qualifies, and closes your business leads automatically.",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-icon",
   },
 };
 
