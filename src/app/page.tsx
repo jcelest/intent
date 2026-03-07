@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="relative z-10">
       <Header />
-      <main>
+      <main className="pt-16">
         <HeroSection />
         <BentoGrid />
         <RevenueDashboard />
