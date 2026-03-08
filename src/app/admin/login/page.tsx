@@ -2,37 +2,49 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
-const VALID_USER = "Intent";
-const VALID_PASS = "Tealtent477";
-const AUTH_COOKIE = "intent_auth";
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (document.cookie.includes(`${AUTH_COOKIE}=1`)) {
-      window.location.href = "/admin/analytics";
-    }
-  }, []);
+    fetch("/api/admin/session")
+      .then((r) => {
+        if (r.ok) router.replace("/admin/analytics");
+      })
+      .catch(() => {});
+  }, [router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    if (username === VALID_USER && password === VALID_PASS) {
-      document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=86400; SameSite=Lax`;
-      window.location.href = "/admin/analytics";
-      return;
-    }
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-    setError("Invalid username or password");
-    setLoading(false);
+      if (res.ok) {
+        router.replace("/admin/analytics");
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Invalid username or password");
+    } catch {
+      setError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -5,7 +5,13 @@ import Link from "next/link";
 import { LogoutLink } from "@/components/admin/logout-link";
 import { motion } from "framer-motion";
 import { COMPANIES } from "@/lib/companies";
-import type { AnalyticsResponse } from "@/lib/analytics-types";
+import {
+  type AnalyticsResponse,
+  GA4_METRICS,
+  GA4_DATE_RANGES,
+  type Ga4MetricId,
+  type Ga4DateRangeId,
+} from "@/lib/analytics-types";
 
 const MUTED_BEFORE = "#94a3b8";
 const ACCENT_VIOLET = "#a78bfa";
@@ -18,9 +24,20 @@ function isTrafficBeforeAfter(
   return "before" in t && "after" in t;
 }
 
-function buildChartData(data: AnalyticsResponse) {
+function buildChartData(data: AnalyticsResponse): Array<{ month: string; [k: string]: string | number | undefined }> {
   const m = data.metrics;
   const isLive = data.isLive;
+
+  if (data.ga4) {
+    const { dateLabels, series } = data.ga4;
+    return dateLabels.map((month, i) => {
+      const row: { month: string; [k: string]: string | number | undefined } = { month };
+      series.forEach((s) => {
+        row[s.id] = s.values[i] ?? 0;
+      });
+      return row;
+    });
+  }
 
   if (isLive && "current" in m.traffic) {
     const current = m.traffic.current;
@@ -111,40 +128,43 @@ function BarChartVisual({
   label1: string;
   label2: string;
 }) {
+  const minChartWidth = Math.max(data.length * 20, 320);
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="flex gap-1 text-xs text-slate-400 mb-2">
         <span style={{ color: color1 }}>● {label1}</span>
         {dataKey2 && <span style={{ color: color2 }} className="ml-4">● {label2}</span>}
       </div>
-      <div className="flex items-end gap-0.5 h-48">
-        {data.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-            <div className="w-full flex flex-col-reverse gap-0.5 items-center" style={{ height: 180 }}>
-              {dataKey2 && (
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="flex items-end gap-0.5 h-48" style={{ minWidth: minChartWidth }}>
+          {data.map((d, i) => (
+            <div key={i} className="flex-1 min-w-[12px] flex flex-col items-center gap-0.5">
+              <div className="w-full max-w-[12px] flex flex-col-reverse gap-0.5 items-center" style={{ height: 180 }}>
+                {dataKey2 && (
+                  <div
+                    className="w-full max-w-[12px] rounded-t transition-all duration-300 shrink-0"
+                    style={{
+                      height: `${((Number(d[dataKey2]) || 0) / maxVal) * 100}%`,
+                      minHeight: 2,
+                      backgroundColor: color2,
+                    }}
+                  />
+                )}
                 <div
-                  className="w-full max-w-[8px] rounded-t transition-all duration-300"
+                  className="w-full max-w-[12px] rounded-t transition-all duration-300 shrink-0"
                   style={{
-                    height: `${((Number(d[dataKey2]) || 0) / maxVal) * 100}%`,
+                    height: `${((Number(d[dataKey]) || 0) / maxVal) * 100}%`,
                     minHeight: 2,
-                    backgroundColor: color2,
+                    backgroundColor: color1,
                   }}
                 />
-              )}
-              <div
-                className="w-full max-w-[8px] rounded-t transition-all duration-300"
-                style={{
-                  height: `${((Number(d[dataKey]) || 0) / maxVal) * 100}%`,
-                  minHeight: 2,
-                  backgroundColor: color1,
-                }}
-              />
+              </div>
+              <span className="text-[10px] text-slate-500 truncate max-w-[24px] text-center" title={d.month}>
+                {String(d.month).replace(" '23", "").replace(" '24", "")}
+              </span>
             </div>
-            <span className="text-[10px] text-slate-500 truncate max-w-full" title={d.month}>
-              {String(d.month).replace(" '23", "").replace(" '24", "")}
-            </span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -175,36 +195,41 @@ function AreaChartVisual({
   const toPoints = (arr: number[]) =>
     arr.map((v, i) => `${(i / Math.max(1, arr.length - 1)) * 100},${100 - (v / max) * 85}`).join(" ");
 
+  const minChartWidth = Math.max(data.length * 24, 320);
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="flex gap-4 text-xs text-slate-400 mb-2">
         <span style={{ color: color1 }}>● {label1}</span>
         {dataKey2 && <span style={{ color: color2 }}>● {label2}</span>}
       </div>
-      <div className="h-48 relative">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-          {dataKey2 && vals2.length > 0 && (
-            <polygon
-              fill={color2}
-              fillOpacity={0.35}
-              stroke={color2}
-              strokeWidth={0.6}
-              points={`0,100 ${toPoints(vals2)} 100,100`}
-            />
-          )}
-          <polygon
-            fill={color1}
-            fillOpacity={0.5}
-            stroke={color1}
-            strokeWidth={1}
-            points={`0,100 ${toPoints(vals1)} 100,100`}
-          />
-        </svg>
-      </div>
-      <div className="flex justify-between text-[10px] text-slate-500">
-        {data.filter((_, i) => i % 4 === 0).map((d) => (
-          <span key={d.month}>{d.month}</span>
-        ))}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div style={{ minWidth: minChartWidth }}>
+          <div className="h-48 relative">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full min-h-[192px]">
+              {dataKey2 && vals2.length > 0 && (
+                <polygon
+                  fill={color2}
+                  fillOpacity={0.35}
+                  stroke={color2}
+                  strokeWidth={0.6}
+                  points={`0,100 ${toPoints(vals2)} 100,100`}
+                />
+              )}
+              <polygon
+                fill={color1}
+                fillOpacity={0.5}
+                stroke={color1}
+                strokeWidth={1}
+                points={`0,100 ${toPoints(vals1)} 100,100`}
+              />
+            </svg>
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-500 gap-1 mt-1">
+            {data.filter((_, i) => i % Math.max(1, Math.floor(data.length / 8)) === 0).map((d) => (
+              <span key={d.month} className="shrink-0">{d.month}</span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -213,9 +238,19 @@ function AreaChartVisual({
 function AnalyticsContent({
   data,
   selectedId,
+  dateRange,
+  selectedMetrics,
+  onDateRangeChange,
+  onMetricsChange,
+  isLive,
 }: {
   data: AnalyticsResponse | null;
   selectedId: string;
+  dateRange: Ga4DateRangeId;
+  selectedMetrics: Ga4MetricId[];
+  onDateRangeChange: (v: Ga4DateRangeId) => void;
+  onMetricsChange: (v: Ga4MetricId[]) => void;
+  isLive: boolean;
 }) {
   if (!data) {
     return (
@@ -227,7 +262,6 @@ function AnalyticsContent({
 
   const chartData = buildChartData(data);
   const accent = data.accentColor;
-  const isLive = data.isLive;
   const hasBeforeAfter = isTrafficBeforeAfter(data.metrics.traffic);
 
   const trafficMax = Math.max(
@@ -241,15 +275,21 @@ function AnalyticsContent({
     1
   );
   const revMax = Math.max(
-    ...chartData.map((d) => Math.max(d.revenueBefore, d.revenueAfter)),
+    ...chartData.map((d) => {
+      const r = d as { revenueBefore?: number; revenueAfter?: number };
+      return Math.max(r.revenueBefore ?? 0, r.revenueAfter ?? 0);
+    }),
     1
   );
   const leadsMax = Math.max(
-    ...chartData.map((d) => Math.max(d.leadsBefore, d.leadsAfter)),
+    ...chartData.map((d) => {
+      const r = d as { leadsBefore?: number; leadsAfter?: number };
+      return Math.max(r.leadsBefore ?? 0, r.leadsAfter ?? 0);
+    }),
     1
   );
-  const aiCallsMax = Math.max(...chartData.map((d) => d.aiCalls), 1);
-  const convMax = Math.max(...chartData.map((d) => d.conversionRate), 50);
+  const aiCallsMax = Math.max(...chartData.map((d) => Number((d as { aiCalls?: number }).aiCalls) || 0), 1);
+  const convMax = Math.max(...chartData.map((d) => Number((d as { conversionRate?: number }).conversionRate) || 0), 50);
 
   const trafficCurrent: number = hasBeforeAfter
     ? (data.metrics.traffic as { before: number[]; after: number[] }).after[11]
@@ -279,7 +319,7 @@ function AnalyticsContent({
       key={`${selectedId}-${title}`}
       initial={{ opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border-2 bg-slate-900/60 p-6 sm:p-8 shadow-[0_0_40px_rgba(0,0,0,0.2)]"
+      className="rounded-xl border-2 bg-slate-900/60 p-6 sm:p-8 shadow-[0_0_40px_rgba(0,0,0,0.2)] overflow-hidden min-w-0"
       style={{ borderColor: borderColor ?? `${accent}40` }}
     >
       <h3 className="font-mono text-sm text-slate-400 uppercase tracking-wider mb-6">{title}</h3>
@@ -288,13 +328,113 @@ function AnalyticsContent({
   );
 
   return (
-    <div key={selectedId}>
+    <div key={selectedId} className="min-w-0 overflow-x-hidden">
       {data.error && (
         <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           {data.error}
         </div>
       )}
 
+      {isLive && (
+        <div className="mb-8 flex flex-wrap gap-6 items-end">
+          <div>
+            <label className="block font-mono text-xs text-slate-400 mb-1">DATE RANGE</label>
+            <select
+              value={dateRange}
+              onChange={(e) => onDateRangeChange(e.target.value as Ga4DateRangeId)}
+              className="rounded-lg border-2 px-3 py-2 font-mono text-sm text-white bg-slate-900/90 border-[#00e5ff]/40 focus:outline-none focus:ring-2 focus:ring-[#00e5ff]/50"
+            >
+              {GA4_DATE_RANGES.map((r) => (
+                <option key={r.id} value={r.id} className="bg-slate-900">
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block font-mono text-xs text-slate-400 mb-1">METRICS</label>
+            <div className="flex flex-wrap gap-3">
+              {GA4_METRICS.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedMetrics.includes(m.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onMetricsChange([...selectedMetrics, m.id]);
+                      } else {
+                        onMetricsChange(selectedMetrics.filter((x) => x !== m.id));
+                      }
+                    }}
+                    className="rounded border-slate-500 bg-slate-900 text-[#00e5ff] focus:ring-[#00e5ff]"
+                  />
+                  <span className="text-sm text-slate-300">{m.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {data.ga4 && data.ga4.series.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-12">
+            {data.ga4.series.map((s) => {
+              const total = s.values.reduce((a, b) => a + b, 0);
+              const latest = s.values[s.values.length - 1] ?? 0;
+              const displayVal =
+                s.format === "percent"
+                  ? `${(latest <= 1 ? latest * 100 : latest).toFixed(1)}%`
+                  : total >= 1000
+                    ? total.toLocaleString()
+                    : latest.toLocaleString();
+              return (
+                <div
+                  key={s.id}
+                  className="rounded-xl border-2 bg-slate-900/60 p-4 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
+                >
+                  <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-1">
+                    {s.label}
+                  </h3>
+                  <span className="text-xl font-display font-bold" style={{ color: accent }}>
+                    {displayVal}
+                  </span>
+                  <p className="mt-1 text-xs font-mono text-slate-500">{data.ga4!.dateRange}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-12">
+            {data.ga4.series.map((s) => {
+              const chartData = buildChartData(data);
+              const maxVal = Math.max(...s.values, 1);
+              return (
+                <motion.div
+                  key={s.id}
+                  className="rounded-xl border-2 bg-slate-900/60 p-6 sm:p-8 shadow-[0_0_40px_rgba(0,0,0,0.2)] overflow-hidden min-w-0"
+                  style={{ borderColor: `${accent}40` }}
+                >
+                  <h3 className="font-mono text-sm text-slate-400 uppercase tracking-wider mb-6">
+                    {s.label} — {data.ga4!.dateRange} (GA4)
+                  </h3>
+                  <AreaChartVisual
+                    data={chartData as Array<{ month: string; [k: string]: string | number | undefined }>}
+                    dataKey={s.id}
+                    maxVal={maxVal}
+                    color1={accent}
+                    color2={accent}
+                    label1={s.label}
+                    label2=""
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {!data.ga4 && (
+      <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
         {hasBeforeAfter && data.metrics.revenue && (
           <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
@@ -521,6 +661,8 @@ function AnalyticsContent({
           </ChartCard>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -528,13 +670,26 @@ function AnalyticsContent({
 export default function AnalyticsHubPage() {
   const [selectedId, setSelectedId] = useState(COMPANIES[0].id);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
+  const [dateRange, setDateRange] = useState<Ga4DateRangeId>("12m");
+  const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>([
+    "sessions",
+    "activeUsers",
+    "screenPageViews",
+  ]);
   const company = COMPANIES.find((c) => c.id === selectedId);
   const accent = company?.accentColor ?? "#00e5ff";
+  const isLive = company?.dataSource === "live";
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
-    fetch(`/api/analytics/${selectedId}`)
+    const params = new URLSearchParams();
+    if (isLive) {
+      params.set("dateRange", dateRange);
+      params.set("metrics", selectedMetrics.length > 0 ? selectedMetrics.join(",") : "sessions");
+    }
+    const url = `/api/analytics/${selectedId}${params.toString() ? `?${params}` : ""}`;
+    fetch(url)
       .then((r) => r.json())
       .then((r: AnalyticsResponse) => {
         if (!cancelled) setData(r);
@@ -545,7 +700,7 @@ export default function AnalyticsHubPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [selectedId, dateRange, selectedMetrics, isLive]);
 
   return (
     <div className="min-h-screen relative">
@@ -562,7 +717,7 @@ export default function AnalyticsHubPage() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 overflow-x-hidden min-w-0">
         <div className="mb-12">
           <label className="block font-mono text-sm text-slate-400 mb-2">LINKED BUSINESS</label>
           <div className="relative w-full max-w-md">
@@ -592,7 +747,16 @@ export default function AnalyticsHubPage() {
           </div>
         </div>
 
-        <AnalyticsContent key={selectedId} data={data} selectedId={selectedId} />
+        <AnalyticsContent
+          key={selectedId}
+          data={data}
+          selectedId={selectedId}
+          dateRange={dateRange}
+          selectedMetrics={selectedMetrics}
+          onDateRangeChange={setDateRange}
+          onMetricsChange={setSelectedMetrics}
+          isLive={isLive ?? false}
+        />
       </main>
 
       <footer className="relative z-10 border-t border-white/10 py-8 px-4 mt-16">

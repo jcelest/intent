@@ -2,20 +2,45 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "intent_auth";
+const DEVICE_COOKIE = "intent_auth_device";
 
-export function middleware(request: NextRequest) {
+async function hashUserAgent(ua: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(ua || "");
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow login page
   if (pathname === "/admin/login") {
     return NextResponse.next();
   }
 
-  // Protect analytics and other admin routes
   if (pathname.startsWith("/admin")) {
     const auth = request.cookies.get(AUTH_COOKIE)?.value;
-    if (!auth) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
+    const deviceHash = request.cookies.get(DEVICE_COOKIE)?.value;
+
+    if (!auth || !deviceHash) {
+      const res = NextResponse.redirect(new URL("/admin/login", request.url));
+      res.cookies.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
+      res.cookies.set(DEVICE_COOKIE, "", { path: "/", maxAge: 0 });
+      return res;
+    }
+
+    const ua = request.headers.get("user-agent") || "";
+    const currentHash = await hashUserAgent(ua);
+
+    if (deviceHash !== currentHash) {
+      const res = NextResponse.redirect(new URL("/admin/login", request.url));
+      res.cookies.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
+      res.cookies.set(DEVICE_COOKIE, "", { path: "/", maxAge: 0 });
+      return res;
     }
   }
 
