@@ -1,178 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { LogoutLink } from "@/components/admin/logout-link";
 import { motion } from "framer-motion";
+import { COMPANIES } from "@/lib/companies";
+import type { AnalyticsResponse } from "@/lib/analytics-types";
 
-// Vibrant accent colors
-const VIBRANT_CYAN = "#00e5ff";
 const MUTED_BEFORE = "#94a3b8";
 const ACCENT_VIOLET = "#a78bfa";
-const ACCENT_EMERALD = "#34d399";
-const ACCENT_AMBER = "#fbbf24";
 
-type BusinessId = string;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Each company has unique mock data + visual theme
-const BUSINESSES: Array<{
-  id: BusinessId;
-  name: string;
-  joinedDate: string;
-  accentColor: string;
-  chartLayout: "area-dominant" | "bar-dominant" | "mixed" | "compact";
-  metrics: {
-    revenue: { before: number[]; after: number[] };
-    traffic: { before: number[]; after: number[] };
-    leads: { before: number[]; after: number[] };
-    conversionRate: { before: number; after: number };
-    aiCalls: { before: number; after: number };
-  };
-}> = [
-  {
-    id: "acme-plumbing",
-    name: "Acme Plumbing Co.",
-    joinedDate: "2024-01",
-    accentColor: VIBRANT_CYAN,
-    chartLayout: "area-dominant",
-    metrics: {
-      revenue: {
-        before: [38, 42, 48, 52, 45, 58, 62, 68, 72, 78, 82, 88],
-        after: [88, 95, 108, 115, 102, 128, 135, 148, 158, 168, 175, 192],
-      },
-      traffic: {
-        before: [980, 1120, 1250, 1380, 1180, 1520, 1650, 1780, 1920, 2050, 2180, 2350],
-        after: [2350, 2520, 2850, 3020, 2680, 3320, 3480, 3720, 3980, 4220, 4450, 4780],
-      },
-      leads: {
-        before: [6, 9, 11, 14, 10, 16, 18, 22, 24, 26, 28, 32],
-        after: [32, 38, 45, 52, 42, 62, 68, 78, 85, 92, 98, 108],
-      },
-      conversionRate: { before: 18, after: 42 },
-      aiCalls: { before: 0, after: 1247 },
-    },
-  },
-  {
-    id: "summit-dental",
-    name: "Summit Dental Group",
-    joinedDate: "2024-03",
-    accentColor: ACCENT_EMERALD,
-    chartLayout: "bar-dominant",
-    metrics: {
-      revenue: {
-        before: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 55],
-        after: [55, 58, 62, 68, 72, 78, 85, 92, 98, 105, 112, 118],
-      },
-      traffic: {
-        before: [720, 780, 820, 880, 920, 950, 980, 1020, 1050, 1080, 1120, 1180],
-        after: [1180, 1250, 1320, 1420, 1520, 1620, 1720, 1820, 1920, 2020, 2120, 2250],
-      },
-      leads: {
-        before: [4, 5, 6, 7, 8, 8, 9, 10, 11, 12, 12, 14],
-        after: [14, 16, 18, 22, 25, 28, 32, 36, 40, 44, 48, 55],
-      },
-      conversionRate: { before: 22, after: 38 },
-      aiCalls: { before: 0, after: 892 },
-    },
-  },
-  {
-    id: "metro-auto",
-    name: "Metro Auto Services",
-    joinedDate: "2024-06",
-    accentColor: ACCENT_AMBER,
-    chartLayout: "mixed",
-    metrics: {
-      revenue: {
-        before: [72, 68, 78, 85, 92, 88, 95, 102, 108, 115, 112, 118],
-        after: [118, 128, 142, 155, 168, 162, 178, 192, 205, 218, 225, 242],
-      },
-      traffic: {
-        before: [1850, 1920, 2050, 2180, 2320, 2250, 2420, 2580, 2720, 2850, 2780, 2950],
-        after: [2950, 3180, 3420, 3680, 3920, 3820, 4080, 4320, 4580, 4820, 4950, 5220],
-      },
-      leads: {
-        before: [22, 24, 28, 32, 35, 30, 38, 42, 45, 48, 44, 52],
-        after: [52, 58, 65, 72, 78, 72, 85, 92, 98, 105, 102, 115],
-      },
-      conversionRate: { before: 14, after: 28 },
-      aiCalls: { before: 0, after: 2156 },
-    },
-  },
-  {
-    id: "green-valley-law",
-    name: "Green Valley Law Firm",
-    joinedDate: "2024-09",
-    accentColor: ACCENT_VIOLET,
-    chartLayout: "compact",
-    metrics: {
-      revenue: {
-        before: [22, 24, 26, 28, 30, 28, 32, 34, 36, 38, 35, 42],
-        after: [42, 52, 62, 72, 82, 78, 92, 105, 118, 128, 135, 148],
-      },
-      traffic: {
-        before: [380, 420, 450, 480, 520, 490, 550, 580, 620, 650, 620, 720],
-        after: [720, 850, 980, 1120, 1250, 1180, 1350, 1520, 1680, 1820, 1920, 2080],
-      },
-      leads: {
-        before: [6, 8, 9, 11, 12, 10, 14, 15, 17, 18, 16, 22],
-        after: [22, 32, 42, 52, 58, 55, 68, 78, 88, 95, 102, 112],
-      },
-      conversionRate: { before: 8, after: 38 },
-      aiCalls: { before: 0, after: 534 },
-    },
-  },
-];
-
-const MONTHS_24 = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function buildChartData(business: (typeof BUSINESSES)[0]) {
-  const m = business.metrics;
-  const b = m.revenue.before;
-  const a = m.revenue.after;
-  const tb = m.traffic.before;
-  const ta = m.traffic.after;
-  const lb = m.leads.before;
-  const la = m.leads.after;
-
-  const revenueBefore24 = [...b, ...b.map((v, i) => v + (i + 1) * 0.3)];
-  const revenueAfter24 = [...b, ...a];
-  const trafficBefore24 = [...tb, ...tb.map((v) => v + Math.floor(v * 0.03))];
-  const trafficAfter24 = [...tb, ...ta];
-  const leadsBefore24 = [...lb, ...lb.map((v) => v + 1)];
-  const leadsAfter24 = [...lb, ...la];
-
-  const totalCalls = m.aiCalls?.after ?? 1000;
-  const aiCalls24 = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    Math.floor(totalCalls * 0.04), Math.floor(totalCalls * 0.07), Math.floor(totalCalls * 0.1),
-    Math.floor(totalCalls * 0.13), Math.floor(totalCalls * 0.16), Math.floor(totalCalls * 0.19),
-    Math.floor(totalCalls * 0.22), Math.floor(totalCalls * 0.25), Math.floor(totalCalls * 0.28),
-    Math.floor(totalCalls * 0.3), Math.floor(totalCalls * 0.32), Math.floor(totalCalls * 0.35),
-  ];
-
-  const convB = m.conversionRate?.before ?? 18;
-  const convA = m.conversionRate?.after ?? 35;
-  const conversion24 = [
-    ...Array(12).fill(convB).map((v, i) => v + (i % 2)),
-    ...Array(12).fill(0).map((_, i) => Math.round(convB + ((convA - convB) * (i + 1)) / 12)),
-  ];
-
-  return MONTHS_24.map((month, i) => ({
-    month: i < 12 ? `${month} '23` : `${month} '24`,
-    revenueBefore: revenueBefore24[i],
-    revenueAfter: revenueAfter24[i],
-    trafficBefore: trafficBefore24[i],
-    trafficAfter: trafficAfter24[i],
-    leadsBefore: leadsBefore24[i],
-    leadsAfter: leadsAfter24[i],
-    aiCalls: aiCalls24[i],
-    conversionRate: conversion24[i],
-  }));
+function isTrafficBeforeAfter(
+  t: AnalyticsResponse["metrics"]["traffic"]
+): t is { before: number[]; after: number[] } {
+  return "before" in t && "after" in t;
 }
 
+function buildChartData(data: AnalyticsResponse) {
+  const m = data.metrics;
+  const isLive = data.isLive;
+
+  if (isLive && "current" in m.traffic) {
+    const current = m.traffic.current;
+    const now = new Date();
+
+    return current.map((val, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (current.length - 1 - i), 1);
+      return {
+        month: `${MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`,
+        trafficCurrent: val,
+        revenueBefore: 0,
+        revenueAfter: 0,
+        trafficBefore: 0,
+        trafficAfter: 0,
+        leadsBefore: 0,
+        leadsAfter: 0,
+        aiCalls: 0,
+        conversionRate: 0,
+      };
+    });
+  }
+
+  if (isTrafficBeforeAfter(m.traffic)) {
+    const b = m.revenue?.before ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const a = m.revenue?.after ?? b;
+    const tb = m.traffic.before;
+    const ta = m.traffic.after;
+    const lb = m.leads?.before ?? tb.map(() => 0);
+    const la = m.leads?.after ?? ta.map(() => 0);
+
+    const revenueBefore24 = [...b, ...b.map((v, i) => v + (i + 1) * 0.3)];
+    const revenueAfter24 = [...b, ...a];
+    const trafficBefore24 = [...tb, ...tb.map((v) => v + Math.floor(v * 0.03))];
+    const trafficAfter24 = [...tb, ...ta];
+    const leadsBefore24 = [...lb, ...lb.map((v) => v + 1)];
+    const leadsAfter24 = [...lb, ...la];
+
+    const totalCalls = m.aiCalls?.after ?? 1000;
+    const aiCalls24 = [
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      Math.floor(totalCalls * 0.04), Math.floor(totalCalls * 0.07), Math.floor(totalCalls * 0.1),
+      Math.floor(totalCalls * 0.13), Math.floor(totalCalls * 0.16), Math.floor(totalCalls * 0.19),
+      Math.floor(totalCalls * 0.22), Math.floor(totalCalls * 0.25), Math.floor(totalCalls * 0.28),
+      Math.floor(totalCalls * 0.3), Math.floor(totalCalls * 0.32), Math.floor(totalCalls * 0.35),
+    ];
+
+    const convB = m.conversionRate?.before ?? 18;
+    const convA = m.conversionRate?.after ?? 35;
+    const conversion24 = [
+      ...Array(12).fill(convB).map((v, i) => v + (i % 2)),
+      ...Array(12).fill(0).map((_, i) => Math.round(convB + ((convA - convB) * (i + 1)) / 12)),
+    ];
+
+    const MONTHS_24 = [...MONTHS, ...MONTHS];
+    return MONTHS_24.map((month, i) => ({
+      month: i < 12 ? `${month} '23` : `${month} '24`,
+      revenueBefore: revenueBefore24[i],
+      revenueAfter: revenueAfter24[i],
+      trafficBefore: trafficBefore24[i],
+      trafficAfter: trafficAfter24[i],
+      leadsBefore: leadsBefore24[i],
+      leadsAfter: leadsAfter24[i],
+      aiCalls: aiCalls24[i],
+      conversionRate: conversion24[i],
+      trafficCurrent: 0,
+    }));
+  }
+
+  return [];
+}
 
 function BarChartVisual({
   data,
@@ -292,23 +210,61 @@ function AreaChartVisual({
   );
 }
 
-function AnalyticsContent({ selectedId }: { selectedId: string }) {
-  const business = BUSINESSES.find((b) => b.id === selectedId)!;
-  const chartData = buildChartData(business);
-  const accent = business.accentColor;
+function AnalyticsContent({
+  data,
+  selectedId,
+}: {
+  data: AnalyticsResponse | null;
+  selectedId: string;
+}) {
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-slate-400 font-mono">Loading…</div>
+      </div>
+    );
+  }
 
-  const revMax = Math.max(...chartData.map((d) => Math.max(d.revenueBefore, d.revenueAfter)));
-  const trafficMax = Math.max(...chartData.map((d) => Math.max(d.trafficBefore, d.trafficAfter)));
-  const leadsMax = Math.max(...chartData.map((d) => Math.max(d.leadsBefore, d.leadsAfter)));
+  const chartData = buildChartData(data);
+  const accent = data.accentColor;
+  const isLive = data.isLive;
+  const hasBeforeAfter = isTrafficBeforeAfter(data.metrics.traffic);
+
+  const trafficMax = Math.max(
+    ...chartData.map((d) =>
+      Math.max(
+        Number(d.trafficBefore) || 0,
+        Number(d.trafficAfter) || 0,
+        Number(d.trafficCurrent) || 0
+      )
+    ),
+    1
+  );
+  const revMax = Math.max(
+    ...chartData.map((d) => Math.max(d.revenueBefore, d.revenueAfter)),
+    1
+  );
+  const leadsMax = Math.max(
+    ...chartData.map((d) => Math.max(d.leadsBefore, d.leadsAfter)),
+    1
+  );
   const aiCallsMax = Math.max(...chartData.map((d) => d.aiCalls), 1);
   const convMax = Math.max(...chartData.map((d) => d.conversionRate), 50);
 
-  const revenueGrowth = ((business.metrics.revenue.after[11] - business.metrics.revenue.before[11]) / business.metrics.revenue.before[11] * 100).toFixed(1);
-  const trafficGrowth = ((business.metrics.traffic.after[11] - business.metrics.traffic.before[11]) / business.metrics.traffic.before[11] * 100).toFixed(1);
-  const leadsGrowth = ((business.metrics.leads.after[11] - business.metrics.leads.before[11]) / business.metrics.leads.before[11] * 100).toFixed(1);
-  const conversionGrowth = business.metrics.conversionRate
-    ? ((business.metrics.conversionRate.after - business.metrics.conversionRate.before) / business.metrics.conversionRate.before * 100).toFixed(1)
-    : null;
+  const trafficCurrent: number = hasBeforeAfter
+    ? (data.metrics.traffic as { before: number[]; after: number[] }).after[11]
+    : "current" in data.metrics.traffic
+      ? data.metrics.traffic.current[11] ?? data.metrics.traffic.current.at(-1) ?? 0
+      : 0;
+  const trafficPrev: number = hasBeforeAfter
+    ? (data.metrics.traffic as { before: number[]; after: number[] }).before[11]
+    : "current" in data.metrics.traffic
+      ? data.metrics.traffic.current[10] ?? 0
+      : 0;
+  const trafficGrowth =
+    typeof trafficPrev === "number" && trafficPrev > 0 && typeof trafficCurrent === "number"
+      ? (((trafficCurrent - trafficPrev) / trafficPrev) * 100).toFixed(1)
+      : null;
 
   const ChartCard = ({
     title,
@@ -332,168 +288,264 @@ function AnalyticsContent({ selectedId }: { selectedId: string }) {
   );
 
   return (
-        <div key={selectedId}>
-        {/* Summary cards - always visible, no animation */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
-          <div
-            key={`${selectedId}-revenue`}
-            className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
-          >
+    <div key={selectedId}>
+      {data.error && (
+        <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          {data.error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
+        {hasBeforeAfter && data.metrics.revenue && (
+          <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
             <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">Revenue (12mo)</h3>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-xl font-display font-semibold text-slate-500 line-through">${business.metrics.revenue.before[11]}K</span>
+              <span className="text-xl font-display font-semibold text-slate-500 line-through">
+                ${data.metrics.revenue.before[11]}K
+              </span>
               <span className="text-slate-500">→</span>
-              <span className="text-2xl font-display font-bold" style={{ color: accent }}>${business.metrics.revenue.after[11]}K</span>
+              <span className="text-2xl font-display font-bold" style={{ color: accent }}>
+                ${data.metrics.revenue.after[11]}K
+              </span>
             </div>
-            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>+{revenueGrowth}% growth</p>
+            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>
+              +
+              {(
+                ((data.metrics.revenue.after[11] - data.metrics.revenue.before[11]) /
+                  data.metrics.revenue.before[11]) *
+                100
+              ).toFixed(1)}
+              % growth
+            </p>
           </div>
-          <div
-            key={`${selectedId}-traffic`}
-            className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
-          >
-            <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">Monthly Traffic</h3>
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-xl font-display font-semibold text-slate-500 line-through">{business.metrics.traffic.before[11].toLocaleString()}</span>
-              <span className="text-slate-500">→</span>
-              <span className="text-2xl font-display font-bold" style={{ color: accent }}>{business.metrics.traffic.after[11].toLocaleString()}</span>
-            </div>
-            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>+{trafficGrowth}% growth</p>
+        )}
+
+        <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
+          <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">
+            {isLive ? "Sessions (12mo)" : "Monthly Traffic"}
+          </h3>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            {hasBeforeAfter && "before" in data.metrics.traffic && (
+              <>
+                <span className="text-xl font-display font-semibold text-slate-500 line-through">
+                  {data.metrics.traffic.before[11].toLocaleString()}
+                </span>
+                <span className="text-slate-500">→</span>
+              </>
+            )}
+            <span className="text-2xl font-display font-bold" style={{ color: accent }}>
+              {(typeof trafficCurrent === "number" ? trafficCurrent : 0).toLocaleString()}
+            </span>
           </div>
-          <div
-            key={`${selectedId}-leads`}
-            className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
-          >
+          {trafficGrowth && (
+            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>
+              +{trafficGrowth}% growth
+            </p>
+          )}
+          {isLive && data.url && (
+            <a
+              href={data.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 block text-xs text-slate-400 hover:text-[#00e5ff]"
+            >
+              {data.url.replace(/^https?:\/\//, "")} ↗
+            </a>
+          )}
+        </div>
+
+        {hasBeforeAfter && data.metrics.leads && (
+          <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
             <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">Leads Captured</h3>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-xl font-display font-semibold text-slate-500 line-through">{business.metrics.leads.before[11]}</span>
+              <span className="text-xl font-display font-semibold text-slate-500 line-through">
+                {data.metrics.leads.before[11]}
+              </span>
               <span className="text-slate-500">→</span>
-              <span className="text-2xl font-display font-bold" style={{ color: accent }}>{business.metrics.leads.after[11]}</span>
+              <span className="text-2xl font-display font-bold" style={{ color: accent }}>
+                {data.metrics.leads.after[11]}
+              </span>
             </div>
-            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>+{leadsGrowth}% growth</p>
+            <p className="mt-2 text-sm font-mono font-semibold" style={{ color: accent }}>
+              +
+              {(
+                ((data.metrics.leads.after[11] - data.metrics.leads.before[11]) /
+                  data.metrics.leads.before[11]) *
+                100
+              ).toFixed(1)}
+              % growth
+            </p>
           </div>
-          <div
-            key={`${selectedId}-conversion`}
-            className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#a78bfa]/30 hover:border-[#a78bfa]/50 transition-colors"
-          >
+        )}
+
+        {hasBeforeAfter && data.metrics.conversionRate && (
+          <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#a78bfa]/30 hover:border-[#a78bfa]/50 transition-colors">
             <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">Conversion Rate</h3>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-xl font-display font-semibold text-slate-500 line-through">{business.metrics.conversionRate.before}%</span>
+              <span className="text-xl font-display font-semibold text-slate-500 line-through">
+                {data.metrics.conversionRate.before}%
+              </span>
               <span className="text-slate-500">→</span>
-              <span className="text-2xl font-display font-bold text-[#a78bfa]">{business.metrics.conversionRate.after}%</span>
+              <span className="text-2xl font-display font-bold text-[#a78bfa]">
+                {data.metrics.conversionRate.after}%
+              </span>
             </div>
-            <p className="mt-2 text-sm font-mono font-semibold text-[#a78bfa]">+{conversionGrowth}% growth</p>
+            <p className="mt-2 text-sm font-mono font-semibold text-[#a78bfa]">
+              +
+              {(
+                ((data.metrics.conversionRate.after - data.metrics.conversionRate.before) /
+                  data.metrics.conversionRate.before) *
+                100
+              ).toFixed(1)}
+              % growth
+            </p>
           </div>
-          <div
-            key={`${selectedId}-aicalls`}
-            className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
-          >
+        )}
+
+        {(hasBeforeAfter || data.metrics.aiCalls) && (
+          <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
             <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">AI Calls (YTD)</h3>
-            <span className="text-2xl font-display font-bold" style={{ color: accent }}>{business.metrics.aiCalls?.after?.toLocaleString() ?? "—"}</span>
+            <span className="text-2xl font-display font-bold" style={{ color: accent }}>
+              {data.metrics.aiCalls?.after?.toLocaleString() ?? "—"}
+            </span>
             <p className="mt-2 text-sm font-mono text-slate-400">Dispatcher active</p>
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="space-y-8">
+      <div className="space-y-12">
+        {hasBeforeAfter && data.metrics.revenue && (
+          <ChartCard title="Revenue — Before vs After Intent" borderColor={`${accent}40`}>
+            <AreaChartVisual
+              data={chartData}
+              dataKey="revenueBefore"
+              dataKey2="revenueAfter"
+              maxVal={revMax}
+              color1={MUTED_BEFORE}
+              color2={accent}
+              label1="Before Intent"
+              label2="After Intent"
+            />
+          </ChartCard>
+        )}
 
-          <div className="space-y-12">
-              <ChartCard title="Revenue — Before vs After Intent" borderColor={`${accent}40`}>
-                <AreaChartVisual
-                  data={chartData}
-                  dataKey="revenueBefore"
-                  dataKey2="revenueAfter"
-                  maxVal={revMax}
-                  color1={MUTED_BEFORE}
-                  color2={accent}
-                  label1="Before Intent"
-                  label2="After Intent"
-                />
-              </ChartCard>
+        <ChartCard title={isLive ? "Sessions — Last 12 Months (GA4)" : "Traffic — Before vs After Intent"} borderColor={`${accent}40`}>
+          {isLive && "current" in data.metrics.traffic ? (
+            <AreaChartVisual
+              data={chartData}
+              dataKey="trafficCurrent"
+              maxVal={trafficMax}
+              color1={accent}
+              color2={accent}
+              label1="Sessions"
+              label2=""
+            />
+          ) : data.chartLayout === "bar-dominant" || data.chartLayout === "mixed" ? (
+            <BarChartVisual
+              data={chartData}
+              dataKey="trafficBefore"
+              dataKey2="trafficAfter"
+              maxVal={trafficMax}
+              color1={MUTED_BEFORE}
+              color2={accent}
+              label1="Before Intent"
+              label2="After Intent"
+            />
+          ) : (
+            <AreaChartVisual
+              data={chartData}
+              dataKey="trafficBefore"
+              dataKey2="trafficAfter"
+              maxVal={trafficMax}
+              color1={MUTED_BEFORE}
+              color2={accent}
+              label1="Before Intent"
+              label2="After Intent"
+            />
+          )}
+        </ChartCard>
 
-              <ChartCard title="Traffic — Before vs After Intent" borderColor={`${accent}40`}>
-                {business.chartLayout === "bar-dominant" || business.chartLayout === "mixed" ? (
-                  <BarChartVisual
-                    data={chartData}
-                    dataKey="trafficBefore"
-                    dataKey2="trafficAfter"
-                    maxVal={trafficMax}
-                    color1={MUTED_BEFORE}
-                    color2={accent}
-                    label1="Before Intent"
-                    label2="After Intent"
-                  />
-                ) : (
-                  <AreaChartVisual
-                    data={chartData}
-                    dataKey="trafficBefore"
-                    dataKey2="trafficAfter"
-                    maxVal={trafficMax}
-                    color1={MUTED_BEFORE}
-                    color2={accent}
-                    label1="Before Intent"
-                    label2="After Intent"
-                  />
-                )}
-              </ChartCard>
+        {hasBeforeAfter && data.metrics.leads && (
+          <ChartCard title="Leads — Before vs After Intent" borderColor={`${accent}40`}>
+            {data.chartLayout === "area-dominant" ? (
+              <AreaChartVisual
+                data={chartData}
+                dataKey="leadsBefore"
+                dataKey2="leadsAfter"
+                maxVal={leadsMax}
+                color1={MUTED_BEFORE}
+                color2={accent}
+                label1="Before Intent"
+                label2="After Intent"
+              />
+            ) : (
+              <BarChartVisual
+                data={chartData}
+                dataKey="leadsBefore"
+                dataKey2="leadsAfter"
+                maxVal={leadsMax}
+                color1={MUTED_BEFORE}
+                color2={accent}
+                label1="Before Intent"
+                label2="After Intent"
+              />
+            )}
+          </ChartCard>
+        )}
 
-              <ChartCard title="Leads — Before vs After Intent" borderColor={`${accent}40`}>
-                {business.chartLayout === "area-dominant" ? (
-                  <AreaChartVisual
-                    data={chartData}
-                    dataKey="leadsBefore"
-                    dataKey2="leadsAfter"
-                    maxVal={leadsMax}
-                    color1={MUTED_BEFORE}
-                    color2={accent}
-                    label1="Before Intent"
-                    label2="After Intent"
-                  />
-                ) : (
-                  <BarChartVisual
-                    data={chartData}
-                    dataKey="leadsBefore"
-                    dataKey2="leadsAfter"
-                    maxVal={leadsMax}
-                    color1={MUTED_BEFORE}
-                    color2={accent}
-                    label1="Before Intent"
-                    label2="After Intent"
-                  />
-                )}
-              </ChartCard>
+        {hasBeforeAfter && data.metrics.aiCalls && (
+          <ChartCard title="AI Call Volume — Dispatcher Activity" borderColor={`${accent}40`}>
+            <AreaChartVisual
+              data={chartData}
+              dataKey="aiCalls"
+              maxVal={aiCallsMax}
+              color1={accent}
+              color2={accent}
+              label1="AI Calls"
+              label2=""
+            />
+          </ChartCard>
+        )}
 
-              <ChartCard title="AI Call Volume — Dispatcher Activity" borderColor={`${accent}40`}>
-                <AreaChartVisual
-                  data={chartData}
-                  dataKey="aiCalls"
-                  maxVal={aiCallsMax}
-                  color1={accent}
-                  color2={accent}
-                  label1="AI Calls"
-                  label2=""
-                />
-              </ChartCard>
-
-              <ChartCard title="Conversion Rate — Before vs After Intent" borderColor={`${ACCENT_VIOLET}40`}>
-                <AreaChartVisual
-                  data={chartData}
-                  dataKey="conversionRate"
-                  maxVal={convMax}
-                  color1={ACCENT_VIOLET}
-                  color2={ACCENT_VIOLET}
-                  label1="Conversion %"
-                  label2=""
-                />
-              </ChartCard>
-          </div>
-        </div>
-        </div>
+        {hasBeforeAfter && data.metrics.conversionRate && (
+          <ChartCard title="Conversion Rate — Before vs After Intent" borderColor={`${ACCENT_VIOLET}40`}>
+            <AreaChartVisual
+              data={chartData}
+              dataKey="conversionRate"
+              maxVal={convMax}
+              color1={ACCENT_VIOLET}
+              color2={ACCENT_VIOLET}
+              label1="Conversion %"
+              label2=""
+            />
+          </ChartCard>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function AnalyticsHubPage() {
-  const [selectedId, setSelectedId] = useState(BUSINESSES[0].id);
-  const business = BUSINESSES.find((b) => b.id === selectedId)!;
-  const accent = business.accentColor;
+  const [selectedId, setSelectedId] = useState(COMPANIES[0].id);
+  const [data, setData] = useState<AnalyticsResponse | null>(null);
+  const company = COMPANIES.find((c) => c.id === selectedId);
+  const accent = company?.accentColor ?? "#00e5ff";
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    fetch(`/api/analytics/${selectedId}`)
+      .then((r) => r.json())
+      .then((r: AnalyticsResponse) => {
+        if (!cancelled) setData(r);
+      })
+      .catch(() => {
+        if (!cancelled) setData(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   return (
     <div className="min-h-screen relative">
@@ -516,16 +568,16 @@ export default function AnalyticsHubPage() {
           <div className="relative w-full max-w-md">
             <select
               value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value as BusinessId)}
+              onChange={(e) => setSelectedId(e.target.value)}
               className="w-full rounded-lg border-2 px-4 py-3 pr-12 font-display text-white cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00e5ff]/50 appearance-none bg-slate-900/90 hover:border-[#00e5ff]/60"
               style={{
                 borderColor: "rgba(0, 229, 255, 0.4)",
                 color: "#f8fafc",
               }}
             >
-              {BUSINESSES.map((b) => (
+              {COMPANIES.map((b) => (
                 <option key={b.id} value={b.id} className="bg-slate-900 text-white">
-                  {b.name} (since {b.joinedDate})
+                  {b.name} {b.dataSource === "live" ? "●" : ""} (since {b.joinedDate})
                 </option>
               ))}
             </select>
@@ -540,7 +592,7 @@ export default function AnalyticsHubPage() {
           </div>
         </div>
 
-        <AnalyticsContent key={selectedId} selectedId={selectedId} />
+        <AnalyticsContent key={selectedId} data={data} selectedId={selectedId} />
       </main>
 
       <footer className="relative z-10 border-t border-white/10 py-8 px-4 mt-16">
