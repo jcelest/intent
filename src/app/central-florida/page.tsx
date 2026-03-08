@@ -6,22 +6,22 @@ import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "AI Marketing Agency Central Florida | Orlando, Tampa, Kissimmee — Intent",
+  title: "Lead Generation Central Florida | Orlando, Tampa, Kissimmee — Intent",
   description:
-    "Intent delivers AI-powered lead generation for Central Florida businesses. Orlando, Tampa, Kissimmee, Winter Park, Lakeland. AI voice qualification, pSEO, and revenue automation. We engineer revenue.",
+    "Lead generation and marketing for Central Florida contractors. Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Get more leads, grow revenue.",
   keywords: [
-    "AI marketing agency Central Florida",
+    "lead generation Central Florida",
     "lead generation Orlando",
-    "AI marketing Tampa",
-    "Kissimmee business marketing",
-    "Winter Park AI agency",
-    "Lakeland lead generation",
-    "Central Florida revenue automation",
+    "lead generation Tampa",
+    "contractor marketing Orlando",
+    "Kissimmee marketing",
+    "Winter Park lead generation",
+    "Lakeland contractor leads",
   ],
   openGraph: {
-    title: "AI Marketing Agency Central Florida | Intent",
+    title: "Lead Generation Central Florida | Orlando, Tampa — Intent",
     description:
-      "AI-powered lead generation for Orlando, Tampa, Kissimmee & Central Florida. Voice AI, pSEO, revenue automation.",
+      "Lead generation and marketing for Central Florida. Orlando, Tampa, Kissimmee. Get more contractor leads.",
     url: `${SITE_URL}/central-florida`,
   },
   alternates: { canonical: `${SITE_URL}/central-florida` },
@@ -32,7 +32,7 @@ export default function CentralFloridaPage() {
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
         name={`${SITE_NAME} - Central Florida`}
-        description="AI-powered lead generation for Central Florida: Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Voice AI, pSEO, revenue automation."
+        description="Lead generation for Central Florida: Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Get more contractor leads, grow revenue."
         url={`${SITE_URL}/central-florida`}
         areaServed={[
           "Orlando, FL",

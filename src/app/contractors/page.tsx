@@ -6,22 +6,24 @@ import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "AI Marketing for Contractors | Lead Generation & pSEO — Intent",
+  title: "Lead Generation for Contractors | HVAC, Plumbing, Roofing — Intent",
   description:
-    "Intent builds AI-powered lead generation for contractors. HVAC, plumbing, roofing, construction, home services. AI voice qualification, pSEO, speed-to-lead. Florida and nationwide.",
+    "Get more leads for your contractor business. Lead generation and marketing for HVAC, plumbing, roofing, home services. Grow revenue. Florida and nationwide.",
   keywords: [
-    "AI marketing for contractors",
+    "lead generation for contractors",
     "contractor lead generation",
-    "HVAC marketing AI",
+    "contractor marketing",
+    "HVAC lead generation",
     "plumbing lead generation",
-    "roofing marketing agency",
-    "construction contractor marketing",
+    "roofing lead generation",
+    "contractor leads",
     "home services lead generation",
+    "marketing for contractors",
   ],
   openGraph: {
-    title: "AI Marketing for Contractors | Intent",
+    title: "Lead Generation for Contractors | Intent",
     description:
-      "AI-powered lead generation for contractors: HVAC, plumbing, roofing, construction. Voice AI, pSEO, speed-to-lead.",
+      "Get more leads for HVAC, plumbing, roofing, home services. Lead generation and marketing for contractors.",
     url: `${SITE_URL}/contractors`,
   },
   alternates: { canonical: `${SITE_URL}/contractors` },
@@ -32,7 +34,7 @@ export default function ContractorsPage() {
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
         name={`${SITE_NAME} - Contractors`}
-        description="AI-powered lead generation for contractors: HVAC, plumbing, roofing, construction, home services. Voice AI, pSEO, speed-to-lead. Florida and nationwide."
+        description="Lead generation and marketing for contractors: HVAC, plumbing, roofing, home services. Get more leads, grow revenue. Florida and nationwide."
         url={`${SITE_URL}/contractors`}
         areaServed={["Florida", "Central Florida", "United States"]}
         geo={{ latitude: 28.5383, longitude: -81.3792 }}

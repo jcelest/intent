@@ -4,15 +4,15 @@ import { OfferingContent } from "@/components/sections/offering-content";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Offering | Intent — AI Marketing Package for Florida",
+  title: "Lead Generation Package | Get More Contractor Leads — Intent",
   description:
-    "Intent's full package: AI voice qualification, speed-to-lead automation, pSEO engine, custom React logic, and revenue analytics. End-to-end infrastructure for Florida businesses that captures and closes leads.",
+    "Full lead generation package for contractors. Speed-to-lead, local SEO, voice qualification, revenue dashboard. Capture and close more leads.",
   keywords: [
-    "AI marketing package Florida",
-    "lead generation infrastructure",
-    "AI voice qualification",
-    "pSEO engine",
-    "revenue automation Florida",
+    "lead generation package",
+    "contractor lead generation",
+    "lead generation for contractors",
+    "get more leads",
+    "revenue generation",
   ],
 };
 

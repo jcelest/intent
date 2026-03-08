@@ -1,5 +1,6 @@
 /**
  * SEO config for intentrev.net
+ * Prioritizes high-volume keywords: lead generation, marketing, revenue
  * Central Florida + Florida state + Contractors
  */
 
@@ -9,37 +10,38 @@ export const SITE_NAME = "Intent";
 export const SITE_TAGLINE = "We Engineer Revenue";
 
 export const DEFAULT_DESCRIPTION =
-  "Intent builds AI-powered lead generation for Florida businesses—contractors and local services. AI voice qualification, pSEO, and revenue automation. Central Florida and statewide.";
+  "Lead generation and marketing for contractors. HVAC, plumbing, roofing, home services. Get more leads, grow revenue. Florida and nationwide.";
 
 export const FLORIDA_KEYWORDS = [
-  "AI marketing agency Florida",
   "lead generation Florida",
-  "AI voice qualification Florida",
-  "revenue automation Florida",
-  "marketing agency Central Florida",
-  "Orlando AI marketing",
+  "marketing agency Florida",
+  "Florida contractor leads",
+  "Orlando lead generation",
   "Tampa lead generation",
   "Florida business growth",
-  "pSEO Florida",
-  "AI sales automation Florida",
+  "revenue generation Florida",
+  "lead generation Orlando",
+  "lead generation Tampa",
 ];
 
 export const CENTRAL_FLORIDA_KEYWORDS = [
-  "AI marketing agency Central Florida",
+  "lead generation Central Florida",
+  "contractor marketing Orlando",
   "lead generation Orlando",
-  "AI marketing Tampa",
-  "Kissimmee business marketing",
-  "Winter Park AI agency",
-  "Lakeland lead generation",
-  "Central Florida revenue automation",
+  "Tampa lead generation",
+  "Kissimmee marketing",
+  "Winter Park lead generation",
+  "Lakeland contractor leads",
 ];
 
 export const CONTRACTOR_KEYWORDS = [
-  "AI marketing for contractors",
+  "lead generation for contractors",
   "contractor lead generation",
-  "HVAC marketing AI",
+  "contractor marketing",
+  "HVAC lead generation",
   "plumbing lead generation",
-  "roofing marketing agency",
-  "construction contractor marketing",
+  "roofing lead generation",
+  "contractor leads",
   "home services lead generation",
+  "marketing for contractors",
 ];

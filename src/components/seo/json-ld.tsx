@@ -68,10 +68,10 @@ export function OrganizationJsonLd() {
       geoRadius: "200 mi",
     },
     knowsAbout: [
-      "AI marketing for contractors",
       "Lead generation",
-      "AI voice qualification",
-      "pSEO",
+      "Contractor marketing",
+      "HVAC lead generation",
+      "Revenue generation",
     ],
   };
 

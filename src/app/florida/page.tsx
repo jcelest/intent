@@ -6,25 +6,22 @@ import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "AI Marketing Agency Florida | Lead Generation & Revenue Automation — Intent",
+  title: "Lead Generation Florida | Marketing for Contractors Statewide — Intent",
   description:
-    "Intent builds AI-powered lead generation infrastructure for Florida businesses statewide. AI voice qualification, pSEO, speed-to-lead automation. Miami, Jacksonville, Tampa, Orlando. We engineer revenue.",
+    "Lead generation and marketing for Florida contractors. Miami, Jacksonville, Tampa, Orlando. Get more leads, grow revenue. Statewide.",
   keywords: [
-    "AI marketing agency Florida",
     "lead generation Florida",
-    "AI voice qualification Florida",
-    "revenue automation Florida",
-    "marketing agency Central Florida",
-    "Orlando AI marketing",
+    "marketing agency Florida",
+    "Florida contractor leads",
+    "Orlando lead generation",
     "Tampa lead generation",
     "Florida business growth",
-    "pSEO Florida",
-    "AI sales automation Florida",
+    "revenue generation Florida",
   ],
   openGraph: {
-    title: "AI Marketing Agency Florida | Intent",
+    title: "Lead Generation Florida | Intent",
     description:
-      "AI-powered lead generation for Florida businesses. Voice AI, pSEO, revenue automation statewide.",
+      "Lead generation and marketing for Florida contractors. Miami, Jacksonville, Tampa, Orlando. Get more leads.",
     url: `${SITE_URL}/florida`,
   },
   alternates: { canonical: `${SITE_URL}/florida` },
@@ -35,7 +32,7 @@ export default function FloridaPage() {
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
         name={`${SITE_NAME} - Florida`}
-        description="AI-powered lead generation for Florida businesses statewide. Miami, Jacksonville, Tampa, Orlando. Voice AI, pSEO, revenue automation."
+        description="Lead generation for Florida contractors statewide. Miami, Jacksonville, Tampa, Orlando. Get more leads, grow revenue."
         url={`${SITE_URL}/florida`}
         areaServed={["Florida", "Central Florida", "South Florida", "North Florida"]}
         geo={{ latitude: 28.5383, longitude: -81.3792 }}
