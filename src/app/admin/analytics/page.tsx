@@ -109,64 +109,6 @@ function buildChartData(data: AnalyticsResponse): Array<{ month: string; [k: str
   return [];
 }
 
-function BarChartVisual({
-  data,
-  dataKey,
-  dataKey2,
-  maxVal,
-  color1,
-  color2,
-  label1,
-  label2,
-}: {
-  data: Array<{ month: string; [k: string]: string | number | undefined }>;
-  dataKey: string;
-  dataKey2?: string;
-  maxVal: number;
-  color1: string;
-  color2: string;
-  label1: string;
-  label2: string;
-}) {
-  return (
-    <div className="space-y-4 min-w-0">
-      <div className="flex gap-1 text-xs text-slate-400 mb-2">
-        <span style={{ color: color1 }}>● {label1}</span>
-        {dataKey2 && <span style={{ color: color2 }} className="ml-4">● {label2}</span>}
-      </div>
-      <div className="flex items-end gap-px h-48 w-full">
-        {data.map((d, i) => (
-          <div key={i} className="flex-1 min-w-0 flex flex-col items-center gap-0.5">
-            <div className="w-full max-w-full flex flex-col-reverse gap-px items-center" style={{ height: 180 }}>
-              {dataKey2 && (
-                <div
-                  className="w-full min-w-[2px] rounded-t transition-all duration-300"
-                  style={{
-                    height: `${((Number(d[dataKey2]) || 0) / maxVal) * 100}%`,
-                    minHeight: 2,
-                    backgroundColor: color2,
-                  }}
-                />
-              )}
-              <div
-                className="w-full min-w-[2px] rounded-t transition-all duration-300"
-                style={{
-                  height: `${((Number(d[dataKey]) || 0) / maxVal) * 100}%`,
-                  minHeight: 2,
-                  backgroundColor: color1,
-                }}
-              />
-            </div>
-            <span className="text-[9px] text-slate-500 truncate w-full text-center" title={d.month}>
-              {String(d.month).replace(" '23", "").replace(" '24", "")}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function AreaChartVisual({
   data,
   dataKey,
@@ -188,33 +130,36 @@ function AreaChartVisual({
 }) {
   const vals1 = data.map((d) => Number(d[dataKey]) || 0);
   const vals2 = dataKey2 ? data.map((d) => Number(d[dataKey2]) || 0) : [];
-  const max = Math.max(maxVal, ...vals1, ...vals2, 1);
+  const dataMax = Math.max(...vals1, ...vals2, 1);
+  const max = Math.max(maxVal, dataMax, 1);
   const toPoints = (arr: number[]) =>
-    arr.map((v, i) => `${(i / Math.max(1, arr.length - 1)) * 100},${100 - (v / max) * 85}`).join(" ");
+    arr.map((v, i) => `${(i / Math.max(1, arr.length - 1)) * 100},${100 - (v / max) * 88}`).join(" ");
 
   const labelStep = Math.max(1, Math.floor(data.length / 8));
   return (
     <div className="space-y-4 min-w-0">
-      <div className="flex gap-4 text-xs text-slate-400 mb-2">
+      <div className="flex gap-4 text-sm text-slate-400 mb-2">
         <span style={{ color: color1 }}>● {label1}</span>
         {dataKey2 && <span style={{ color: color2 }}>● {label2}</span>}
       </div>
-      <div className="h-48 relative w-full">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+      <div className="h-48 relative w-full bg-slate-900/30 rounded-lg">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full rounded-lg">
           {dataKey2 && vals2.length > 0 && (
             <polygon
               fill={color2}
-              fillOpacity={0.35}
+              fillOpacity={0.4}
               stroke={color2}
-              strokeWidth={0.6}
+              strokeWidth={0.8}
+              strokeOpacity={0.8}
               points={`0,100 ${toPoints(vals2)} 100,100`}
             />
           )}
           <polygon
             fill={color1}
-            fillOpacity={0.5}
+            fillOpacity={0.55}
             stroke={color1}
-            strokeWidth={1}
+            strokeWidth={1.2}
+            strokeOpacity={0.9}
             points={`0,100 ${toPoints(vals1)} 100,100`}
           />
         </svg>
@@ -595,17 +540,6 @@ function AnalyticsContent({
               label1="Sessions"
               label2=""
             />
-          ) : data.chartLayout === "bar-dominant" || data.chartLayout === "mixed" ? (
-            <BarChartVisual
-              data={chartData}
-              dataKey="trafficBefore"
-              dataKey2="trafficAfter"
-              maxVal={trafficMax}
-              color1={MUTED_BEFORE}
-              color2={accent}
-              label1="Before Intent"
-              label2="After Intent"
-            />
           ) : (
             <AreaChartVisual
               data={chartData}
@@ -622,29 +556,16 @@ function AnalyticsContent({
 
         {hasBeforeAfter && data.metrics.leads && (
           <ChartCard title="Leads — Before vs After Intent" borderColor={`${accent}40`}>
-            {data.chartLayout === "area-dominant" ? (
-              <AreaChartVisual
-                data={chartData}
-                dataKey="leadsBefore"
-                dataKey2="leadsAfter"
-                maxVal={leadsMax}
-                color1={MUTED_BEFORE}
-                color2={accent}
-                label1="Before Intent"
-                label2="After Intent"
-              />
-            ) : (
-              <BarChartVisual
-                data={chartData}
-                dataKey="leadsBefore"
-                dataKey2="leadsAfter"
-                maxVal={leadsMax}
-                color1={MUTED_BEFORE}
-                color2={accent}
-                label1="Before Intent"
-                label2="After Intent"
-              />
-            )}
+            <AreaChartVisual
+              data={chartData}
+              dataKey="leadsBefore"
+              dataKey2="leadsAfter"
+              maxVal={leadsMax}
+              color1={MUTED_BEFORE}
+              color2={accent}
+              label1="Before Intent"
+              label2="After Intent"
+            />
           </ChartCard>
         )}
 

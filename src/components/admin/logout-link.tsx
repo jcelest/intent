@@ -1,11 +1,9 @@
 "use client";
 
-const AUTH_COOKIE = "intent_auth";
-
 export function LogoutLink() {
-  const handleLogout = (e: React.MouseEvent) => {
+  const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
-    document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`;
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     window.location.href = "/admin/login";
   };
 
