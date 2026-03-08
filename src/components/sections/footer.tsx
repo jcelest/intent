@@ -35,6 +35,12 @@ export function Footer() {
           >
             Contractors
           </Link>
+          <Link
+            href="/admin/login"
+            className="text-muted/70 hover:text-accent text-xs font-mono transition-colors"
+          >
+            Admin
+          </Link>
           <p className="text-muted text-sm font-mono">
             We Engineer Revenue. © {new Date().getFullYear()}
           </p>
