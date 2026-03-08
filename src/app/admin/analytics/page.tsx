@@ -128,43 +128,40 @@ function BarChartVisual({
   label1: string;
   label2: string;
 }) {
-  const minChartWidth = Math.max(data.length * 20, 320);
   return (
     <div className="space-y-4 min-w-0">
       <div className="flex gap-1 text-xs text-slate-400 mb-2">
         <span style={{ color: color1 }}>● {label1}</span>
         {dataKey2 && <span style={{ color: color2 }} className="ml-4">● {label2}</span>}
       </div>
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex items-end gap-0.5 h-48" style={{ minWidth: minChartWidth }}>
-          {data.map((d, i) => (
-            <div key={i} className="flex-1 min-w-[12px] flex flex-col items-center gap-0.5">
-              <div className="w-full max-w-[12px] flex flex-col-reverse gap-0.5 items-center" style={{ height: 180 }}>
-                {dataKey2 && (
-                  <div
-                    className="w-full max-w-[12px] rounded-t transition-all duration-300 shrink-0"
-                    style={{
-                      height: `${((Number(d[dataKey2]) || 0) / maxVal) * 100}%`,
-                      minHeight: 2,
-                      backgroundColor: color2,
-                    }}
-                  />
-                )}
+      <div className="flex items-end gap-px h-48 w-full">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 min-w-0 flex flex-col items-center gap-0.5">
+            <div className="w-full max-w-full flex flex-col-reverse gap-px items-center" style={{ height: 180 }}>
+              {dataKey2 && (
                 <div
-                  className="w-full max-w-[12px] rounded-t transition-all duration-300 shrink-0"
+                  className="w-full min-w-[2px] rounded-t transition-all duration-300"
                   style={{
-                    height: `${((Number(d[dataKey]) || 0) / maxVal) * 100}%`,
+                    height: `${((Number(d[dataKey2]) || 0) / maxVal) * 100}%`,
                     minHeight: 2,
-                    backgroundColor: color1,
+                    backgroundColor: color2,
                   }}
                 />
-              </div>
-              <span className="text-[10px] text-slate-500 truncate max-w-[24px] text-center" title={d.month}>
-                {String(d.month).replace(" '23", "").replace(" '24", "")}
-              </span>
+              )}
+              <div
+                className="w-full min-w-[2px] rounded-t transition-all duration-300"
+                style={{
+                  height: `${((Number(d[dataKey]) || 0) / maxVal) * 100}%`,
+                  minHeight: 2,
+                  backgroundColor: color1,
+                }}
+              />
             </div>
-          ))}
-        </div>
+            <span className="text-[9px] text-slate-500 truncate w-full text-center" title={d.month}>
+              {String(d.month).replace(" '23", "").replace(" '24", "")}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -195,41 +192,37 @@ function AreaChartVisual({
   const toPoints = (arr: number[]) =>
     arr.map((v, i) => `${(i / Math.max(1, arr.length - 1)) * 100},${100 - (v / max) * 85}`).join(" ");
 
-  const minChartWidth = Math.max(data.length * 24, 320);
+  const labelStep = Math.max(1, Math.floor(data.length / 8));
   return (
     <div className="space-y-4 min-w-0">
       <div className="flex gap-4 text-xs text-slate-400 mb-2">
         <span style={{ color: color1 }}>● {label1}</span>
         {dataKey2 && <span style={{ color: color2 }}>● {label2}</span>}
       </div>
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div style={{ minWidth: minChartWidth }}>
-          <div className="h-48 relative">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full min-h-[192px]">
-              {dataKey2 && vals2.length > 0 && (
-                <polygon
-                  fill={color2}
-                  fillOpacity={0.35}
-                  stroke={color2}
-                  strokeWidth={0.6}
-                  points={`0,100 ${toPoints(vals2)} 100,100`}
-                />
-              )}
-              <polygon
-                fill={color1}
-                fillOpacity={0.5}
-                stroke={color1}
-                strokeWidth={1}
-                points={`0,100 ${toPoints(vals1)} 100,100`}
-              />
-            </svg>
-          </div>
-          <div className="flex justify-between text-[10px] text-slate-500 gap-1 mt-1">
-            {data.filter((_, i) => i % Math.max(1, Math.floor(data.length / 8)) === 0).map((d) => (
-              <span key={d.month} className="shrink-0">{d.month}</span>
-            ))}
-          </div>
-        </div>
+      <div className="h-48 relative w-full">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          {dataKey2 && vals2.length > 0 && (
+            <polygon
+              fill={color2}
+              fillOpacity={0.35}
+              stroke={color2}
+              strokeWidth={0.6}
+              points={`0,100 ${toPoints(vals2)} 100,100`}
+            />
+          )}
+          <polygon
+            fill={color1}
+            fillOpacity={0.5}
+            stroke={color1}
+            strokeWidth={1}
+            points={`0,100 ${toPoints(vals1)} 100,100`}
+          />
+        </svg>
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-500 gap-1">
+        {data.filter((_, i) => i % labelStep === 0).map((d) => (
+          <span key={d.month} className="truncate">{d.month}</span>
+        ))}
       </div>
     </div>
   );
@@ -354,23 +347,45 @@ function AnalyticsContent({
           <div>
             <label className="block font-mono text-xs text-slate-400 mb-1">METRICS</label>
             <div className="flex flex-wrap gap-3">
-              {GA4_METRICS.map((m) => (
-                <label key={m.id} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedMetrics.includes(m.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        onMetricsChange([...selectedMetrics, m.id]);
-                      } else {
-                        onMetricsChange(selectedMetrics.filter((x) => x !== m.id));
+              {GA4_METRICS.map((m) => {
+                const checked = selectedMetrics.includes(m.id);
+                return (
+                  <label key={m.id} className="flex items-center gap-2 cursor-pointer group">
+                    <span
+                      role="checkbox"
+                      aria-checked={checked}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onMetricsChange(
+                            checked ? selectedMetrics.filter((x) => x !== m.id) : [...selectedMetrics, m.id]
+                          );
+                        }
+                      }}
+                      onClick={() =>
+                        onMetricsChange(
+                          checked ? selectedMetrics.filter((x) => x !== m.id) : [...selectedMetrics, m.id]
+                        )
                       }
-                    }}
-                    className="rounded border-slate-500 bg-slate-900 text-[#00e5ff] focus:ring-[#00e5ff]"
-                  />
-                  <span className="text-sm text-slate-300">{m.label}</span>
-                </label>
-              ))}
+                      className={`
+                        w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200
+                        ${checked
+                          ? "border-[#00e5ff] bg-[#00e5ff]/20"
+                          : "border-slate-500 bg-slate-900/50 group-hover:border-slate-400"
+                        }
+                      `}
+                    >
+                      {checked && (
+                        <svg className="w-2.5 h-2.5 text-[#00e5ff]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 6l3 3 5-6" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="text-sm text-slate-300 group-hover:text-slate-200">{m.label}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </div>
