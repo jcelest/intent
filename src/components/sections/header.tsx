@@ -7,8 +7,7 @@ import { Logo } from "@/components/ui/logo";
 
 const NAV_LINKS = [
   { href: "/offering", label: "Offering" },
-  { href: "/#proprietary-tech", label: "Tech" },
-  { href: "/#test-ai", label: "Test AI" },
+  { href: "/#get-in-touch", label: "Get a Quote" },
 ];
 
 export function Header() {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import { SITE_URL, SITE_NAME, SITE_TAGLINE, DEFAULT_DESCRIPTION } from "@/lib/seo";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -15,9 +17,49 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Intent | We Engineer Revenue",
-  description:
-    "Moving beyond traditional marketing. We build proprietary AI infrastructure that captures, qualifies, and closes your business leads automatically.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} | ${SITE_TAGLINE} — AI Marketing for Contractors & Florida`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  keywords: [
+    "AI marketing agency Florida",
+    "lead generation Florida",
+    "AI marketing for contractors",
+    "contractor lead generation",
+    "AI voice qualification",
+    "revenue automation Florida",
+    "Central Florida marketing agency",
+    "Orlando AI marketing",
+    "Florida business growth",
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} | ${SITE_TAGLINE} — AI Marketing for Contractors & Florida`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -46,6 +88,7 @@ export default function RootLayout({
         <div className="cyan-bg-animation" aria-hidden />
         <div className="cyan-bg-grid" aria-hidden />
         <div className="noise-bg" aria-hidden />
+        <OrganizationJsonLd />
         <div className="relative z-[10000] min-h-screen">
           {children}
         </div>

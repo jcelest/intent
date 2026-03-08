@@ -2,51 +2,28 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import {
-  DispatcherIcon,
-  LightningIcon,
-  TargetIcon,
-  AtomIcon,
-} from "@/components/ui/icons";
 
-const PACKAGE_ITEMS = [
+const REGIONS = [
   {
-    title: "The Dispatcher",
-    description:
-      "AI Voice API integration with Vapi & Retell. Real-time outbound calls that qualify leads before your team touches the phone. Reduce no-shows, filter tire-kickers, and book only high-intent appointments.",
-    Icon: DispatcherIcon,
-    badge: "Voice AI",
+    name: "Central Florida",
+    cities: "Orlando, Tampa, Kissimmee, Winter Park, Lakeland",
+    desc: "Theme parks, tourism, healthcare, and tech—our core service area.",
   },
   {
-    title: "Speed-to-Lead",
-    description:
-      "Every second counts when capturing intent. Our infrastructure responds to form submissions and inbound signals in under 60 seconds—often before competitors even see the lead.",
-    Icon: LightningIcon,
-    badge: "<60 sec",
+    name: "South Florida",
+    cities: "Miami, Fort Lauderdale, West Palm Beach",
+    desc: "Finance, real estate, and international business—we scale lead capture.",
   },
   {
-    title: "pSEO Engine",
-    description:
-      "Programmatic neighborhood-targeting scripts. Dominate local search at scale with geo-specific landing pages, schema markup, and content that converts. Built for contractors, plumbers, dentists, auto shops, and more.",
-    Icon: TargetIcon,
-    badge: "Local SEO",
+    name: "North Florida",
+    cities: "Jacksonville, Tallahassee, Gainesville",
+    desc: "Government, education, and logistics—we automate qualification.",
   },
   {
-    title: "Custom React Logic",
-    description:
-      "Purpose-built components, zero bloat, maximum conversion. We don't use WordPress templates—we build conversion-optimized experiences that capture and nurture leads at every touchpoint.",
-    Icon: AtomIcon,
-    badge: "Custom Build",
+    name: "Gulf Coast",
+    cities: "Sarasota, Naples, Fort Myers",
+    desc: "Retirement, healthcare, and hospitality—we dominate local search.",
   },
-];
-
-const INCLUSIONS = [
-  "AI voice qualification & appointment booking",
-  "Speed-to-lead automation (<60 sec response)",
-  "Local SEO & programmatic landing pages",
-  "Custom conversion-focused web experience",
-  "Revenue dashboard & analytics",
-  "Ongoing optimization & support",
 ];
 
 const container = {
@@ -62,7 +39,7 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-export function OfferingContent() {
+export function FloridaContent() {
   return (
     <main className="pt-24 pb-16">
       {/* Hero */}
@@ -74,7 +51,10 @@ export function OfferingContent() {
             transition={{ duration: 0.5 }}
             className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight text-foreground"
           >
-            The <span className="text-accent drop-shadow-[0_0_20px_rgba(34,211,238,0.4)]">Intent</span> Package
+            AI Marketing Agency for{" "}
+            <span className="text-accent drop-shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+              Florida
+            </span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 1, y: 16 }}
@@ -82,14 +62,13 @@ export function OfferingContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Built for contractors and the trades. AI voice qualification, pSEO,
-            speed-to-lead—end-to-end infrastructure that captures and closes
-            your leads. No vanity metrics, just revenue.
+            From Miami to Jacksonville, Tampa to Orlando—we build AI-powered
+            lead generation for contractors and local services. We engineer revenue for Florida businesses statewide.
           </motion.p>
         </div>
       </section>
 
-      {/* Core Stack - Gamified cards */}
+      {/* Regions we serve */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
           <motion.h2
@@ -98,7 +77,7 @@ export function OfferingContent() {
             viewport={{ once: true }}
             className="text-2xl sm:text-3xl font-display font-semibold text-center mb-12 text-foreground"
           >
-            What&apos;s Included
+            Serving Florida Statewide
           </motion.h2>
           <motion.div
             variants={container}
@@ -107,28 +86,21 @@ export function OfferingContent() {
             viewport={{ once: true, margin: "-50px" }}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {PACKAGE_ITEMS.map((pkg) => (
+            {REGIONS.map((region) => (
               <motion.article
-                key={pkg.title}
+                key={region.name}
                 variants={item}
                 whileHover={{ scale: 1.02, y: -4 }}
                 className="group rounded-xl border-2 border-border bg-card p-6 sm:p-8 hover:border-accent/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] transition-all duration-300"
               >
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-accent/15 text-accent group-hover:bg-accent/25 transition-colors">
-                      <pkg.Icon className="w-7 h-7" />
-                    </div>
-                    <h3 className="text-xl font-display font-semibold text-foreground">
-                      {pkg.title}
-                    </h3>
-                  </div>
-                  <span className="shrink-0 px-3 py-1 rounded-full text-xs font-mono font-medium bg-accent/20 text-accent border border-accent/30">
-                    {pkg.badge}
-                  </span>
-                </div>
+                <h3 className="text-xl font-display font-semibold text-accent mb-2">
+                  {region.name}
+                </h3>
+                <p className="text-foreground/70 text-sm font-medium mb-3">
+                  {region.cities}
+                </p>
                 <p className="text-foreground/85 leading-relaxed text-base sm:text-lg">
-                  {pkg.description}
+                  {region.desc}
                 </p>
               </motion.article>
             ))}
@@ -136,7 +108,7 @@ export function OfferingContent() {
         </div>
       </section>
 
-      {/* Full Package List - Gamified with progress feel */}
+      {/* What we deliver */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="max-w-3xl mx-auto">
           <motion.h2
@@ -145,7 +117,7 @@ export function OfferingContent() {
             viewport={{ once: true }}
             className="text-2xl sm:text-3xl font-display font-semibold text-center mb-10 text-foreground"
           >
-            Full Package Overview
+            What Florida Businesses Get
           </motion.h2>
           <motion.ul
             variants={container}
@@ -154,9 +126,15 @@ export function OfferingContent() {
             viewport={{ once: true, margin: "-50px" }}
             className="space-y-5"
           >
-            {INCLUSIONS.map((inclusion, i) => (
+            {[
+              "AI voice qualification—real outbound calls that book appointments",
+              "Speed-to-lead—respond to leads in under 60 seconds",
+              "pSEO engine—programmatic local landing pages at scale",
+              "Revenue dashboard—track every lead and conversion",
+              "Custom React builds—conversion-focused, zero bloat",
+            ].map((point, i) => (
               <motion.li
-                key={inclusion}
+                key={point}
                 variants={item}
                 className="flex items-center gap-4 rounded-lg border border-border/60 bg-card/50 px-5 py-4 hover:border-accent/30 hover:bg-card/80 transition-all duration-300"
               >
@@ -164,7 +142,7 @@ export function OfferingContent() {
                   {i + 1}
                 </span>
                 <span className="text-foreground/95 font-medium text-base sm:text-lg leading-relaxed">
-                  {inclusion}
+                  {point}
                 </span>
               </motion.li>
             ))}
@@ -172,7 +150,7 @@ export function OfferingContent() {
         </div>
       </section>
 
-      {/* CTA - Gamified */}
+      {/* CTA */}
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <motion.div
           initial={{ opacity: 1, y: 20 }}
@@ -181,10 +159,10 @@ export function OfferingContent() {
           className="max-w-2xl mx-auto text-center"
         >
           <h2 className="text-2xl sm:text-3xl font-display font-semibold mb-4 text-foreground">
-            Ready to fill your schedule with qualified leads?
+            Ready to engineer revenue in Florida?
           </h2>
           <p className="text-foreground/90 text-lg mb-8 font-medium">
-            Get a free quote. We&apos;ll show you how we engineer revenue for contractors like you.
+            Test our AI or explore our full package.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
@@ -192,7 +170,23 @@ export function OfferingContent() {
                 href="/#get-in-touch"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg bg-accent text-black hover:bg-accent/90 transition-colors shadow-[0_0_25px_rgba(34,211,238,0.3)]"
               >
-                Get a Free Quote
+                Test the AI
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/central-florida"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg border-2 border-accent/60 text-foreground hover:border-accent hover:bg-accent/10 transition-colors"
+              >
+                Central Florida
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/offering"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg border-2 border-accent/60 text-foreground hover:border-accent hover:bg-accent/10 transition-colors"
+              >
+                See Our Package
               </Link>
             </motion.div>
           </div>

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const BOOT_SEQUENCE = [
-  "root@intent:~# initializing_growth_engine...",
+  "root@intent:~# initializing_contractor_engine...",
   "[OK] AI Voice Dispatcher loaded",
   "[OK] Lead qualification pipeline active",
   "[OK] pSEO targeting scripts deployed",

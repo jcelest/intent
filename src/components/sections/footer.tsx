@@ -10,17 +10,35 @@ export function Footer() {
         <Link href="/" className="flex items-center shrink-0">
           <Logo variant="footer" />
         </Link>
-        <div className="flex items-center gap-6">
+        <nav className="flex items-center gap-6 flex-wrap justify-center sm:justify-end">
+          <Link
+            href="/offering"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Offering
+          </Link>
+          <Link
+            href="/central-florida"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Central Florida
+          </Link>
+          <Link
+            href="/florida"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Florida
+          </Link>
+          <Link
+            href="/contractors"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Contractors
+          </Link>
           <p className="text-muted text-sm font-mono">
             We Engineer Revenue. © {new Date().getFullYear()}
           </p>
-          <Link
-            href="/admin/login"
-            className="text-muted/70 hover:text-accent text-xs font-mono transition-colors"
-          >
-            Intent
-          </Link>
-        </div>
+        </nav>
       </div>
     </footer>
   );

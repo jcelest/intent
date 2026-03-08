@@ -12,7 +12,7 @@ import {
 const BENTO_ITEMS = [
   {
     title: "The Dispatcher",
-    description: "AI Voice API integration with Vapi & Retell. Real-time outbound calls that qualify leads before your team touches the phone.",
+    description: "AI voice calls that qualify leads before your team touches the phone. Filter tire-kickers, book high-intent jobs—built for contractors who can't afford no-shows.",
     Icon: DispatcherIcon,
     span: "col-span-1 row-span-2",
     accent: true,
@@ -20,7 +20,7 @@ const BENTO_ITEMS = [
   },
   {
     title: "Speed-to-Lead",
-    description: "Every second counts when capturing intent.",
+    description: "When a homeowner submits a form, we respond in under 60 seconds—before competitors even see the lead.",
     Icon: LightningIcon,
     span: "col-span-1 row-span-1",
     accent: false,
@@ -28,7 +28,7 @@ const BENTO_ITEMS = [
   },
   {
     title: "pSEO Engine",
-    description: "Programmatic neighborhood-targeting scripts. Dominate local search at scale.",
+    description: "Geo-targeted landing pages for your service areas. Dominate local search so homeowners find you first.",
     Icon: TargetIcon,
     span: "col-span-1 row-span-1",
     accent: false,
@@ -36,7 +36,7 @@ const BENTO_ITEMS = [
   },
   {
     title: "Custom React Logic",
-    description: "Why our code beats WordPress templates. Purpose-built components, zero bloat, maximum conversion.",
+    description: "Conversion-focused sites built for contractors. No WordPress templates—purpose-built to capture and nurture leads.",
     Icon: AtomIcon,
     span: "col-span-1 md:col-span-2 row-span-1",
     accent: false,
@@ -60,7 +60,7 @@ const item = {
 export function BentoGrid() {
   return (
     <section
-      id="proprietary-tech"
+      id="how-it-works"
       className="relative py-24 px-4 sm:px-6 lg:px-8"
     >
       <motion.div
@@ -70,10 +70,10 @@ export function BentoGrid() {
         className="text-center mb-16"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-semibold">
-          Proprietary <span className="text-accent">Tech</span>
+          Built for the <span className="text-accent">Trades</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          Infrastructure built for revenue, not vanity metrics.
+          AI infrastructure that captures and qualifies leads for contractors—HVAC, plumbing, roofing, and more.
         </p>
       </motion.div>
 

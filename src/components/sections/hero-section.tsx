@@ -48,9 +48,9 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed"
         >
-          Moving beyond traditional marketing. We build proprietary AI
-          infrastructure that captures, qualifies, and closes your business
-          leads automatically.
+          Built for contractors and the trades. We build AI infrastructure that
+          captures, qualifies, and closes your leads—HVAC, plumbing, roofing,
+          and more. No vanity metrics, just revenue.
         </motion.p>
 
         <motion.div
@@ -65,22 +65,18 @@ export function HeroSection() {
             className="drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"
             onClick={() =>
               document
-                .getElementById("test-ai")
+                .getElementById("get-in-touch")
                 ?.scrollIntoView({ behavior: "smooth" })
             }
           >
-            Test the AI
+            Get a Free Quote
           </Button>
           <Button
             variant="secondary"
             size="lg"
-            onClick={() =>
-              document
-                .getElementById("proprietary-tech")
-                ?.scrollIntoView({ behavior: "smooth" })
-            }
+            onClick={() => (window.location.href = "/offering")}
           >
-            See Our Tech
+            See the Package
           </Button>
         </motion.div>
 

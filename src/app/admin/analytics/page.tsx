@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { LogoutLink } from "@/components/admin/logout-link";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { motion } from "framer-motion";
 import { COMPANIES } from "@/lib/companies";
 import {
@@ -641,17 +641,7 @@ export default function AnalyticsHubPage() {
   return (
     <div className="min-h-screen relative">
       <div className="fixed inset-0 bg-gradient-to-br from-[#00e5ff]/[0.03] via-transparent to-[#a78bfa]/[0.03] pointer-events-none z-0" aria-hidden />
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <Link href="/" className="text-sm font-mono text-slate-300 hover:text-[#00e5ff] transition-colors">
-            ← Back to Intent
-          </Link>
-          <h1 className="text-lg font-display font-semibold text-[#00e5ff] drop-shadow-[0_0_20px_rgba(0,229,255,0.5)]">
-            Admin Analytics Hub
-          </h1>
-          <LogoutLink />
-        </div>
-      </header>
+      <AdminHeader />
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 overflow-x-hidden min-w-0">
         <div className="mb-12">
@@ -700,7 +690,7 @@ export default function AnalyticsHubPage() {
           <Link href="/" className="flex items-center shrink-0 text-slate-400 hover:text-[#00e5ff] transition-colors">
             <span className="font-mono text-sm">← Intent</span>
           </Link>
-          <p className="text-slate-500 text-sm font-mono">Admin Analytics Hub • Internal Use Only</p>
+          <p className="text-slate-500 text-sm font-mono">Admin Hub • Internal Use Only</p>
         </div>
       </footer>
     </div>

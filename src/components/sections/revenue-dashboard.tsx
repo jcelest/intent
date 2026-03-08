@@ -44,7 +44,7 @@ export function RevenueDashboard() {
           Revenue <span className="text-accent">Dashboard</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          Numbers, not likes. Real metrics from real infrastructure.
+          Real metrics from real contractor clients. Leads, calls, conversions—no vanity metrics.
         </p>
       </motion.div>
 
