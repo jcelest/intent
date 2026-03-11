@@ -345,9 +345,7 @@ function AnalyticsContent({
               const displayVal =
                 s.format === "percent"
                   ? `${(latest <= 1 ? latest * 100 : latest).toFixed(1)}%`
-                  : total >= 1000
-                    ? total.toLocaleString()
-                    : latest.toLocaleString();
+                  : total.toLocaleString();
               return (
                 <div
                   key={s.id}
