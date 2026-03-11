@@ -17,9 +17,13 @@ export type MetricsCurrent = {
 export const GA4_METRICS = [
   { id: "sessions", label: "Sessions", format: "number" as const },
   { id: "activeUsers", label: "Users", format: "number" as const },
+  { id: "newUsers", label: "New users", format: "number" as const },
   { id: "screenPageViews", label: "Page views", format: "number" as const },
+  { id: "engagedSessions", label: "Engaged sessions", format: "number" as const },
+  { id: "eventCount", label: "Events", format: "number" as const },
   { id: "bounceRate", label: "Bounce rate", format: "percent" as const },
   { id: "engagementRate", label: "Engagement rate", format: "percent" as const },
+  { id: "averageSessionDuration", label: "Avg session duration", format: "duration" as const },
   { id: "conversions", label: "Conversions", format: "number" as const },
 ] as const;
 
@@ -39,7 +43,7 @@ export type Ga4Series = {
   id: string;
   label: string;
   values: number[];
-  format: "number" | "percent";
+  format: "number" | "percent" | "duration";
 };
 
 export type Ga4LiveData = {

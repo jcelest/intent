@@ -291,43 +291,25 @@ function AnalyticsContent({
           </div>
           <div>
             <label className="block font-mono text-xs text-slate-400 mb-1">METRICS</label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               {GA4_METRICS.map((m) => {
                 const checked = selectedMetrics.includes(m.id);
                 return (
-                  <label key={m.id} className="flex items-center gap-2 cursor-pointer group">
-                    <span
-                      role="checkbox"
-                      aria-checked={checked}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onMetricsChange(
-                            checked ? selectedMetrics.filter((x) => x !== m.id) : [...selectedMetrics, m.id]
-                          );
-                        }
-                      }}
-                      onClick={() =>
+                  <label
+                    key={m.id}
+                    className="flex items-center gap-3 cursor-pointer group py-1.5 px-2 -m-2 rounded hover:bg-slate-800/50 min-w-[140px]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
                         onMetricsChange(
                           checked ? selectedMetrics.filter((x) => x !== m.id) : [...selectedMetrics, m.id]
                         )
                       }
-                      className={`
-                        w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200
-                        ${checked
-                          ? "border-[#00e5ff] bg-[#00e5ff]/20"
-                          : "border-slate-500 bg-slate-900/50 group-hover:border-slate-400"
-                        }
-                      `}
-                    >
-                      {checked && (
-                        <svg className="w-2.5 h-2.5 text-[#00e5ff]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M2 6l3 3 5-6" />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="text-sm text-slate-300 group-hover:text-slate-200">{m.label}</span>
+                      className="w-5 h-5 rounded border-2 border-slate-500 bg-slate-900/50 cursor-pointer accent-[#00e5ff] focus:ring-2 focus:ring-[#00e5ff]/50 focus:ring-offset-0"
+                    />
+                    <span className="text-sm text-slate-300 group-hover:text-slate-200 select-none">{m.label}</span>
                   </label>
                 );
               })}
@@ -341,11 +323,19 @@ function AnalyticsContent({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-12">
             {data.ga4.series.map((s) => {
               const total = s.values.reduce((a, b) => a + b, 0);
-              const latest = s.values[s.values.length - 1] ?? 0;
-              const displayVal =
-                s.format === "percent"
-                  ? `${(latest <= 1 ? latest * 100 : latest).toFixed(1)}%`
-                  : total.toLocaleString();
+              const avg = s.values.length > 0 ? total / s.values.length : 0;
+              let displayVal: string;
+              if (s.format === "percent") {
+                const pct = avg <= 1 ? avg * 100 : avg;
+                displayVal = `${pct.toFixed(1)}%`;
+              } else if (s.format === "duration") {
+                const secs = Math.round(avg);
+                const m = Math.floor(secs / 60);
+                const sec = secs % 60;
+                displayVal = `${m}:${String(sec).padStart(2, "0")}`;
+              } else {
+                displayVal = total.toLocaleString();
+              }
               return (
                 <div
                   key={s.id}
@@ -605,11 +595,9 @@ export default function AnalyticsHubPage() {
   const [selectedId, setSelectedId] = useState(COMPANIES[0].id);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [dateRange, setDateRange] = useState<Ga4DateRangeId>("12m");
-  const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>([
-    "sessions",
-    "activeUsers",
-    "screenPageViews",
-  ]);
+  const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>(
+    GA4_METRICS.map((m) => m.id)
+  );
   const company = COMPANIES.find((c) => c.id === selectedId);
   const accent = company?.accentColor ?? "#00e5ff";
   const isLive = company?.dataSource === "live";

@@ -88,9 +88,9 @@ async function fetchGa4Report(
       label: def?.label ?? m.name,
       values: rows.map((r) => {
         const v = r.metricValues?.[idx]?.value ?? "0";
-        return def?.format === "percent" ? parseFloat(v) : Math.round(parseFloat(v));
+        return (def?.format === "percent" || def?.format === "duration") ? parseFloat(v) : Math.round(parseFloat(v));
       }),
-      format: (def?.format ?? "number") as "number" | "percent",
+      format: (def?.format ?? "number") as "number" | "percent" | "duration",
     };
   });
 
@@ -105,7 +105,7 @@ export async function GET(
   const { companyId } = await params;
   const { searchParams } = new URL(request.url);
   const dateRange = (searchParams.get("dateRange") ?? "12m") as Ga4DateRangeId;
-  const metricsParam = searchParams.get("metrics") ?? "sessions,activeUsers,screenPageViews";
+  const metricsParam = searchParams.get("metrics") ?? GA4_METRICS.map((m) => m.id).join(",");
   const metricIds = metricsParam.split(",").filter(Boolean) as Ga4MetricId[];
 
   const company = getCompany(companyId);
