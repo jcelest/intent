@@ -307,8 +307,24 @@ function AnalyticsContent({
                           checked ? selectedMetrics.filter((x) => x !== m.id) : [...selectedMetrics, m.id]
                         )
                       }
-                      className="w-5 h-5 rounded border-2 border-slate-500 bg-slate-900/50 cursor-pointer accent-[#00e5ff] focus:ring-2 focus:ring-[#00e5ff]/50 focus:ring-offset-0"
+                      className="sr-only peer"
                     />
+                    <span
+                      className={`
+                        w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 shrink-0
+                        peer-focus:ring-2 peer-focus:ring-[#00e5ff]/50
+                        ${checked
+                          ? "border-[#00e5ff] bg-[#00e5ff]/20"
+                          : "border-slate-500 bg-slate-900/50 group-hover:border-slate-400"
+                        }
+                      `}
+                    >
+                      {checked && (
+                        <svg className="w-2.5 h-2.5 text-[#00e5ff]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 6l3 3 5-6" />
+                        </svg>
+                      )}
+                    </span>
                     <span className="text-sm text-slate-300 group-hover:text-slate-200 select-none">{m.label}</span>
                   </label>
                 );
