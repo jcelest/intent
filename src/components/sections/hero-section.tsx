@@ -34,12 +34,17 @@ export function HeroSection() {
           initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-semibold tracking-tight"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-semibold tracking-tight max-w-4xl"
         >
           <span className="drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] text-accent">
             Intent
           </span>
-          : We Engineer Revenue.
+          <span className="block mt-2 text-2xl sm:text-3xl md:text-4xl text-foreground font-semibold">
+            Contractor lead generation for the trades
+          </span>
+          <span className="block mt-3 text-xl sm:text-2xl md:text-3xl text-muted font-medium">
+            We engineer revenue.
+          </span>
         </motion.h1>
 
         <motion.p
@@ -48,9 +53,9 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed"
         >
-          Built for contractors and the trades. We build AI infrastructure that
-          captures, qualifies, and closes your leads—HVAC, plumbing, roofing,
-          and more. No vanity metrics, just revenue.
+          Built for HVAC, plumbing, roofing, and home services. Speed-to-lead,
+          voice qualification, and local SEO—systems that capture and close
+          leads. No vanity metrics, just revenue.
         </motion.p>
 
         <motion.div

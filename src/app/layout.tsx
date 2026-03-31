@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { OrganizationJsonLd } from "@/components/seo/json-ld";
-import { SITE_URL, SITE_NAME, SITE_TAGLINE, DEFAULT_DESCRIPTION } from "@/lib/seo";
+import {
+  SITE_URL,
+  SITE_NAME,
+  SEO_TITLE_DEFAULT,
+  DEFAULT_DESCRIPTION,
+} from "@/lib/seo";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -19,18 +24,18 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} | ${SITE_TAGLINE} — Lead Generation & Marketing for Contractors`,
+    default: SEO_TITLE_DEFAULT,
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: [
-    "lead generation for contractors",
     "contractor lead generation",
+    "lead generation for contractors",
     "contractor marketing",
     "lead generation Florida",
     "HVAC lead generation",
     "plumbing lead generation",
-    "marketing agency Florida",
+    "engineer revenue",
     "revenue generation",
   ],
   authors: [{ name: SITE_NAME, url: SITE_URL }],
@@ -40,13 +45,22 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: `${SITE_NAME} | ${SITE_TAGLINE} — Lead Generation & Marketing for Contractors`,
+    title: SEO_TITLE_DEFAULT,
     description: DEFAULT_DESCRIPTION,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Intent — contractor lead generation for the trades",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    title: SEO_TITLE_DEFAULT,
     description: DEFAULT_DESCRIPTION,
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
@@ -75,6 +89,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="canonical" href={SITE_URL} />
+      </head>
       <body
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-display antialiased bg-oled text-foreground`}
       >

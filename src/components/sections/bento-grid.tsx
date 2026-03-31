@@ -12,7 +12,7 @@ import {
 const BENTO_ITEMS = [
   {
     title: "The Dispatcher",
-    description: "AI voice calls that qualify leads before your team touches the phone. Filter tire-kickers, book high-intent jobs—built for contractors who can't afford no-shows.",
+    description: "Automated voice calls that qualify leads before your team touches the phone. Filter tire-kickers, book high-intent jobs—built for contractors who can't afford no-shows.",
     Icon: DispatcherIcon,
     span: "col-span-1 row-span-2",
     accent: true,
