@@ -4,9 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutLink } from "@/components/admin/logout-link";
 
+const NAV = [
+  { href: "/admin/analytics", label: "Analytics", match: (p: string) => p.includes("/analytics") && !p.includes("/keyword") },
+  { href: "/admin/forms", label: "Forms", match: (p: string) => p.includes("/forms") },
+  { href: "/admin/keyword-demand", label: "Keyword demand", match: (p: string) => p.includes("/keyword-demand") },
+] as const;
+
 export function AdminHeader() {
-  const pathname = usePathname();
-  const isForms = pathname?.includes("/forms");
+  const pathname = usePathname() ?? "";
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/80">
@@ -20,23 +25,21 @@ export function AdminHeader() {
           </h1>
           <LogoutLink />
         </div>
-        <nav className="flex gap-6">
-          <Link
-            href="/admin/analytics"
-            className={`font-mono text-sm transition-colors ${
-              !isForms ? "text-[#00e5ff] font-semibold" : "text-slate-400 hover:text-slate-300"
-            }`}
-          >
-            Analytics
-          </Link>
-          <Link
-            href="/admin/forms"
-            className={`font-mono text-sm transition-colors ${
-              isForms ? "text-[#00e5ff] font-semibold" : "text-slate-400 hover:text-slate-300"
-            }`}
-          >
-            Forms
-          </Link>
+        <nav className="flex flex-wrap gap-6">
+          {NAV.map((item) => {
+            const active = item.match(pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`font-mono text-sm transition-colors ${
+                  active ? "text-[#00e5ff] font-semibold" : "text-slate-400 hover:text-slate-300"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </header>
