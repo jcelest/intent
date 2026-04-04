@@ -5,6 +5,7 @@ import {
   runKeywordResearch,
 } from "@/lib/google-ads-keyword-research";
 import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
+import { toGoogleAdsHttpError } from "@/lib/google-ads-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -58,8 +59,11 @@ export async function POST(request: Request) {
     const result = await runKeywordResearch(keyword, geo);
     return NextResponse.json(result);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Google Ads API error";
     console.error("[google-ads/keyword-research]", err);
-    return NextResponse.json({ error: message }, { status: 502 });
+    const { message, status, code } = toGoogleAdsHttpError(err);
+    return NextResponse.json(
+      code ? { error: message, code } : { error: message },
+      { status }
+    );
   }
 }
