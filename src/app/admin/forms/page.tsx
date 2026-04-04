@@ -113,7 +113,7 @@ export default function AdminFormsPage() {
           <Link href="/" className="flex items-center shrink-0 text-slate-400 hover:text-[#00e5ff] transition-colors">
             <span className="font-mono text-sm">← Intent</span>
           </Link>
-          <p className="text-slate-500 text-sm font-mono">Admin Hub • Internal Use Only</p>
+          <p className="text-slate-500 text-sm font-mono">Intent Admin Hub • Internal Use Only</p>
         </div>
       </footer>
     </div>

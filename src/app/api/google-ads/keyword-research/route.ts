@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const geo = isGeoKey(body.geo) ? body.geo : "us";
+  const geo = isGeoKey(body.geo) ? body.geo : "fl";
 
   try {
     const result = await runKeywordResearch(keyword, geo);

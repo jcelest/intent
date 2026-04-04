@@ -4,7 +4,6 @@
  * @see https://developers.google.com/google-ads/api/data/geotargets
  */
 export const GEO_PRESETS = {
-  us: { label: "United States", constants: ["geoTargetConstants/2840"] },
   fl: { label: "Florida (state)", constants: ["geoTargetConstants/21142"] },
   metros: {
     label: "Florida — Miami-Dade, Orlando, Tampa (combined)",
@@ -33,7 +32,6 @@ export const GEO_PRESETS = {
 export type GeoPresetKey = keyof typeof GEO_PRESETS;
 
 export const GEO_PRESET_ORDER: GeoPresetKey[] = [
-  "us",
   "fl",
   "metros",
   "fl-miami",

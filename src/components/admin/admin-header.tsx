@@ -5,9 +5,13 @@ import { usePathname } from "next/navigation";
 import { LogoutLink } from "@/components/admin/logout-link";
 
 const NAV = [
-  { href: "/admin/analytics", label: "Analytics", match: (p: string) => p.includes("/analytics") && !p.includes("/keyword") },
-  { href: "/admin/forms", label: "Forms", match: (p: string) => p.includes("/forms") },
-  { href: "/admin/keyword-demand", label: "Keyword demand", match: (p: string) => p.includes("/keyword-demand") },
+  {
+    href: "/admin/analytics",
+    label: "Intent Analytics",
+    match: (p: string) => p.includes("/analytics") && !p.includes("/keyword"),
+  },
+  { href: "/admin/forms", label: "Intent Forms", match: (p: string) => p.includes("/forms") },
+  { href: "/admin/keyword-demand", label: "Intent Traffic", match: (p: string) => p.includes("/keyword-demand") },
 ] as const;
 
 export function AdminHeader() {
@@ -21,7 +25,7 @@ export function AdminHeader() {
             ← Back to Intent
           </Link>
           <h1 className="text-lg font-display font-semibold text-[#00e5ff] drop-shadow-[0_0_20px_rgba(0,229,255,0.5)]">
-            Admin Hub
+            Intent Admin Hub
           </h1>
           <LogoutLink />
         </div>

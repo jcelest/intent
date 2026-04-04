@@ -1,6 +1,8 @@
 /**
- * In-memory store for form submissions.
- * For production persistence, replace with a database (e.g. Vercel Postgres, Supabase).
+ * In-memory store for form submissions (not written to disk).
+ * On serverless hosts (e.g. Vercel), each function instance has its own memory and
+ * instances restart or scale — submissions are not durable and can disappear at any time.
+ * For persistent history, use a database (e.g. Vercel Postgres, Supabase).
  */
 
 export type FormSubmission = {

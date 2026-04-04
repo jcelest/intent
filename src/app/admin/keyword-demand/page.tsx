@@ -81,7 +81,7 @@ function trendHeights(monthly: { searches: number }[]): number[] {
 
 export default function KeywordDemandPage() {
   const [query, setQuery] = useState("a/c repair");
-  const [geo, setGeo] = useState<GeoPresetKey>("us");
+  const [geo, setGeo] = useState<GeoPresetKey>("fl");
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,11 +161,11 @@ export default function KeywordDemandPage() {
 
         <div className="mb-8">
           <h2 className="text-2xl font-display font-semibold text-[#00e5ff]">
-            Keyword demand intelligence
+            Intent Traffic
           </h2>
           <p className="mt-2 text-slate-400 text-sm max-w-2xl">
-            Search volume and keyword ideas from the Google Ads API — seed keywords, geo targeting,
-            and historical monthly search volumes.
+            Florida-focused search volume and keyword ideas from the Google Ads API — seed keywords,
+            geo targeting, and historical monthly search volumes.
           </p>
         </div>
 
@@ -192,9 +192,6 @@ export default function KeywordDemandPage() {
                 onChange={(e) => setGeo(e.target.value as GeoPresetKey)}
                 className="w-full rounded-lg border-2 border-slate-600 bg-slate-950/80 px-4 py-3 font-mono text-sm text-white focus:outline-none focus:border-[#00e5ff]/60"
               >
-                <optgroup label="United States">
-                  <option value="us">{GEO_PRESETS.us.label}</option>
-                </optgroup>
                 <optgroup label="Florida — broad">
                   <option value="fl">{GEO_PRESETS.fl.label}</option>
                   <option value="metros">{GEO_PRESETS.metros.label}</option>
@@ -436,7 +433,7 @@ export default function KeywordDemandPage() {
           <Link href="/" className="text-slate-400 hover:text-[#00e5ff] transition-colors font-mono text-sm">
             ← Intent
           </Link>
-          <p className="text-slate-500 text-sm font-mono">Keyword demand · Admin</p>
+          <p className="text-slate-500 text-sm font-mono">Intent Traffic · Intent Admin Hub</p>
         </div>
       </footer>
     </div>

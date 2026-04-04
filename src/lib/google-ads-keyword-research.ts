@@ -5,12 +5,12 @@ export type { GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 const LANGUAGE_EN = "languageConstants/1000";
 
-/** Fewer parallel calls + correct IDs — avoids serverless timeouts and bad targets */
+/** Florida-focused comparison rows (no national aggregate) */
 const GEO_BREAKDOWN_ROWS: { label: string; constant: string }[] = [
-  { label: "United States", constant: "geoTargetConstants/2840" },
   { label: "Florida (state)", constant: "geoTargetConstants/21142" },
   { label: "Miami-Dade County", constant: "geoTargetConstants/9057286" },
   { label: "Orlando (city)", constant: "geoTargetConstants/1015150" },
+  { label: "Tampa (city)", constant: "geoTargetConstants/1015214" },
 ];
 
 export type KeywordIdeaRow = {
