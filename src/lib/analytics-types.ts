@@ -43,6 +43,8 @@ export type Ga4Series = {
   id: string;
   label: string;
   values: number[];
+  /** Same order as `values`; set when comparing to a prior period */
+  valuesPrevious?: number[];
   format: "number" | "percent" | "duration";
 };
 
@@ -50,6 +52,15 @@ export type Ga4LiveData = {
   dateRange: string;
   dateLabels: string[];
   series: Ga4Series[];
+  /** Inclusive GA4 date bounds for the primary series */
+  startDate?: string;
+  endDate?: string;
+  /** When compare was requested: the prior window used for `valuesPrevious` */
+  comparison?: {
+    label: string;
+    startDate: string;
+    endDate: string;
+  };
 };
 
 export type AnalyticsResponse = {

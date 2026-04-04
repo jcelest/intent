@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/admin-header";
 import {
+  CENTRAL_FLORIDA_10,
+  CENTRAL_FLORIDA_EXTRA,
   GEO_PRESETS,
   GEO_PRESET_ORDER,
   type GeoPresetKey,
@@ -62,7 +64,8 @@ type LiveResult = {
   primary: LiveIdea | null;
   geoBreakdown: LiveGeoRow[];
   yoyTrendPercent: string | null;
-  meta?: { apiResultCount: number; totalSize: number | null };
+  metricsTimeframe?: { label: string; startMonth: string; endMonth: string } | null;
+  meta?: { apiResultCount: number; totalSize: number | null; breakdownCalls?: number };
   debugEvents?: KeywordResearchDebugEvent[];
 };
 
@@ -90,7 +93,7 @@ function trendHeights(monthly: { searches: number }[]): number[] {
 
 export default function KeywordDemandPage() {
   const [query, setQuery] = useState("a/c repair");
-  const [geo, setGeo] = useState<GeoPresetKey>("fl");
+  const [geo, setGeo] = useState<GeoPresetKey>("cf");
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +155,13 @@ export default function KeywordDemandPage() {
 
   const geoLabelStatic = GEO_PRESETS[geo].label;
 
-  const floridaCityKeys = GEO_PRESET_ORDER.filter((k) => k.startsWith("fl-"));
+  const centralFloridaKeys = [
+    ...CENTRAL_FLORIDA_10.map((c) => c.key as GeoPresetKey),
+    ...CENTRAL_FLORIDA_EXTRA.map((c) => c.key as GeoPresetKey),
+  ];
+  const otherFloridaKeys = GEO_PRESET_ORDER.filter(
+    (k) => k !== "fl" && k !== "cf" && !centralFloridaKeys.includes(k)
+  );
 
   return (
     <div className="min-h-screen relative">
@@ -198,7 +207,9 @@ export default function KeywordDemandPage() {
           </h2>
           <p className="mt-2 text-slate-400 text-sm max-w-2xl">
             Florida-focused search volume and keyword ideas from the Google Ads API — seed keywords,
-            geo targeting, and historical monthly search volumes.
+            geo targeting, and historical monthly search volumes. Use{" "}
+            <strong className="text-slate-300">Central Florida</strong> for combined I-4 / Osceola /
+            Polk cities plus per-city demand in the table below.
           </p>
         </div>
 
@@ -227,10 +238,18 @@ export default function KeywordDemandPage() {
               >
                 <optgroup label="Florida — broad">
                   <option value="fl">{GEO_PRESETS.fl.label}</option>
+                  <option value="cf">{GEO_PRESETS.cf.label}</option>
                   <option value="metros">{GEO_PRESETS.metros.label}</option>
                 </optgroup>
-                <optgroup label="Florida — cities & counties">
-                  {floridaCityKeys.map((key) => (
+                <optgroup label="Central Florida — cities (detailed)">
+                  {centralFloridaKeys.map((key) => (
+                    <option key={key} value={key}>
+                      {GEO_PRESETS[key].label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Florida — other metros & counties">
+                  {otherFloridaKeys.map((key) => (
                     <option key={key} value={key}>
                       {GEO_PRESETS[key].label}
                     </option>
@@ -254,13 +273,29 @@ export default function KeywordDemandPage() {
             </button>
           </div>
           {configured === true && (
-            <label className="mt-4 flex items-start gap-3 cursor-pointer select-none">
+            <label className="mt-4 flex items-start gap-3 cursor-pointer select-none group py-1">
               <input
                 type="checkbox"
                 checked={debugTrace}
                 onChange={(e) => setDebugTrace(e.target.checked)}
-                className="mt-1 rounded border-slate-600 bg-slate-950 text-[#00e5ff] focus:ring-[#00e5ff]/40"
+                className="sr-only peer"
               />
+              <span
+                className={`
+                  mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 shrink-0
+                  peer-focus:ring-2 peer-focus:ring-[#00e5ff]/50
+                  ${debugTrace
+                    ? "border-[#00e5ff] bg-[#00e5ff]/20"
+                    : "border-slate-500 bg-slate-900/50 group-hover:border-slate-400"
+                  }
+                `}
+              >
+                {debugTrace && (
+                  <svg className="w-2.5 h-2.5 text-[#00e5ff]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 6l3 3 5-6" />
+                  </svg>
+                )}
+              </span>
               <span className="text-sm text-slate-400 font-mono leading-relaxed">
                 <span className="text-slate-300">Debug trace</span> — log each step to{" "}
                 <strong className="text-slate-300">Vercel runtime logs</strong> (search{" "}
@@ -315,7 +350,18 @@ export default function KeywordDemandPage() {
                 : configured
                   ? "—"
                   : "74K–90K",
-              sub: primary ? live?.geoLabel ?? "Google Ads" : configured ? "Run analysis" : "Illustrative",
+              sub: primary
+                ? [
+                    live?.metricsTimeframe?.label
+                      ? `Avg over ${live.metricsTimeframe.label}`
+                      : null,
+                    live?.geoLabel ?? "Google Ads",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : configured
+                  ? "Run analysis"
+                  : "Illustrative",
             },
             {
               label: "Competition",
@@ -362,6 +408,15 @@ export default function KeywordDemandPage() {
               Geo: {live?.geoLabel ?? geoLabelStatic}
               {" · "}
               English
+              {live?.metricsTimeframe?.label ? (
+                <>
+                  {" · "}
+                  <span className="text-slate-400">
+                    Monthly volumes: <span className="text-slate-300">{live.metricsTimeframe.label}</span>{" "}
+                    (Keyword Planner historical series)
+                  </span>
+                </>
+              ) : null}
             </p>
             {showLiveEmptyMetrics ? (
               <div className="h-48 flex items-center justify-center rounded-lg border border-dashed border-slate-600/80 bg-slate-950/40 px-4 text-center text-sm text-slate-400">
@@ -428,11 +483,13 @@ export default function KeywordDemandPage() {
               Demand by location
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              {live
-                ? "Volume for your selected geo (one Google Ads request — no extra regional fan-out)."
-                : configured
-                  ? "Run analysis to load metrics for the geo you selected."
-                  : "Sample data — set Google Ads env vars for live results."}
+              {live?.meta?.breakdownCalls != null && live.meta.breakdownCalls > 0
+                ? `Central Florida bundle: one request for combined keyword ideas, then ${live.meta.breakdownCalls} requests (one per city) for volume in each row. Share is approximate vs. summed city volumes.`
+                : live
+                  ? "Volume for your selected geo (single Google Ads request for this row)."
+                  : configured
+                    ? "Run analysis to load metrics for the geo you selected."
+                    : "Sample data — set Google Ads env vars for live results."}
             </p>
           </div>
           <div className="overflow-x-auto">

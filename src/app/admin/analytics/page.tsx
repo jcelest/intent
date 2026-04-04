@@ -34,6 +34,9 @@ function buildChartData(data: AnalyticsResponse): Array<{ month: string; [k: str
       const row: { month: string; [k: string]: string | number | undefined } = { month };
       series.forEach((s) => {
         row[s.id] = s.values[i] ?? 0;
+        if (s.valuesPrevious && s.valuesPrevious.length > i) {
+          row[`${s.id}_prev`] = s.valuesPrevious[i] ?? 0;
+        }
       });
       return row;
     });
@@ -173,6 +176,17 @@ function AreaChartVisual({
   );
 }
 
+function ymdToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function ymdDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function AnalyticsContent({
   data,
   selectedId,
@@ -181,6 +195,15 @@ function AnalyticsContent({
   onDateRangeChange,
   onMetricsChange,
   isLive,
+  dateMode,
+  customStart,
+  customEnd,
+  compareEnabled,
+  onDateModeChange,
+  onCustomStartChange,
+  onCustomEndChange,
+  onCompareChange,
+  onQuickCompare7d,
 }: {
   data: AnalyticsResponse | null;
   selectedId: string;
@@ -189,6 +212,15 @@ function AnalyticsContent({
   onDateRangeChange: (v: Ga4DateRangeId) => void;
   onMetricsChange: (v: Ga4MetricId[]) => void;
   isLive: boolean;
+  dateMode: "preset" | "custom";
+  customStart: string;
+  customEnd: string;
+  compareEnabled: boolean;
+  onDateModeChange: (v: "preset" | "custom") => void;
+  onCustomStartChange: (v: string) => void;
+  onCustomEndChange: (v: string) => void;
+  onCompareChange: (v: boolean) => void;
+  onQuickCompare7d: () => void;
 }) {
   if (!data) {
     return (
@@ -274,7 +306,41 @@ function AnalyticsContent({
       )}
 
       {isLive && (
-        <div className="mb-8 flex flex-wrap gap-6 items-end">
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <span className="font-mono text-xs text-slate-500 uppercase tracking-wider">Quick compare</span>
+            <button
+              type="button"
+              onClick={onQuickCompare7d}
+              className="rounded-lg border border-[#00e5ff]/40 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-[#00e5ff] hover:bg-slate-800/80 transition-colors"
+            >
+              Last 7 days vs prior 7 days
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDateModeChange("preset");
+                onDateRangeChange("28d");
+                onCompareChange(true);
+              }}
+              className="rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-slate-300 hover:border-[#00e5ff]/40 transition-colors"
+            >
+              Last 28 days vs prior 28
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-6 items-end">
+          <div>
+            <label className="block font-mono text-xs text-slate-400 mb-1">RANGE MODE</label>
+            <select
+              value={dateMode}
+              onChange={(e) => onDateModeChange(e.target.value as "preset" | "custom")}
+              className="rounded-lg border-2 px-3 py-2 font-mono text-sm text-white bg-slate-900/90 border-[#00e5ff]/40 focus:outline-none focus:ring-2 focus:ring-[#00e5ff]/50"
+            >
+              <option value="preset" className="bg-slate-900">Preset</option>
+              <option value="custom" className="bg-slate-900">Custom start / end</option>
+            </select>
+          </div>
+          {dateMode === "preset" ? (
           <div>
             <label className="block font-mono text-xs text-slate-400 mb-1">DATE RANGE</label>
             <select
@@ -288,6 +354,54 @@ function AnalyticsContent({
                 </option>
               ))}
             </select>
+          </div>
+          ) : (
+            <>
+              <div>
+                <label className="block font-mono text-xs text-slate-400 mb-1">START (GA4)</label>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => onCustomStartChange(e.target.value)}
+                  className="rounded-lg border-2 px-3 py-2 font-mono text-sm text-white bg-slate-900/90 border-[#00e5ff]/40 focus:outline-none focus:ring-2 focus:ring-[#00e5ff]/50"
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-xs text-slate-400 mb-1">END (GA4)</label>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => onCustomEndChange(e.target.value)}
+                  className="rounded-lg border-2 px-3 py-2 font-mono text-sm text-white bg-slate-900/90 border-[#00e5ff]/40 focus:outline-none focus:ring-2 focus:ring-[#00e5ff]/50"
+                />
+              </div>
+            </>
+          )}
+          <label className="flex items-center gap-3 cursor-pointer group py-2 px-2 -m-2 rounded hover:bg-slate-800/50">
+            <input
+              type="checkbox"
+              checked={compareEnabled}
+              onChange={(e) => onCompareChange(e.target.checked)}
+              className="sr-only peer"
+            />
+            <span
+              className={`
+                w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 shrink-0
+                peer-focus:ring-2 peer-focus:ring-[#00e5ff]/50
+                ${compareEnabled
+                  ? "border-[#00e5ff] bg-[#00e5ff]/20"
+                  : "border-slate-500 bg-slate-900/50 group-hover:border-slate-400"
+                }
+              `}
+            >
+              {compareEnabled && (
+                <svg className="w-2.5 h-2.5 text-[#00e5ff]" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 6l3 3 5-6" />
+                </svg>
+              )}
+            </span>
+            <span className="text-sm text-slate-300 select-none">Compare to previous period (same length)</span>
+          </label>
           </div>
           <div>
             <label className="block font-mono text-xs text-slate-400 mb-1">METRICS</label>
@@ -340,6 +454,11 @@ function AnalyticsContent({
             {data.ga4.series.map((s) => {
               const total = s.values.reduce((a, b) => a + b, 0);
               const avg = s.values.length > 0 ? total / s.values.length : 0;
+              const prevTotal = s.valuesPrevious?.reduce((a, b) => a + b, 0);
+              const deltaPct =
+                prevTotal != null && prevTotal !== 0
+                  ? (((total - prevTotal) / prevTotal) * 100).toFixed(1)
+                  : null;
               let displayVal: string;
               if (s.format === "percent") {
                 const pct = avg <= 1 ? avg * 100 : avg;
@@ -364,6 +483,24 @@ function AnalyticsContent({
                     {displayVal}
                   </span>
                   <p className="mt-1 text-xs font-mono text-slate-500">{data.ga4!.dateRange}</p>
+                  {data.ga4?.startDate && data.ga4?.endDate && (
+                    <p className="text-[10px] font-mono text-slate-600 mt-0.5">
+                      {data.ga4.startDate} → {data.ga4.endDate}
+                    </p>
+                  )}
+                  {deltaPct != null && data.ga4?.comparison && (
+                    <p className="mt-2 text-xs font-mono text-slate-400">
+                      vs prior ({data.ga4.comparison.startDate} – {data.ga4.comparison.endDate}):{" "}
+                      <span
+                        className={
+                          parseFloat(deltaPct) >= 0 ? "text-emerald-400" : "text-rose-400"
+                        }
+                      >
+                        {parseFloat(deltaPct) >= 0 ? "+" : ""}
+                        {deltaPct}%
+                      </span>
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -371,7 +508,12 @@ function AnalyticsContent({
           <div className="space-y-12">
             {data.ga4.series.map((s) => {
               const chartData = buildChartData(data);
-              const maxVal = Math.max(...s.values, 1);
+              const maxVal = Math.max(
+                ...s.values,
+                ...(s.valuesPrevious ?? []),
+                1
+              );
+              const hasPrev = Boolean(s.valuesPrevious?.length);
               return (
                 <motion.div
                   key={s.id}
@@ -384,11 +526,12 @@ function AnalyticsContent({
                   <AreaChartVisual
                     data={chartData as Array<{ month: string; [k: string]: string | number | undefined }>}
                     dataKey={s.id}
+                    dataKey2={hasPrev ? `${s.id}_prev` : undefined}
                     maxVal={maxVal}
                     color1={accent}
-                    color2={accent}
-                    label1={s.label}
-                    label2=""
+                    color2={MUTED_BEFORE}
+                    label1={hasPrev ? "Current period" : s.label}
+                    label2={hasPrev ? "Previous period" : ""}
                   />
                 </motion.div>
               );
@@ -611,6 +754,10 @@ export default function AnalyticsHubPage() {
   const [selectedId, setSelectedId] = useState(COMPANIES[0].id);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [dateRange, setDateRange] = useState<Ga4DateRangeId>("12m");
+  const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
+  const [customStart, setCustomStart] = useState(() => ymdDaysAgo(7));
+  const [customEnd, setCustomEnd] = useState(() => ymdToday());
+  const [compareEnabled, setCompareEnabled] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>(
     GA4_METRICS.map((m) => m.id)
   );
@@ -623,7 +770,19 @@ export default function AnalyticsHubPage() {
     setData(null);
     const params = new URLSearchParams();
     if (isLive) {
-      params.set("dateRange", dateRange);
+      if (dateMode === "custom") {
+        if (customStart && customEnd) {
+          params.set("startDate", customStart);
+          params.set("endDate", customEnd);
+        } else {
+          params.set("dateRange", dateRange);
+        }
+      } else {
+        params.set("dateRange", dateRange);
+      }
+      if (compareEnabled) {
+        params.set("compare", "1");
+      }
       params.set("metrics", selectedMetrics.length > 0 ? selectedMetrics.join(",") : "sessions");
     }
     const url = `/api/analytics/${selectedId}${params.toString() ? `?${params}` : ""}`;
@@ -638,7 +797,16 @@ export default function AnalyticsHubPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, dateRange, selectedMetrics, isLive]);
+  }, [
+    selectedId,
+    dateRange,
+    selectedMetrics,
+    isLive,
+    dateMode,
+    customStart,
+    customEnd,
+    compareEnabled,
+  ]);
 
   return (
     <div className="min-h-screen relative">
@@ -684,6 +852,19 @@ export default function AnalyticsHubPage() {
           onDateRangeChange={setDateRange}
           onMetricsChange={setSelectedMetrics}
           isLive={isLive ?? false}
+          dateMode={dateMode}
+          customStart={customStart}
+          customEnd={customEnd}
+          compareEnabled={compareEnabled}
+          onDateModeChange={setDateMode}
+          onCustomStartChange={setCustomStart}
+          onCustomEndChange={setCustomEnd}
+          onCompareChange={setCompareEnabled}
+          onQuickCompare7d={() => {
+            setDateMode("preset");
+            setDateRange("7d");
+            setCompareEnabled(true);
+          }}
         />
       </main>
 

@@ -10,8 +10,8 @@ import { toGoogleAdsHttpError } from "@/lib/google-ads-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-/** Vercel: single Ads call is usually under 10s; Pro can raise this if needed */
-export const maxDuration = 60;
+/** Central Florida preset runs 1 + N city calls; allow headroom on serverless */
+export const maxDuration = 120;
 
 function isGeoKey(v: unknown): v is GeoPresetKey {
   return typeof v === "string" && v in GEO_PRESETS;

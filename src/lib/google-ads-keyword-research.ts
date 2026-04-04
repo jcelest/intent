@@ -1,5 +1,9 @@
 import { OAuth2Client } from "google-auth-library";
-import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
+import {
+  GEO_PRESETS,
+  isBreakdownPreset,
+  type GeoPresetKey,
+} from "@/lib/google-ads-geo-presets";
 
 export type { GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
@@ -29,10 +33,22 @@ export type KeywordResearchResult = {
   primary: KeywordIdeaRow | null;
   geoBreakdown: GeoBreakdownRow[];
   yoyTrendPercent: string | null;
+  /**
+   * Time span covered by the monthly search-volume series (from Keyword Planner historical metrics).
+   * Avg. monthly searches is an average over these months, not a single month.
+   */
+  metricsTimeframe: {
+    /** e.g. "Mar 2024 – Feb 2025" */
+    label: string;
+    startMonth: string;
+    endMonth: string;
+  } | null;
   /** Helps debug empty responses; always set from the raw API message */
   meta: {
     apiResultCount: number;
     totalSize: number | null;
+    /** Extra per-city GenerateKeywordIdeas calls (e.g. Central Florida preset). */
+    breakdownCalls?: number;
   };
 };
 
@@ -282,6 +298,49 @@ function parseTotalSize(json: RestGenerateKeywordIdeaResponse): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function monthRank(month: string): number {
+  const i = MONTH_NAMES.indexOf(month);
+  return i >= 0 ? i : 0;
+}
+
+/** Derive display range from Keyword Planner monthly rows (API returns recent months with search volume). */
+export function computeMetricsTimeframe(
+  monthly: { year: number; month: string }[]
+): KeywordResearchResult["metricsTimeframe"] {
+  if (!monthly.length) return null;
+  const sorted = [...monthly].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return monthRank(a.month) - monthRank(b.month);
+  });
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const startMonth = `${first.month} ${first.year}`;
+  const endMonth = `${last.month} ${last.year}`;
+  return {
+    label: `${startMonth} – ${endMonth}`,
+    startMonth,
+    endMonth,
+  };
+}
+
+function applyShareAndIndex(rows: GeoBreakdownRow[]): void {
+  const vols = rows
+    .map((r) => r.avgMonthlySearches)
+    .filter((v): v is number => v != null && !Number.isNaN(v));
+  const sum = vols.reduce((a, b) => a + b, 0);
+  const max = Math.max(...vols, 1);
+  for (const row of rows) {
+    const v = row.avgMonthlySearches;
+    if (v == null || Number.isNaN(v)) {
+      row.share = 0;
+      row.index = 0;
+      continue;
+    }
+    row.share = sum > 0 ? Math.round((v / sum) * 100) : 0;
+    row.index = Math.round((v / max) * 100);
+  }
+}
+
 export type RunKeywordResearchOptions = {
   /** When true, collects `debugEvents` and logs each step to runtime logs (e.g. Vercel). */
   debug?: boolean;
@@ -358,103 +417,166 @@ export async function runKeywordResearch(
       headers["login-customer-id"] = login_customer_id;
     }
 
-    const body = {
-      language: LANGUAGE_EN,
-      geoTargetConstants: [...preset.constants],
-      keywordSeed: { keywords: [seed] },
-      keywordPlanNetwork: "GOOGLE_SEARCH",
-      includeAdultKeywords: false,
-      pageSize: 100,
+    const headerNames = ["Authorization", "developer-token", "Content-Type"].concat(
+      login_customer_id ? ["login-customer-id"] : []
+    );
+
+    const doOneCall = async (
+      geoTargetConstants: string[],
+      stepLabel: string
+    ): Promise<RestGenerateKeywordIdeaResponse> => {
+      const body = {
+        language: LANGUAGE_EN,
+        geoTargetConstants,
+        keywordSeed: { keywords: [seed] },
+        keywordPlanNetwork: "GOOGLE_SEARCH",
+        includeAdultKeywords: false,
+        pageSize: 100,
+      };
+
+      push("api.request", undefined, {
+        step: stepLabel,
+        method: "POST",
+        url,
+        headersSent: headerNames,
+        body,
+      });
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const rawText = await res.text();
+      push("api.response", undefined, {
+        step: stepLabel,
+        httpStatus: res.status,
+        ok: res.ok,
+        responseBodyBytes: rawText.length,
+        bodyPreview: rawText.slice(0, stepLabel.startsWith("breakdown:") ? 800 : 1200),
+      });
+
+      const json = (() => {
+        try {
+          return JSON.parse(rawText) as RestGenerateKeywordIdeaResponse;
+        } catch (parseErr) {
+          return fail(
+            rawText.trim().slice(0, 400) || `Google Ads API HTTP ${res.status}`,
+            parseErr
+          );
+        }
+      })();
+
+      if (!res.ok) {
+        const errObj = json as unknown as {
+          error?: { message?: string; status?: string; code?: number };
+        };
+        const msg =
+          errObj.error?.message ||
+          rawText.trim().slice(0, 500) ||
+          `Google Ads API HTTP ${res.status}`;
+        const e = new Error(msg);
+        (e as { googleAdsHttpStatus?: number }).googleAdsHttpStatus = res.status;
+        push("api.googleError", undefined, {
+          step: stepLabel,
+          httpStatus: res.status,
+          googleError: errObj.error ?? null,
+        });
+        if (dbg) {
+          throw new KeywordResearchDebugError(msg, events, { cause: e });
+        }
+        throw e;
+      }
+
+      return json;
     };
 
-    push("api.request", undefined, {
-      method: "POST",
-      url,
-      headersSent: ["Authorization", "developer-token", "Content-Type"].concat(
-        login_customer_id ? ["login-customer-id"] : []
-      ),
-      body,
-    });
+    let ideas: KeywordIdeaRow[];
+    let primary: KeywordIdeaRow | null;
+    let yoyTrendPercent: string | null;
+    let geoBreakdown: GeoBreakdownRow[];
+    let meta: KeywordResearchResult["meta"];
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
+    if (isBreakdownPreset(preset)) {
+      const jsonCombined = await doOneCall(
+        [...preset.constants],
+        "combined-ideas"
+      );
+      const raw = Array.isArray(jsonCombined.results) ? jsonCombined.results : [];
+      ideas = raw.map(mapRestIdeaRow).filter((r) => r.text.length > 0);
+      primary = pickPrimary(ideas, seed);
+      yoyTrendPercent = primary ? computeYoy(primary.monthlyVolumes) : null;
 
-    const rawText = await res.text();
-    push("api.response", undefined, {
-      httpStatus: res.status,
-      ok: res.ok,
-      responseBodyBytes: rawText.length,
-      bodyPreview: rawText.slice(0, 1200),
-    });
-
-    const json = (() => {
-      try {
-        return JSON.parse(rawText) as RestGenerateKeywordIdeaResponse;
-      } catch (parseErr) {
-        return fail(
-          rawText.trim().slice(0, 400) || `Google Ads API HTTP ${res.status}`,
-          parseErr
+      geoBreakdown = [];
+      for (const city of preset.breakdownCities) {
+        const j = await doOneCall(
+          [...city.constants],
+          `breakdown:${city.label}`
         );
+        const r = Array.isArray(j.results) ? j.results : [];
+        const ideaRows = r.map(mapRestIdeaRow).filter((row) => row.text.length > 0);
+        const pr = pickPrimary(ideaRows, seed);
+        geoBreakdown.push({
+          region: city.label,
+          avgMonthlySearches: pr?.avgMonthlySearches ?? null,
+          share: 0,
+          index: 0,
+        });
       }
-    })();
+      applyShareAndIndex(geoBreakdown);
 
-    if (!res.ok) {
-      const errObj = json as unknown as {
-        error?: { message?: string; status?: string; code?: number };
-      };
-      const msg =
-        errObj.error?.message ||
-        rawText.trim().slice(0, 500) ||
-        `Google Ads API HTTP ${res.status}`;
-      const e = new Error(msg);
-      (e as { googleAdsHttpStatus?: number }).googleAdsHttpStatus = res.status;
-      push("api.googleError", undefined, {
-        httpStatus: res.status,
-        googleError: errObj.error ?? null,
+      push("parse.complete", undefined, {
+        rawResultsFromGoogle: raw.length,
+        ideasAfterNonEmptyTextFilter: ideas.length,
+        primaryKeywordText: primary?.text ?? null,
+        totalSize: parseTotalSize(jsonCombined),
+        breakdownCities: preset.breakdownCities.length,
       });
-      if (dbg) {
-        throw new KeywordResearchDebugError(msg, events, { cause: e });
-      }
-      throw e;
+
+      meta = {
+        apiResultCount: raw.length,
+        totalSize: parseTotalSize(jsonCombined),
+        breakdownCalls: preset.breakdownCities.length,
+      };
+    } else {
+      const json = await doOneCall([...preset.constants], "single-geo");
+      const raw = Array.isArray(json.results) ? json.results : [];
+      ideas = raw.map(mapRestIdeaRow).filter((r) => r.text.length > 0);
+      primary = pickPrimary(ideas, seed);
+      yoyTrendPercent = primary ? computeYoy(primary.monthlyVolumes) : null;
+
+      push("parse.complete", undefined, {
+        rawResultsFromGoogle: raw.length,
+        ideasAfterNonEmptyTextFilter: ideas.length,
+        primaryKeywordText: primary?.text ?? null,
+        totalSize: parseTotalSize(json),
+      });
+
+      geoBreakdown =
+        primary?.avgMonthlySearches != null
+          ? [
+              {
+                region: preset.label,
+                avgMonthlySearches: primary.avgMonthlySearches,
+                share: 100,
+                index: 100,
+              },
+            ]
+          : [];
+
+      meta = {
+        apiResultCount: raw.length,
+        totalSize: parseTotalSize(json),
+      };
     }
-
-    const raw = Array.isArray(json.results) ? json.results : [];
-    const ideas = raw.map(mapRestIdeaRow).filter((r) => r.text.length > 0);
-    const primary = pickPrimary(ideas, seed);
-    const yoyTrendPercent = primary ? computeYoy(primary.monthlyVolumes) : null;
-
-    push("parse.complete", undefined, {
-      rawResultsFromGoogle: raw.length,
-      ideasAfterNonEmptyTextFilter: ideas.length,
-      primaryKeywordText: primary?.text ?? null,
-      totalSize: parseTotalSize(json),
-    });
-
-    /** One row for the selected geo — avoids 4+ extra API calls (Vercel timeout / 502). */
-    const geoBreakdown: GeoBreakdownRow[] =
-      primary?.avgMonthlySearches != null
-        ? [
-            {
-              region: preset.label,
-              avgMonthlySearches: primary.avgMonthlySearches,
-              share: 100,
-              index: 100,
-            },
-          ]
-        : [];
 
     push("request.complete", undefined, {
       responseToFrontend: {
         ideasCount: ideas.length,
         hasPrimary: primary != null,
         hasGeoBreakdown: geoBreakdown.length > 0,
-        meta: {
-          apiResultCount: raw.length,
-          totalSize: parseTotalSize(json),
-        },
+        meta,
       },
     });
 
@@ -466,10 +588,8 @@ export async function runKeywordResearch(
       primary,
       geoBreakdown,
       yoyTrendPercent,
-      meta: {
-        apiResultCount: raw.length,
-        totalSize: parseTotalSize(json),
-      },
+      metricsTimeframe: computeMetricsTimeframe(primary?.monthlyVolumes ?? []),
+      meta,
     };
 
     return dbg ? { ...result, debugEvents: events } : result;
