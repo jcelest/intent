@@ -62,6 +62,15 @@ type LiveResult = {
   primary: LiveIdea | null;
   geoBreakdown: LiveGeoRow[];
   yoyTrendPercent: string | null;
+  meta?: { apiResultCount: number; totalSize: number | null };
+  debugEvents?: KeywordResearchDebugEvent[];
+};
+
+type KeywordResearchDebugEvent = {
+  at: string;
+  step: string;
+  message?: string;
+  data?: Record<string, unknown>;
 };
 
 function formatVol(n: number | null | undefined): string {
@@ -86,6 +95,8 @@ export default function KeywordDemandPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState<LiveResult | null>(null);
+  const [debugTrace, setDebugTrace] = useState(false);
+  const [debugEvents, setDebugEvents] = useState<KeywordResearchDebugEvent[] | null>(null);
 
   useEffect(() => {
     fetch("/api/google-ads/keyword-research", { credentials: "include" })
@@ -98,6 +109,7 @@ export default function KeywordDemandPage() {
 
   const runAnalysis = useCallback(async () => {
     setError(null);
+    setDebugEvents(null);
     if (!configured) return;
     setLoading(true);
     try {
@@ -105,9 +117,15 @@ export default function KeywordDemandPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: query.trim(), geo }),
+        body: JSON.stringify({ keyword: query.trim(), geo, debug: debugTrace }),
       });
-      const data = await readApiJson<{ error?: string } & Partial<LiveResult>>(res);
+      const data = await readApiJson<{
+        error?: string;
+        debugEvents?: KeywordResearchDebugEvent[];
+      } & Partial<LiveResult>>(res);
+      if (Array.isArray(data.debugEvents) && data.debugEvents.length > 0) {
+        setDebugEvents(data.debugEvents);
+      }
       if (!res.ok) {
         setError(typeof data.error === "string" ? data.error : "Request failed");
         setLive(null);
@@ -120,13 +138,17 @@ export default function KeywordDemandPage() {
     } finally {
       setLoading(false);
     }
-  }, [configured, query, geo]);
+  }, [configured, query, geo, debugTrace]);
 
   const primary = live?.primary;
-  const chartHeights = primary?.monthlyVolumes?.length
-    ? trendHeights(primary.monthlyVolumes)
+  const hasVolumeChart = Boolean(primary?.monthlyVolumes?.length);
+  const showLiveEmptyMetrics = Boolean(live && !hasVolumeChart);
+  const chartHeights = hasVolumeChart
+    ? trendHeights(primary!.monthlyVolumes)
     : MOCK_TREND;
   const relatedIdeas = live?.ideas?.slice(0, 12) ?? [];
+  const showRelatedDemo = !live && configured === false;
+  const showGeoDemo = !live && configured === false;
 
   const geoLabelStatic = GEO_PRESETS[geo].label;
 
@@ -156,6 +178,17 @@ export default function KeywordDemandPage() {
             {" — "}
             Connected to Google Ads API. Results use{" "}
             <code className="text-emerald-200/90">GenerateKeywordIdeas</code> (historical metrics).
+            {live && live.ideas.length === 0 && (
+              <span className="block mt-2 text-amber-200/90">
+                Last run returned{" "}
+                <strong className="text-amber-300">
+                  {live.meta?.apiResultCount ?? 0} keyword idea rows
+                </strong>{" "}
+                from Google. If that stays at zero, try a broader seed (e.g. &quot;ac repair&quot;),
+                another Florida geo, and confirm your Ads account can use Keyword Planner data (test
+                tokens only work with test accounts; Basic access may be required for full data).
+              </span>
+            )}
           </div>
         )}
 
@@ -220,10 +253,55 @@ export default function KeywordDemandPage() {
                     : "Run analysis"}
             </button>
           </div>
+          {configured === true && (
+            <label className="mt-4 flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={debugTrace}
+                onChange={(e) => setDebugTrace(e.target.checked)}
+                className="mt-1 rounded border-slate-600 bg-slate-950 text-[#00e5ff] focus:ring-[#00e5ff]/40"
+              />
+              <span className="text-sm text-slate-400 font-mono leading-relaxed">
+                <span className="text-slate-300">Debug trace</span> — log each step to{" "}
+                <strong className="text-slate-300">Vercel runtime logs</strong> (search{" "}
+                <code className="text-[#00e5ff]/90">[keyword-research]</code>) and show the same
+                timeline below. No secrets are logged (tokens masked / omitted).
+              </span>
+            </label>
+          )}
           {error && (
             <p className="mt-4 text-sm text-red-400 font-mono" role="alert">
               {error}
             </p>
+          )}
+          {debugEvents && debugEvents.length > 0 && (
+            <div className="mt-6 rounded-xl border border-violet-500/40 bg-violet-950/30 p-4">
+              <h4 className="font-mono text-xs text-violet-300 uppercase tracking-wider mb-3">
+                Debug trace (this run)
+              </h4>
+              <p className="text-xs text-slate-500 font-mono mb-3">
+                Response path: API returns JSON with <code className="text-slate-400">ideas</code>,{" "}
+                <code className="text-slate-400">primary</code>, <code className="text-slate-400">meta</code>
+                , and optional <code className="text-slate-400">debugEvents</code> — the page stores that in
+                React state and renders KPIs, chart, geo table, and related keywords.
+              </p>
+              <ol className="max-h-96 overflow-y-auto space-y-2 text-xs font-mono text-slate-300 list-decimal list-inside">
+                {debugEvents.map((ev, i) => (
+                  <li key={`${ev.at}-${i}`} className="break-words border-l-2 border-violet-500/30 pl-2">
+                    <span className="text-slate-500">{ev.at}</span>{" "}
+                    <span className="text-violet-300 font-semibold">{ev.step}</span>
+                    {ev.message ? (
+                      <span className="text-slate-400"> — {ev.message}</span>
+                    ) : null}
+                    {ev.data != null ? (
+                      <pre className="mt-1 text-[10px] text-slate-500 whitespace-pre-wrap overflow-x-auto">
+                        {JSON.stringify(ev.data, null, 2)}
+                      </pre>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
         </div>
 
@@ -285,23 +363,37 @@ export default function KeywordDemandPage() {
               {" · "}
               English
             </p>
-            <div className="h-48 flex items-end gap-1">
-              {chartHeights.map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t bg-gradient-to-t from-[#00e5ff]/20 to-[#00e5ff]/60 min-w-[8px]"
-                  style={{ height: `${(h / 70) * 100}%` }}
-                  title={`Month ${i + 1}`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] font-mono text-slate-600">
-              <span>{primary?.monthlyVolumes?.[0]?.month ?? "Jan"}</span>
-              <span>…</span>
-              <span>
-                {primary?.monthlyVolumes?.[primary.monthlyVolumes.length - 1]?.month ?? "Dec"}
-              </span>
-            </div>
+            {showLiveEmptyMetrics ? (
+              <div className="h-48 flex items-center justify-center rounded-lg border border-dashed border-slate-600/80 bg-slate-950/40 px-4 text-center text-sm text-slate-400">
+                Google did not return historical monthly search volumes for this run (no primary keyword
+                metrics). Try another seed or geo, or check account / developer token access for
+                Keyword Planner.
+              </div>
+            ) : configured && !live ? (
+              <div className="h-48 flex items-center justify-center rounded-lg border border-dashed border-slate-600/80 bg-slate-950/40 px-4 text-center text-sm text-slate-400">
+                Run analysis to load monthly search interest from the API.
+              </div>
+            ) : (
+              <>
+                <div className="h-48 flex items-end gap-1">
+                  {chartHeights.map((h, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-t bg-gradient-to-t from-[#00e5ff]/20 to-[#00e5ff]/60 min-w-[8px]"
+                      style={{ height: `${(h / 70) * 100}%` }}
+                      title={`Month ${i + 1}`}
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-between mt-2 text-[10px] font-mono text-slate-600">
+                  <span>{primary?.monthlyVolumes?.[0]?.month ?? "Jan"}</span>
+                  <span>…</span>
+                  <span>
+                    {primary?.monthlyVolumes?.[primary.monthlyVolumes.length - 1]?.month ?? "Dec"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="rounded-xl border-2 border-slate-700 bg-slate-900/40 p-6">
@@ -373,24 +465,37 @@ export default function KeywordDemandPage() {
                         </td>
                       </tr>
                     ))
-                  : MOCK_GEO_ROWS.map((row) => (
-                      <tr key={row.region} className="border-b border-slate-800/80 hover:bg-slate-800/30">
-                        <td className="px-6 py-3 text-slate-200">{row.region}</td>
-                        <td className="px-6 py-3 text-[#00e5ff]">{row.vol}</td>
-                        <td className="px-6 py-3 text-slate-300">{row.index}</td>
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 flex-1 max-w-[120px] rounded-full bg-slate-800 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#00e5ff]/70"
-                                style={{ width: `${row.share}%` }}
-                              />
+                  : showGeoDemo
+                    ? MOCK_GEO_ROWS.map((row) => (
+                        <tr key={row.region} className="border-b border-slate-800/80 hover:bg-slate-800/30">
+                          <td className="px-6 py-3 text-slate-200">{row.region}</td>
+                          <td className="px-6 py-3 text-[#00e5ff]">{row.vol}</td>
+                          <td className="px-6 py-3 text-slate-300">{row.index}</td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 flex-1 max-w-[120px] rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-[#00e5ff]/70"
+                                  style={{ width: `${row.share}%` }}
+                                />
+                              </div>
+                              <span className="text-slate-400">{row.share}%</span>
                             </div>
-                            <span className="text-slate-400">{row.share}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      ))
+                    : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="px-6 py-8 text-center text-sm text-slate-500 font-mono"
+                          >
+                            {live
+                              ? "No geo breakdown — Google returned no searchable volume for this seed (see LIVE note above)."
+                              : "Run analysis to load demand for the selected Florida geo."}
+                          </td>
+                        </tr>
+                      )}
               </tbody>
             </table>
           </div>
@@ -415,17 +520,25 @@ export default function KeywordDemandPage() {
                     </span>
                   </div>
                 ))
-              : MOCK_RELATED.map((r) => (
-                  <div
-                    key={r.keyword}
-                    className="flex items-center justify-between rounded-lg border border-slate-700/80 px-4 py-3 bg-slate-950/50"
-                  >
-                    <span className="text-slate-200 font-mono text-sm">{r.keyword}</span>
-                    <span className="text-xs text-slate-500">
-                      {r.vol} · <span className="text-slate-400">{r.comp}</span>
-                    </span>
-                  </div>
-                ))}
+              : showRelatedDemo
+                ? MOCK_RELATED.map((r) => (
+                    <div
+                      key={r.keyword}
+                      className="flex items-center justify-between rounded-lg border border-slate-700/80 px-4 py-3 bg-slate-950/50"
+                    >
+                      <span className="text-slate-200 font-mono text-sm">{r.keyword}</span>
+                      <span className="text-xs text-slate-500">
+                        {r.vol} · <span className="text-slate-400">{r.comp}</span>
+                      </span>
+                    </div>
+                  ))
+                : (
+                    <div className="md:col-span-2 rounded-lg border border-slate-700/60 bg-slate-950/40 px-4 py-6 text-center text-sm text-slate-500 font-mono">
+                      {live
+                        ? "No related keyword ideas in the API response for this run."
+                        : "Run analysis to load related keyword ideas from Google Ads."}
+                    </div>
+                  )}
           </div>
         </div>
       </main>

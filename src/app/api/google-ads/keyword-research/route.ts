@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
 import {
   googleAdsKeywordResearchConfigured,
+  KeywordResearchDebugError,
   runKeywordResearch,
 } from "@/lib/google-ads-keyword-research";
 import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
@@ -38,9 +39,9 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { keyword?: string; geo?: string };
+  let body: { keyword?: string; geo?: string; debug?: boolean };
   try {
-    body = (await request.json()) as { keyword?: string; geo?: string };
+    body = (await request.json()) as { keyword?: string; geo?: string; debug?: boolean };
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -54,12 +55,24 @@ export async function POST(request: Request) {
   }
 
   const geo = isGeoKey(body.geo) ? body.geo : "fl";
+  const debugRequested = body.debug === true;
 
   try {
-    const result = await runKeywordResearch(keyword, geo);
+    const result = await runKeywordResearch(keyword, geo, { debug: debugRequested });
     return NextResponse.json(result);
   } catch (err: unknown) {
     console.error("[google-ads/keyword-research]", err);
+    if (err instanceof KeywordResearchDebugError) {
+      const { message, status, code } = toGoogleAdsHttpError(err.cause ?? err);
+      return NextResponse.json(
+        {
+          error: err.message || message,
+          ...(code ? { code } : {}),
+          debugEvents: err.debugEvents,
+        },
+        { status }
+      );
+    }
     const { message, status, code } = toGoogleAdsHttpError(err);
     return NextResponse.json(
       code ? { error: message, code } : { error: message },

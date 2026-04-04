@@ -30,8 +30,17 @@ export type GoogleAdsHttpError = {
   code?: string;
 };
 
+function httpStatusFromError(err: unknown): number | undefined {
+  if (typeof err === "object" && err !== null && "googleAdsHttpStatus" in err) {
+    const n = Number((err as { googleAdsHttpStatus?: unknown }).googleAdsHttpStatus);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
 export function toGoogleAdsHttpError(err: unknown): GoogleAdsHttpError {
   const message = extractMessages(err);
+  const httpStatus = httpStatusFromError(err);
 
   if (message.includes("only approved for use with test accounts")) {
     return {
@@ -61,5 +70,8 @@ export function toGoogleAdsHttpError(err: unknown): GoogleAdsHttpError {
     };
   }
 
+  if (httpStatus != null && httpStatus >= 400 && httpStatus < 600) {
+    return { message, status: httpStatus };
+  }
   return { message, status: 502 };
 }
