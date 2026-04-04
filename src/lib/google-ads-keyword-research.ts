@@ -298,6 +298,49 @@ function parseTotalSize(json: RestGenerateKeywordIdeaResponse): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Parse `retryDelay` from Google Ads quota error JSON (e.g. `"4s"` → 4000). */
+function parseQuotaRetryDelayMs(rawText: string): number | null {
+  try {
+    const parsed = JSON.parse(rawText) as {
+      error?: {
+        details?: Array<{
+          errors?: Array<{
+            details?: { quotaErrorDetails?: { retryDelay?: string } };
+          }>;
+        }>;
+      };
+    };
+    const details = parsed.error?.details;
+    if (!Array.isArray(details)) return null;
+    for (const d of details) {
+      const errs = (d as { errors?: unknown[] }).errors;
+      if (!Array.isArray(errs)) continue;
+      for (const e of errs) {
+        const qed = (e as { details?: { quotaErrorDetails?: { retryDelay?: string } } })?.details
+          ?.quotaErrorDetails;
+        const rd = qed?.retryDelay;
+        if (typeof rd === "string") {
+          const m = /^(\d+(?:\.\d+)?)s$/i.exec(rd.trim());
+          if (m) {
+            const sec = Number(m[1]);
+            if (Number.isFinite(sec) && sec >= 0) return Math.round(sec * 1000);
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Space between per-city GenerateKeywordIdeas calls to reduce burst 429s (Central Florida, etc.). */
+const BREAKDOWN_REQUEST_GAP_MS = 750;
+
 function monthRank(month: string): number {
   const i = MONTH_NAMES.indexOf(month);
   return i >= 0 ? i : 0;
@@ -434,62 +477,93 @@ export async function runKeywordResearch(
         pageSize: 100,
       };
 
-      push("api.request", undefined, {
-        step: stepLabel,
-        method: "POST",
-        url,
-        headersSent: headerNames,
-        body,
-      });
+      const max429Attempts = 6;
+      let lastRaw = "";
+      let lastStatus = 0;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+      for (let attempt = 1; attempt <= max429Attempts; attempt++) {
+        push("api.request", undefined, {
+          step: stepLabel,
+          method: "POST",
+          url,
+          headersSent: headerNames,
+          body,
+          ...(attempt > 1 ? { retryAttempt: attempt } : {}),
+        });
 
-      const rawText = await res.text();
-      push("api.response", undefined, {
-        step: stepLabel,
-        httpStatus: res.status,
-        ok: res.ok,
-        responseBodyBytes: rawText.length,
-        bodyPreview: rawText.slice(0, stepLabel.startsWith("breakdown:") ? 800 : 1200),
-      });
+        const res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
 
-      const json = (() => {
+        const rawText = await res.text();
+        lastRaw = rawText;
+        lastStatus = res.status;
+        push("api.response", undefined, {
+          step: stepLabel,
+          httpStatus: res.status,
+          ok: res.ok,
+          responseBodyBytes: rawText.length,
+          bodyPreview: rawText.slice(0, stepLabel.startsWith("breakdown:") ? 800 : 1200),
+        });
+
+        let json: RestGenerateKeywordIdeaResponse;
         try {
-          return JSON.parse(rawText) as RestGenerateKeywordIdeaResponse;
+          json = JSON.parse(rawText) as RestGenerateKeywordIdeaResponse;
         } catch (parseErr) {
           return fail(
             rawText.trim().slice(0, 400) || `Google Ads API HTTP ${res.status}`,
             parseErr
           );
         }
-      })();
 
-      if (!res.ok) {
+        if (res.ok) {
+          return json;
+        }
+
         const errObj = json as unknown as {
           error?: { message?: string; status?: string; code?: number };
         };
+        push("api.googleError", undefined, {
+          step: stepLabel,
+          httpStatus: res.status,
+          googleError: errObj.error ?? null,
+        });
+
+        if (res.status === 429 && attempt < max429Attempts) {
+          const fromApi = parseQuotaRetryDelayMs(rawText);
+          const waitMs = fromApi ?? Math.min(4000 * attempt, 30_000);
+          push("api.rateLimit.retry", undefined, {
+            step: stepLabel,
+            waitMs,
+            attempt,
+            nextAttempt: attempt + 1,
+          });
+          await sleep(waitMs);
+          continue;
+        }
+
         const msg =
           errObj.error?.message ||
           rawText.trim().slice(0, 500) ||
           `Google Ads API HTTP ${res.status}`;
         const e = new Error(msg);
         (e as { googleAdsHttpStatus?: number }).googleAdsHttpStatus = res.status;
-        push("api.googleError", undefined, {
-          step: stepLabel,
-          httpStatus: res.status,
-          googleError: errObj.error ?? null,
-        });
         if (dbg) {
           throw new KeywordResearchDebugError(msg, events, { cause: e });
         }
         throw e;
       }
 
-      return json;
+      const msg =
+        lastRaw.trim().slice(0, 500) || `Google Ads API HTTP ${lastStatus} (retries exhausted)`;
+      const e = new Error(msg);
+      (e as { googleAdsHttpStatus?: number }).googleAdsHttpStatus = lastStatus;
+      if (dbg) {
+        throw new KeywordResearchDebugError(msg, events, { cause: e });
+      }
+      throw e;
     };
 
     let ideas: KeywordIdeaRow[];
@@ -509,7 +583,11 @@ export async function runKeywordResearch(
       yoyTrendPercent = primary ? computeYoy(primary.monthlyVolumes) : null;
 
       geoBreakdown = [];
-      for (const city of preset.breakdownCities) {
+      for (let i = 0; i < preset.breakdownCities.length; i++) {
+        if (i > 0) {
+          await sleep(BREAKDOWN_REQUEST_GAP_MS);
+        }
+        const city = preset.breakdownCities[i];
         const j = await doOneCall(
           [...city.constants],
           `breakdown:${city.label}`

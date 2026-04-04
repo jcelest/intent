@@ -204,6 +204,7 @@ function AnalyticsContent({
   onCustomEndChange,
   onCompareChange,
   onQuickCompare7d,
+  onQuickCompare28d,
 }: {
   data: AnalyticsResponse | null;
   selectedId: string;
@@ -221,6 +222,7 @@ function AnalyticsContent({
   onCustomEndChange: (v: string) => void;
   onCompareChange: (v: boolean) => void;
   onQuickCompare7d: () => void;
+  onQuickCompare28d: () => void;
 }) {
   if (!data) {
     return (
@@ -309,24 +311,34 @@ function AnalyticsContent({
         <div className="mb-8 space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
             <span className="font-mono text-xs text-slate-500 uppercase tracking-wider">Quick compare</span>
-            <button
-              type="button"
-              onClick={onQuickCompare7d}
-              className="rounded-lg border border-[#00e5ff]/40 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-[#00e5ff] hover:bg-slate-800/80 transition-colors"
-            >
-              Last 7 days vs prior 7 days
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onDateModeChange("preset");
-                onDateRangeChange("28d");
-                onCompareChange(true);
-              }}
-              className="rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-slate-300 hover:border-[#00e5ff]/40 transition-colors"
-            >
-              Last 28 days vs prior 28
-            </button>
+            {(() => {
+              const quickActive =
+                dateMode === "preset" && compareEnabled
+                  ? dateRange === "7d"
+                    ? "7d"
+                    : dateRange === "28d"
+                      ? "28d"
+                      : null
+                  : null;
+              const activeClass =
+                "rounded-lg border border-[#00e5ff]/40 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-[#00e5ff] hover:bg-slate-800/80 transition-colors";
+              const idleClass =
+                "rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-1.5 font-mono text-xs text-slate-300 hover:border-[#00e5ff]/40 transition-colors";
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={onQuickCompare7d}
+                    className={quickActive === "7d" ? activeClass : idleClass}
+                  >
+                    Last 7 days vs prior 7 days
+                  </button>
+                  <button type="button" onClick={onQuickCompare28d} className={quickActive === "28d" ? activeClass : idleClass}>
+                    Last 28 days vs prior 28
+                  </button>
+                </>
+              );
+            })()}
           </div>
           <div className="flex flex-wrap gap-6 items-end">
           <div>
@@ -753,11 +765,12 @@ function AnalyticsContent({
 export default function AnalyticsHubPage() {
   const [selectedId, setSelectedId] = useState(COMPANIES[0].id);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
-  const [dateRange, setDateRange] = useState<Ga4DateRangeId>("12m");
+  /** Default to 7d + compare so live GA4 loads “last 7 vs prior 7” on first paint without extra clicks. */
+  const [dateRange, setDateRange] = useState<Ga4DateRangeId>("7d");
   const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
   const [customStart, setCustomStart] = useState(() => ymdDaysAgo(7));
   const [customEnd, setCustomEnd] = useState(() => ymdToday());
-  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [compareEnabled, setCompareEnabled] = useState(true);
   const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>(
     GA4_METRICS.map((m) => m.id)
   );
@@ -863,6 +876,11 @@ export default function AnalyticsHubPage() {
           onQuickCompare7d={() => {
             setDateMode("preset");
             setDateRange("7d");
+            setCompareEnabled(true);
+          }}
+          onQuickCompare28d={() => {
+            setDateMode("preset");
+            setDateRange("28d");
             setCompareEnabled(true);
           }}
         />
