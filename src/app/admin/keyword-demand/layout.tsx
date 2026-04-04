@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Keyword demand (preview) | Intent Admin",
-  description: "Keyword demand intelligence mockup for Google Ads API integration.",
+  title: "Keyword demand | Intent Admin",
+  description: "Keyword demand and search volume from the Google Ads API (Keyword Planner).",
   robots: "noindex, nofollow",
 };
 
