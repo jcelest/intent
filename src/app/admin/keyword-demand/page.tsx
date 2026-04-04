@@ -3,6 +3,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/admin-header";
+import {
+  GEO_PRESETS,
+  GEO_PRESET_ORDER,
+  type GeoPresetKey,
+} from "@/lib/google-ads-geo-presets";
 
 /** Fallback sample rows when Google Ads env is not configured */
 const MOCK_GEO_ROWS = [
@@ -23,7 +28,16 @@ const MOCK_RELATED = [
 
 const MOCK_TREND = [42, 38, 45, 51, 48, 55, 52, 61, 58, 64, 59, 67];
 
-type GeoKey = "us" | "fl" | "metros";
+async function readApiJson<T>(res: Response): Promise<T> {
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(
+      text.trim().slice(0, 240) || `Unexpected response (HTTP ${res.status})`
+    );
+  }
+  return res.json() as Promise<T>;
+}
 
 type LiveIdea = {
   text: string;
@@ -67,7 +81,7 @@ function trendHeights(monthly: { searches: number }[]): number[] {
 
 export default function KeywordDemandPage() {
   const [query, setQuery] = useState("a/c repair");
-  const [geo, setGeo] = useState<GeoKey>("us");
+  const [geo, setGeo] = useState<GeoPresetKey>("us");
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +89,8 @@ export default function KeywordDemandPage() {
 
   useEffect(() => {
     fetch("/api/google-ads/keyword-research", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { configured?: boolean }) => setConfigured(Boolean(d.configured)))
+      .then((r) => readApiJson<{ configured?: boolean }>(r))
+      .then((d) => setConfigured(Boolean(d.configured)))
       .catch(() => setConfigured(false));
   }, []);
 
@@ -93,15 +107,15 @@ export default function KeywordDemandPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keyword: query.trim(), geo }),
       });
-      const data = await res.json();
+      const data = await readApiJson<{ error?: string } & Partial<LiveResult>>(res);
       if (!res.ok) {
         setError(typeof data.error === "string" ? data.error : "Request failed");
         setLive(null);
         return;
       }
       setLive(data as LiveResult);
-    } catch {
-      setError("Network error");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
       setLive(null);
     } finally {
       setLoading(false);
@@ -113,6 +127,10 @@ export default function KeywordDemandPage() {
     ? trendHeights(primary.monthlyVolumes)
     : MOCK_TREND;
   const relatedIdeas = live?.ideas?.slice(0, 12) ?? [];
+
+  const geoLabelStatic = GEO_PRESETS[geo].label;
+
+  const floridaCityKeys = GEO_PRESET_ORDER.filter((k) => k.startsWith("fl-"));
 
   return (
     <div className="min-h-screen relative">
@@ -165,18 +183,29 @@ export default function KeywordDemandPage() {
                 className="w-full rounded-lg border-2 border-slate-600 bg-slate-950/80 px-4 py-3 font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-[#00e5ff]/60 focus:ring-2 focus:ring-[#00e5ff]/20"
               />
             </div>
-            <div className="w-full lg:w-56">
+            <div className="w-full lg:min-w-[min(100%,22rem)] lg:max-w-md">
               <label className="block font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">
                 Geo (target)
               </label>
               <select
                 value={geo}
-                onChange={(e) => setGeo(e.target.value as GeoKey)}
+                onChange={(e) => setGeo(e.target.value as GeoPresetKey)}
                 className="w-full rounded-lg border-2 border-slate-600 bg-slate-950/80 px-4 py-3 font-mono text-sm text-white focus:outline-none focus:border-[#00e5ff]/60"
               >
-                <option value="us">United States</option>
-                <option value="fl">Florida</option>
-                <option value="metros">Florida metros (combined)</option>
+                <optgroup label="United States">
+                  <option value="us">{GEO_PRESETS.us.label}</option>
+                </optgroup>
+                <optgroup label="Florida — broad">
+                  <option value="fl">{GEO_PRESETS.fl.label}</option>
+                  <option value="metros">{GEO_PRESETS.metros.label}</option>
+                </optgroup>
+                <optgroup label="Florida — cities & counties">
+                  {floridaCityKeys.map((key) => (
+                    <option key={key} value={key}>
+                      {GEO_PRESETS[key].label}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
             <button
@@ -255,7 +284,7 @@ export default function KeywordDemandPage() {
             <p className="text-xs text-slate-500 mb-4 font-mono">
               Query: <span className="text-slate-300">&quot;{live?.seedKeyword ?? titleCase}&quot;</span>
               {" · "}
-              Geo: {live?.geoLabel ?? (geo === "us" ? "United States" : geo === "fl" ? "Florida" : "Florida metros")}
+              Geo: {live?.geoLabel ?? geoLabelStatic}
               {" · "}
               English
             </p>

@@ -1,30 +1,16 @@
 import { GoogleAdsApi, enums, services, common, type Customer } from "google-ads-api";
+import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
+
+export type { GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 const LANGUAGE_EN = "languageConstants/1000";
 
-/** Geo presets: resource suffix is geo target constant ID (see Google Ads geotargets reference). */
-export const GEO_PRESETS = {
-  us: { label: "United States", constants: ["geoTargetConstants/2840"] },
-  fl: { label: "Florida", constants: ["geoTargetConstants/21167"] },
-  metros: {
-    label: "Florida metros (combined)",
-    constants: [
-      "geoTargetConstants/2004",
-      "geoTargetConstants/1015117",
-      "geoTargetConstants/2008",
-    ],
-  },
-} as const;
-
-export type GeoPresetKey = keyof typeof GEO_PRESETS;
-
-/** Optional breakdown rows for “demand by location” — separate calls per region. */
+/** Fewer parallel calls + correct IDs — avoids serverless timeouts and bad targets */
 const GEO_BREAKDOWN_ROWS: { label: string; constant: string }[] = [
   { label: "United States", constant: "geoTargetConstants/2840" },
-  { label: "Florida", constant: "geoTargetConstants/21167" },
-  { label: "Miami-Dade County FL", constant: "geoTargetConstants/2004" },
-  { label: "Orlando-Kissimmee FL", constant: "geoTargetConstants/1015117" },
-  { label: "Broward County FL", constant: "geoTargetConstants/2008" },
+  { label: "Florida (state)", constant: "geoTargetConstants/21142" },
+  { label: "Miami-Dade County", constant: "geoTargetConstants/9057286" },
+  { label: "Orlando (city)", constant: "geoTargetConstants/1015150" },
 ];
 
 export type KeywordIdeaRow = {

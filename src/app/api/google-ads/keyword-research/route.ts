@@ -3,16 +3,16 @@ import { requireAdminSession } from "@/lib/admin-auth";
 import {
   googleAdsKeywordResearchConfigured,
   runKeywordResearch,
-  type GeoPresetKey,
 } from "@/lib/google-ads-keyword-research";
+import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const GEO_KEYS = new Set<string>(["us", "fl", "metros"]);
+/** Vercel Pro: allow time for Google Ads + geo breakdown calls */
+export const maxDuration = 60;
 
 function isGeoKey(v: unknown): v is GeoPresetKey {
-  return typeof v === "string" && GEO_KEYS.has(v);
+  return typeof v === "string" && v in GEO_PRESETS;
 }
 
 export async function GET(request: Request) {
