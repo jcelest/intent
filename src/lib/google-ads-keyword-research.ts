@@ -1,17 +1,9 @@
-import { GoogleAdsApi, enums, services, common, type Customer } from "google-ads-api";
+import { GoogleAdsApi, enums, services, common } from "google-ads-api";
 import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 export type { GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 const LANGUAGE_EN = "languageConstants/1000";
-
-/** Florida-focused comparison rows (no national aggregate) */
-const GEO_BREAKDOWN_ROWS: { label: string; constant: string }[] = [
-  { label: "Florida (state)", constant: "geoTargetConstants/21142" },
-  { label: "Miami-Dade County", constant: "geoTargetConstants/9057286" },
-  { label: "Orlando (city)", constant: "geoTargetConstants/1015150" },
-  { label: "Tampa (city)", constant: "geoTargetConstants/1015214" },
-];
 
 export type KeywordIdeaRow = {
   text: string;
@@ -138,28 +130,6 @@ function pickPrimary(ideas: KeywordIdeaRow[], seed: string): KeywordIdeaRow | nu
   return ideas[0] ?? null;
 }
 
-async function fetchSeedVolumeForGeo(
-  customer: Customer,
-  customerId: string,
-  keyword: string,
-  geoConstant: string
-): Promise<number | null> {
-  const response = await customer.keywordPlanIdeas.generateKeywordIdeas({
-    customer_id: customerId,
-    language: LANGUAGE_EN,
-    geo_target_constants: [geoConstant],
-    keyword_seed: { keywords: [keyword] },
-    keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
-    include_adult_keywords: false,
-    page_size: 50,
-  } as never);
-  const results = response.results ?? [];
-  const seed = keyword.trim().toLowerCase();
-  const row = results.find((r) => (r.text ?? "").toLowerCase() === seed);
-  const metrics = row?.keyword_idea_metrics ?? results[0]?.keyword_idea_metrics;
-  return metrics?.avg_monthly_searches ?? null;
-}
-
 export async function runKeywordResearch(
   keyword: string,
   geoKey: GeoPresetKey
@@ -204,35 +174,18 @@ export async function runKeywordResearch(
   const primary = pickPrimary(ideas, keyword);
   const yoyTrendPercent = primary ? computeYoy(primary.monthlyVolumes) : null;
 
-  const breakdownVolumes = await Promise.all(
-    GEO_BREAKDOWN_ROWS.map(async (row) => {
-      try {
-        const vol = await fetchSeedVolumeForGeo(customer, customer_id, keyword.trim(), row.constant);
-        return { label: row.label, vol };
-      } catch {
-        return { label: row.label, vol: null as number | null };
-      }
-    })
-  );
-
-  const valid = breakdownVolumes.filter((x) => x.vol != null && x.vol > 0) as {
-    label: string;
-    vol: number;
-  }[];
-  const total = valid.reduce((s, x) => s + x.vol, 0);
-  const maxVol = valid.length ? Math.max(...valid.map((x) => x.vol)) : 0;
-
-  const geoBreakdown: GeoBreakdownRow[] = breakdownVolumes.map((row) => {
-    const vol = row.vol;
-    const share = total > 0 && vol != null ? Math.round((vol / total) * 100) : 0;
-    const index = maxVol > 0 && vol != null ? Math.round((vol / maxVol) * 100) : 0;
-    return {
-      region: row.label,
-      avgMonthlySearches: vol,
-      share,
-      index,
-    };
-  });
+  /** One row for the selected geo — avoids 4+ extra API calls (Vercel timeout / 502). */
+  const geoBreakdown: GeoBreakdownRow[] =
+    primary?.avgMonthlySearches != null
+      ? [
+          {
+            region: preset.label,
+            avgMonthlySearches: primary.avgMonthlySearches,
+            share: 100,
+            index: 100,
+          },
+        ]
+      : [];
 
   return {
     source: "google_ads",

@@ -8,7 +8,7 @@ import { GEO_PRESETS, type GeoPresetKey } from "@/lib/google-ads-geo-presets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-/** Vercel Pro: allow time for Google Ads + geo breakdown calls */
+/** Vercel: single Ads call is usually under 10s; Pro can raise this if needed */
 export const maxDuration = 60;
 
 function isGeoKey(v: unknown): v is GeoPresetKey {

@@ -336,9 +336,11 @@ export default function KeywordDemandPage() {
               Demand by location
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              {live?.geoBreakdown?.length
-                ? "Relative share from separate geo-targeted requests for the same seed keyword."
-                : "Sample data — set Google Ads env vars for live geo breakdown."}
+              {live
+                ? "Volume for your selected geo (one Google Ads request — no extra regional fan-out)."
+                : configured
+                  ? "Run analysis to load metrics for the geo you selected."
+                  : "Sample data — set Google Ads env vars for live results."}
             </p>
           </div>
           <div className="overflow-x-auto">
