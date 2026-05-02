@@ -15,8 +15,9 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     fetch("/api/admin/session")
-      .then((r) => {
-        if (r.ok) router.replace("/admin/analytics");
+      .then(async (r) => {
+        const data = (await r.json().catch(() => ({}))) as { ok?: boolean };
+        if (data.ok) router.replace("/admin/analytics");
       })
       .catch(() => {});
   }, [router]);

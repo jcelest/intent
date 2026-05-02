@@ -18,7 +18,8 @@ export async function GET(request: Request) {
   const deviceHash = cookieStore.get(DEVICE_COOKIE)?.value;
 
   if (!auth || !deviceHash || deviceHash !== currentHash) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    // 200 + ok:false avoids noisy "failed to load" console noise on the login page
+    return NextResponse.json({ ok: false });
   }
 
   return NextResponse.json({ ok: true });
