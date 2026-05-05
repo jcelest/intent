@@ -41,6 +41,24 @@ function httpStatusFromError(err: unknown): number | undefined {
 export function toGoogleAdsHttpError(err: unknown): GoogleAdsHttpError {
   const message = extractMessages(err);
   const httpStatus = httpStatusFromError(err);
+  const lower = message.toLowerCase();
+
+  /** OAuth refresh failed before any Google Ads call (common: expired/revoked token or wrong client id/secret). */
+  if (lower.includes("invalid_grant")) {
+    return {
+      code: "OAUTH_INVALID_GRANT",
+      status: 401,
+      message:
+        "Google OAuth returned invalid_grant: the refresh token is no longer valid. Regenerate " +
+        "GOOGLE_ADS_REFRESH_TOKEN with the same OAuth client used in " +
+        "GOOGLE_ADS_CLIENT_ID / GOOGLE_ADS_CLIENT_SECRET (Desktop or Web app in Google Cloud " +
+        "→ Credentials). Typical causes: token revoked in Google Account security, user password " +
+        "change, refresh token was issued under a different client id, or (OAuth consent in " +
+        "Testing mode) refresh tokens expired after ~7 days—in that case set the app to Production " +
+        "or repeat the offline OAuth flow. Original: " +
+        message,
+    };
+  }
 
   if (message.includes("only approved for use with test accounts")) {
     return {
