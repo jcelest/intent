@@ -5,9 +5,12 @@ import type {
   Ga4LiveData,
   Ga4Series,
   Ga4MetricId,
+  Ga4StandardMetricId,
+  Ga4EventMetricId,
   Ga4DateRangeId,
 } from "@/lib/analytics-types";
-import { GA4_METRICS, GA4_DATE_RANGES } from "@/lib/analytics-types";
+import { GA4_METRICS, GA4_EVENT_METRICS, GA4_DATE_RANGES, GA4_SELECTABLE_METRICS } from "@/lib/analytics-types";
+import type { CompanyConfig } from "@/lib/companies";
 
 async function getGa4Client() {
   const creds = process.env.GA4_CREDENTIALS_JSON;
@@ -158,10 +161,34 @@ function formatDateLabel(dimValue: string, dimension: string): string {
   return dimValue;
 }
 
-async function fetchGa4Report(
+function splitMetricIds(metricIds: Ga4MetricId[]): {
+  standard: Ga4StandardMetricId[];
+  events: Ga4EventMetricId[];
+} {
+  return {
+    standard: metricIds.filter((id) =>
+      GA4_METRICS.some((m) => m.id === id)
+    ) as Ga4StandardMetricId[],
+    events: metricIds.filter((id) =>
+      GA4_EVENT_METRICS.some((m) => m.id === id)
+    ) as Ga4EventMetricId[],
+  };
+}
+
+function phoneClickEventName(company: CompanyConfig): string {
+  const envKey = `GA4_${company.id.toUpperCase().replace(/-/g, "_")}_PHONE_CLICK_EVENT`;
+  return (
+    process.env[envKey] ??
+    company.ga4PhoneClickEvent ??
+    GA4_EVENT_METRICS.find((m) => m.id === "phoneClicks")?.eventName ??
+    "phone_click"
+  );
+}
+
+async function fetchGa4StandardReport(
   propertyId: string,
   range: { startDate: string; endDate: string; dimension: string },
-  metricIds: Ga4MetricId[]
+  metricIds: Ga4StandardMetricId[]
 ): Promise<Ga4LiveData> {
   const client = await getGa4Client();
   const { startDate, endDate, dimension } = range;
@@ -183,9 +210,8 @@ async function fetchGa4Report(
   });
 
   const rows = response.rows ?? [];
-  const dateLabels = rows.map((r) =>
-    formatDateLabel(r.dimensionValues?.[0]?.value ?? "", dimension)
-  );
+  const dimensionKeys = rows.map((r) => r.dimensionValues?.[0]?.value ?? "");
+  const dateLabels = dimensionKeys.map((key) => formatDateLabel(key, dimension));
   const series: Ga4Series[] = validMetrics.map((m, idx) => {
     const def = GA4_METRICS.find((d) => d.id === m.name);
     return {
@@ -204,9 +230,90 @@ async function fetchGa4Report(
   return {
     dateRange: `${startDate} – ${endDate}`,
     dateLabels,
+    dimensionKeys,
     series,
     startDate,
     endDate,
+  };
+}
+
+async function fetchGa4EventSeries(
+  propertyId: string,
+  range: { startDate: string; endDate: string; dimension: string },
+  eventMetricId: Ga4EventMetricId,
+  eventName: string
+): Promise<{ series: Ga4Series; countsByDimension: Map<string, number> }> {
+  const client = await getGa4Client();
+  const { startDate, endDate, dimension } = range;
+  const def = GA4_EVENT_METRICS.find((m) => m.id === eventMetricId);
+
+  const [response] = await client.runReport({
+    property: `properties/${propertyId}`,
+    dateRanges: [{ startDate, endDate }],
+    dimensions: [{ name: dimension }],
+    metrics: [{ name: "eventCount" }],
+    dimensionFilter: {
+      filter: {
+        fieldName: "eventName",
+        stringFilter: { matchType: "EXACT", value: eventName },
+      },
+    },
+    orderBys: [{ dimension: { dimensionName: dimension } }],
+  });
+
+  const rows = response.rows ?? [];
+  const countsByDimension = new Map<string, number>();
+  for (const r of rows) {
+    const key = r.dimensionValues?.[0]?.value ?? "";
+    countsByDimension.set(
+      key,
+      Math.round(parseFloat(r.metricValues?.[0]?.value ?? "0"))
+    );
+  }
+  return {
+    series: {
+      id: eventMetricId,
+      label: def?.label ?? eventMetricId,
+      values: [],
+      format: "number",
+    },
+    countsByDimension,
+  };
+}
+
+async function fetchGa4Report(
+  propertyId: string,
+  range: { startDate: string; endDate: string; dimension: string },
+  metricIds: Ga4MetricId[],
+  company: CompanyConfig
+): Promise<Ga4LiveData> {
+  const { standard, events } = splitMetricIds(metricIds);
+  const primary = await fetchGa4StandardReport(propertyId, range, standard);
+
+  if (events.length === 0) {
+    return primary;
+  }
+
+  const eventSeriesList: Ga4Series[] = [];
+  for (const eventMetricId of events) {
+    const eventName =
+      eventMetricId === "phoneClicks" ? phoneClickEventName(company) : "phone_click";
+    const { series, countsByDimension } = await fetchGa4EventSeries(
+      propertyId,
+      range,
+      eventMetricId,
+      eventName
+    );
+    const keys = primary.dimensionKeys ?? [];
+    eventSeriesList.push({
+      ...series,
+      values: keys.map((key) => countsByDimension.get(key) ?? 0),
+    });
+  }
+
+  return {
+    ...primary,
+    series: [...primary.series, ...eventSeriesList],
   };
 }
 
@@ -253,7 +360,8 @@ export async function GET(
   const { companyId } = await params;
   const { searchParams } = new URL(request.url);
   const dateRange = (searchParams.get("dateRange") ?? "12m") as Ga4DateRangeId;
-  const metricsParam = searchParams.get("metrics") ?? GA4_METRICS.map((m) => m.id).join(",");
+  const metricsParam =
+    searchParams.get("metrics") ?? GA4_SELECTABLE_METRICS.map((m) => m.id).join(",");
   const metricIds = metricsParam.split(",").filter(Boolean) as Ga4MetricId[];
   const startParam = searchParams.get("startDate");
   const endParam = searchParams.get("endDate");
@@ -322,7 +430,7 @@ export async function GET(
         dimension: primary.dimension,
       };
 
-      let ga4 = await fetchGa4Report(propertyId, range1, metricIds);
+      let ga4 = await fetchGa4Report(propertyId, range1, metricIds, company);
       ga4 = {
         ...ga4,
         dateRange: primary.label,
@@ -331,7 +439,7 @@ export async function GET(
       if (compare) {
         const prev = previousPeriodRange(primary.startDate, primary.endDate);
         const prevRange = { ...prev, dimension: primary.dimension };
-        const ga4Prev = await fetchGa4Report(propertyId, prevRange, metricIds);
+        const ga4Prev = await fetchGa4Report(propertyId, prevRange, metricIds, company);
         ga4 = mergeComparisonSeries(ga4, ga4Prev);
         ga4.dateRange = primary.label + " (vs prior period)";
       }

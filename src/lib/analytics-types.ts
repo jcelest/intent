@@ -27,7 +27,17 @@ export const GA4_METRICS = [
   { id: "conversions", label: "Conversions", format: "number" as const },
 ] as const;
 
-export type Ga4MetricId = (typeof GA4_METRICS)[number]["id"];
+/** Custom GA4 events (queried via eventName filter + eventCount) */
+export const GA4_EVENT_METRICS = [
+  { id: "phoneClicks", label: "Phone clicks", eventName: "phone_click", format: "number" as const },
+] as const;
+
+export type Ga4StandardMetricId = (typeof GA4_METRICS)[number]["id"];
+export type Ga4EventMetricId = (typeof GA4_EVENT_METRICS)[number]["id"];
+export type Ga4MetricId = Ga4StandardMetricId | Ga4EventMetricId;
+
+/** All metrics shown in the admin dashboard metric picker */
+export const GA4_SELECTABLE_METRICS = [...GA4_METRICS, ...GA4_EVENT_METRICS] as const;
 
 /** Date range options aligned with GA4 */
 export const GA4_DATE_RANGES = [
@@ -55,6 +65,8 @@ export type Ga4LiveData = {
   /** Inclusive GA4 date bounds for the primary series */
   startDate?: string;
   endDate?: string;
+  /** Raw GA4 dimension values (date / yearMonth), aligned with dateLabels */
+  dimensionKeys?: string[];
   /** When compare was requested: the prior window used for `valuesPrevious` */
   comparison?: {
     label: string;

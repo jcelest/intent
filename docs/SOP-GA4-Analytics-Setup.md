@@ -122,6 +122,17 @@ GA4_<COMPANY_ID>_PROPERTY_ID=527575486
 3. Select the new company from the dropdown (it will show a ● for live companies)
 4. Real session data should appear; if GA4 isn't configured, an error message will show
 
+### 3.4 Phone click tracking (custom event)
+
+The admin dashboard can show **Phone clicks** from a GA4 custom event (default event name: `phone_click`).
+
+1. On the client site, fire a GA4 event when users tap/click a `tel:` link (e.g. via GTM or gtag).
+2. Use event name **`phone_click`** (recommended), or set a company override:
+   - Env: `GA4_NOVATION_HVAC_PHONE_CLICK_EVENT=your_event_name`
+   - Or in `src/lib/companies.ts`: `ga4PhoneClickEvent: "your_event_name"`
+3. In GA4 **Admin → Events**, confirm the event appears in **Realtime** after a test click.
+4. In the admin analytics hub, select the live company — **Phone clicks** appears in the metrics picker and KPI cards.
+
 ---
 
 ## Quick Reference: Env Var Naming

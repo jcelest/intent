@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { COMPANIES } from "@/lib/companies";
 import {
   type AnalyticsResponse,
-  GA4_METRICS,
+  GA4_SELECTABLE_METRICS,
   GA4_DATE_RANGES,
   type Ga4MetricId,
   type Ga4DateRangeId,
@@ -185,6 +185,14 @@ function ymdDaysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function sortGa4SeriesForDisplay<T extends { id: string }>(series: T[]): T[] {
+  return [...series].sort((a, b) => {
+    if (a.id === "phoneClicks") return -1;
+    if (b.id === "phoneClicks") return 1;
+    return 0;
+  });
 }
 
 function AnalyticsContent({
@@ -418,7 +426,7 @@ function AnalyticsContent({
           <div>
             <label className="block font-mono text-xs text-slate-400 mb-1">METRICS</label>
             <div className="flex flex-wrap gap-4">
-              {GA4_METRICS.map((m) => {
+              {GA4_SELECTABLE_METRICS.map((m) => {
                 const checked = selectedMetrics.includes(m.id);
                 return (
                   <label
@@ -463,7 +471,8 @@ function AnalyticsContent({
       {data.ga4 && data.ga4.series.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-12">
-            {data.ga4.series.map((s) => {
+            {sortGa4SeriesForDisplay(data.ga4.series).map((s) => {
+              const isPhoneClicks = s.id === "phoneClicks";
               const total = s.values.reduce((a, b) => a + b, 0);
               const avg = s.values.length > 0 ? total / s.values.length : 0;
               const prevTotal = s.valuesPrevious?.reduce((a, b) => a + b, 0);
@@ -486,11 +495,18 @@ function AnalyticsContent({
               return (
                 <div
                   key={s.id}
-                  className="rounded-xl border-2 bg-slate-900/60 p-4 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors"
+                  className={`rounded-xl border-2 bg-slate-900/60 p-4 transition-colors ${
+                    isPhoneClicks
+                      ? "border-emerald-500/40 hover:border-emerald-500/60"
+                      : "border-[#00e5ff]/30 hover:border-[#00e5ff]/50"
+                  }`}
                 >
                   <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-1">
                     {s.label}
                   </h3>
+                  {isPhoneClicks && (
+                    <p className="text-[10px] font-mono text-emerald-500/80 mb-1">tel: link clicks</p>
+                  )}
                   <span className="text-xl font-display font-bold" style={{ color: accent }}>
                     {displayVal}
                   </span>
@@ -518,8 +534,7 @@ function AnalyticsContent({
             })}
           </div>
           <div className="space-y-12">
-            {data.ga4.series.map((s) => {
-              const chartData = buildChartData(data);
+            {sortGa4SeriesForDisplay(data.ga4.series).map((s) => {
               const maxVal = Math.max(
                 ...s.values,
                 ...(s.valuesPrevious ?? []),
@@ -772,7 +787,7 @@ export default function AnalyticsHubPage() {
   const [customEnd, setCustomEnd] = useState(() => ymdToday());
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [selectedMetrics, setSelectedMetrics] = useState<Ga4MetricId[]>(
-    GA4_METRICS.map((m) => m.id)
+    GA4_SELECTABLE_METRICS.map((m) => m.id)
   );
   const company = COMPANIES.find((c) => c.id === selectedId);
   const accent = company?.accentColor ?? "#00e5ff";

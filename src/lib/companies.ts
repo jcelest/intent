@@ -21,6 +21,8 @@ export type CompanyConfig = {
   accentColor: string;
   chartLayout: ChartLayout;
   dataSource: "mock" | "live";
+  /** GA4 custom event name for phone/tel link clicks (default: phone_click) */
+  ga4PhoneClickEvent?: string;
   /** Mock metrics — only used when dataSource: "mock" */
   mockMetrics?: {
     revenue: { before: number[]; after: number[] };
