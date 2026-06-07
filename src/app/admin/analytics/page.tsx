@@ -507,6 +507,11 @@ function AnalyticsContent({
                   {isPhoneClicks && (
                     <p className="text-[10px] font-mono text-emerald-500/80 mb-1">tel: link clicks</p>
                   )}
+                  {isPhoneClicks && data.ga4?.phoneClicks?.eventName && (
+                    <p className="text-[10px] font-mono text-slate-600 mb-1">
+                      event: {data.ga4.phoneClicks.eventName}
+                    </p>
+                  )}
                   <span className="text-xl font-display font-bold" style={{ color: accent }}>
                     {displayVal}
                   </span>
@@ -527,6 +532,11 @@ function AnalyticsContent({
                         {parseFloat(deltaPct) >= 0 ? "+" : ""}
                         {deltaPct}%
                       </span>
+                    </p>
+                  )}
+                  {isPhoneClicks && data.ga4?.phoneClicks?.realtimeCount != null && (
+                    <p className="mt-2 text-xs font-mono text-emerald-400/90">
+                      Realtime (last ~30 min): {data.ga4.phoneClicks.realtimeCount.toLocaleString()}
                     </p>
                   )}
                 </div>

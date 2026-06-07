@@ -73,6 +73,12 @@ export type Ga4LiveData = {
     startDate: string;
     endDate: string;
   };
+  /** Metadata for phone click event (when phoneClicks metric is requested) */
+  phoneClicks?: {
+    eventName: string;
+    /** GA4 Realtime API count (last ~30 min); can exceed processed daily totals for today */
+    realtimeCount?: number;
+  };
 };
 
 export type AnalyticsResponse = {

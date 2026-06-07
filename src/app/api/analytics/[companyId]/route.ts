@@ -161,6 +161,48 @@ function formatDateLabel(dimValue: string, dimension: string): string {
   return dimValue;
 }
 
+/** Every calendar bucket in the requested range (GA4 omits zero-traffic days). */
+function listDimensionKeysInRange(
+  startDate: string,
+  endDate: string,
+  dimension: "date" | "yearMonth"
+): string[] {
+  const s = parseYmd(startDate);
+  const e = parseYmd(endDate);
+  if (!s || !e) return [];
+
+  if (dimension === "date") {
+    const keys: string[] = [];
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      keys.push(
+        `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`
+      );
+    }
+    return keys;
+  }
+
+  const keys: string[] = [];
+  let y = s.getFullYear();
+  let m = s.getMonth();
+  const endY = e.getFullYear();
+  const endM = e.getMonth();
+  while (y < endY || (y === endY && m <= endM)) {
+    keys.push(`${y}${String(m + 1).padStart(2, "0")}`);
+    m++;
+    if (m > 11) {
+      m = 0;
+      y++;
+    }
+  }
+  return keys;
+}
+
+function alignSeriesToLength(values: number[], targetLen: number): number[] {
+  if (values.length === targetLen) return values;
+  if (values.length > targetLen) return values.slice(-targetLen);
+  return [...Array(targetLen - values.length).fill(0), ...values];
+}
+
 function splitMetricIds(metricIds: Ga4MetricId[]): {
   standard: Ga4StandardMetricId[];
   events: Ga4EventMetricId[];
@@ -210,15 +252,25 @@ async function fetchGa4StandardReport(
   });
 
   const rows = response.rows ?? [];
-  const dimensionKeys = rows.map((r) => r.dimensionValues?.[0]?.value ?? "");
+  const dim = dimension as "date" | "yearMonth";
+  const expectedKeys = listDimensionKeysInRange(startDate, endDate, dim);
+  const rowByKey = new Map(
+    rows.map((r) => [r.dimensionValues?.[0]?.value ?? "", r])
+  );
+
+  const dimensionKeys =
+    expectedKeys.length > 0
+      ? expectedKeys
+      : rows.map((r) => r.dimensionValues?.[0]?.value ?? "");
   const dateLabels = dimensionKeys.map((key) => formatDateLabel(key, dimension));
   const series: Ga4Series[] = validMetrics.map((m, idx) => {
     const def = GA4_METRICS.find((d) => d.id === m.name);
     return {
       id: m.name,
       label: def?.label ?? m.name,
-      values: rows.map((r) => {
-        const v = r.metricValues?.[idx]?.value ?? "0";
+      values: dimensionKeys.map((key) => {
+        const row = rowByKey.get(key);
+        const v = row?.metricValues?.[idx]?.value ?? "0";
         return def?.format === "percent" || def?.format === "duration"
           ? parseFloat(v)
           : Math.round(parseFloat(v));
@@ -235,6 +287,29 @@ async function fetchGa4StandardReport(
     startDate,
     endDate,
   };
+}
+
+async function fetchGa4PhoneClickRealtimeCount(
+  propertyId: string,
+  eventName: string
+): Promise<number | undefined> {
+  try {
+    const client = await getGa4Client();
+    const [response] = await client.runRealtimeReport({
+      property: `properties/${propertyId}`,
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "eventName",
+          stringFilter: { matchType: "EXACT", value: eventName },
+        },
+      },
+    });
+    const v = response.rows?.[0]?.metricValues?.[0]?.value;
+    return v != null ? Math.round(parseFloat(v)) : 0;
+  } catch {
+    return undefined;
+  }
 }
 
 async function fetchGa4EventSeries(
@@ -295,6 +370,8 @@ async function fetchGa4Report(
   }
 
   const eventSeriesList: Ga4Series[] = [];
+  let phoneClickMeta: Ga4LiveData["phoneClicks"];
+
   for (const eventMetricId of events) {
     const eventName =
       eventMetricId === "phoneClicks" ? phoneClickEventName(company) : "phone_click";
@@ -309,11 +386,17 @@ async function fetchGa4Report(
       ...series,
       values: keys.map((key) => countsByDimension.get(key) ?? 0),
     });
+
+    if (eventMetricId === "phoneClicks") {
+      const realtimeCount = await fetchGa4PhoneClickRealtimeCount(propertyId, eventName);
+      phoneClickMeta = { eventName, realtimeCount };
+    }
   }
 
   return {
     ...primary,
     series: [...primary.series, ...eventSeriesList],
+    phoneClicks: phoneClickMeta,
   };
 }
 
@@ -321,29 +404,24 @@ function mergeComparisonSeries(
   current: Ga4LiveData,
   previous: Ga4LiveData
 ): Ga4LiveData {
-  const lengths = [
-    ...current.series.map((s) => s.values.length),
-    ...previous.series.map((s) => s.values.length),
-    current.dateLabels.length,
-    previous.dateLabels.length,
-  ].filter((n) => n > 0);
-  const safeLen = lengths.length ? Math.min(...lengths) : 0;
+  const targetLen = current.dateLabels.length;
 
   const merged: Ga4Series[] = current.series.map((s) => {
     const prevS = previous.series.find((p) => p.id === s.id);
     const valuesPrevious = prevS
-      ? prevS.values.slice(0, safeLen)
+      ? alignSeriesToLength(prevS.values, targetLen)
       : undefined;
     return {
       ...s,
-      values: s.values.slice(0, safeLen),
+      values: alignSeriesToLength(s.values, targetLen),
       valuesPrevious,
     };
   });
 
   return {
     ...current,
-    dateLabels: current.dateLabels.slice(0, safeLen),
+    dateLabels: current.dateLabels.slice(-targetLen),
+    dimensionKeys: current.dimensionKeys?.slice(-targetLen),
     series: merged,
     comparison: {
       label: `${previous.startDate ?? ""} – ${previous.endDate ?? ""}`,
