@@ -104,7 +104,7 @@ export function BentoGrid() {
             className={cn(
               "rounded-xl border p-5 sm:p-6 lg:p-8 transition-all duration-300 min-w-0",
               bento.gold
-                ? "border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/[0.14] via-amber-600/[0.08] to-card shadow-[0_0_40px_rgba(217,169,65,0.18)] hover:border-amber-300/70 hover:shadow-[0_0_48px_rgba(217,169,65,0.26)]"
+                ? "border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/[0.22] via-[rgba(2,6,23,0.90)] to-card shadow-[0_0_40px_rgba(217,169,65,0.18)] hover:border-amber-300/70 hover:shadow-[0_0_48px_rgba(217,169,65,0.26)]"
                 : "border-border bg-card hover:border-accent/50 hover:shadow-glow",
               bento.span
             )}

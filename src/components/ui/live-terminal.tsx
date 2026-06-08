@@ -17,7 +17,8 @@ const BOOT_SEQUENCE = [
 ];
 
 const MAX_VISIBLE_LINES = 5;
-const ROW_CLASS = "h-5 sm:h-6 shrink-0 overflow-hidden whitespace-nowrap text-ellipsis";
+const ROW_CLASS =
+  "h-[1.125rem] sm:h-6 shrink-0 overflow-hidden whitespace-nowrap text-ellipsis min-w-0";
 
 function LineText({ line }: { line: string }) {
   if (!line) return null;
@@ -91,7 +92,7 @@ export function LiveTerminal({ className }: { className?: string }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.1 }}
-      className={cn("relative w-full max-w-2xl sm:max-w-3xl", className)}
+      className={cn("relative w-full min-w-0 max-w-2xl sm:max-w-3xl", className)}
     >
       {/* Titanium halo */}
       <div
@@ -109,35 +110,60 @@ export function LiveTerminal({ className }: { className?: string }) {
           "before:bg-gradient-to-r before:from-transparent before:via-zinc-200/40 before:to-transparent"
         )}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-500/25 bg-zinc-800/50 px-4 py-3 sm:px-5 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-red-500/90 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
-            <span className="h-3 w-3 rounded-full bg-amber-400/90 shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
-            <span className="h-3 w-3 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
+        <div className="border-b border-zinc-500/25 bg-zinc-800/50 shrink-0">
+          {/* Mobile: controls row + title on its own line */}
+          <div className="sm:hidden px-3 pt-2.5 pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500/90 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90 shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
+              </div>
+              <span className="flex items-center gap-1 shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-emerald-400/95">
+                  Live
+                </span>
+              </span>
+            </div>
+            <p className="mt-2 font-mono text-[10px] text-white/90 tracking-wide text-center truncate">
+              intent — growth engine
+            </p>
           </div>
-          <span className="font-mono text-[10px] sm:text-xs text-white/90 tracking-wide truncate">
-            intent — growth engine
-          </span>
-          <span className="flex items-center gap-1.5 shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          {/* sm+: single title bar row */}
+          <div className="hidden sm:flex items-center justify-between gap-3 px-5 py-3 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="h-3 w-3 rounded-full bg-red-500/90 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+              <span className="h-3 w-3 rounded-full bg-amber-400/90 shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+              <span className="h-3 w-3 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
+            </div>
+            <span className="font-mono text-xs text-white/90 tracking-wide text-center truncate min-w-0 flex-1 px-2">
+              intent — growth engine
             </span>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-400/95">
-              Live
+            <span className="flex items-center gap-1.5 shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-400/95">
+                Live
+              </span>
             </span>
-          </span>
+          </div>
         </div>
 
-        <div className="px-4 py-4 sm:px-5 sm:py-5 font-mono text-xs sm:text-sm leading-none overflow-hidden">
-          <div className="flex flex-col justify-end h-[6.25rem] sm:h-[7.5rem]">
+        <div className="relative px-3 py-3 sm:px-5 sm:py-5 font-mono text-[10px] sm:text-sm leading-none overflow-hidden">
+          <div className="flex flex-col justify-end h-[5.625rem] sm:h-[7.5rem]">
             {slots.map((line, i) => {
               const isActive = i === MAX_VISIBLE_LINES - 1;
               const isHistory = line.length > 0 && !isActive;
               return (
                 <div
                   key={`slot-${i}`}
-                  className={cn(ROW_CLASS, isHistory && "opacity-75")}
+                  className={cn(ROW_CLASS, "block w-full", isHistory && "opacity-75")}
                 >
                   <LineText line={line} />
                   {isActive && (
