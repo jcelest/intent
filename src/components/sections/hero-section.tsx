@@ -47,23 +47,20 @@ export function HeroSection() {
           </span>
         </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 1, y: 0 }}
-          animate={{ opacity: 1, y: 0 }}
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed"
+          className="mt-8 sm:mt-10 w-full flex justify-center"
         >
-          Built for HVAC, plumbing, roofing, and home services. We map and grow
-          revenue streams—then we build the Intent application, grow you
-          organically at an exceptional pace, and run paid ads & content when
-          it accelerates the plan. Phone-first, not bot-first.
-        </motion.p>
+          <LiveTerminal />
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-10 flex flex-col sm:flex-row gap-4"
+          className="mt-8 sm:mt-10 flex flex-col sm:flex-row gap-4"
         >
           <Button
             variant="primary"
@@ -84,15 +81,6 @@ export function HeroSection() {
           >
             See the Package
           </Button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-16 w-full flex justify-center"
-        >
-          <LiveTerminal />
         </motion.div>
       </div>
     </section>
