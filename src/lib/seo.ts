@@ -6,7 +6,7 @@
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://intentrev.net";
 
 export const SITE_NAME = "Intent";
-export const SITE_TAGLINE = "We Grow High-Value Revenue Streams";
+export const SITE_TAGLINE = "We Grow Revenue. By A Lot.";
 
 /** Primary phrase for keyword consistency (title, H1, description, body) */
 export const PRIMARY_KEYWORD_PHRASE = "contractor lead generation";

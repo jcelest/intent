@@ -43,7 +43,7 @@ export function HeroSection() {
             Growth Partner For Contractors And The Trades
           </span>
           <span className="block mt-2 sm:mt-3 text-base sm:text-2xl md:text-3xl text-muted font-medium">
-            We Grow High-Value Revenue Streams.
+            We Grow Revenue. By A Lot.
           </span>
         </motion.h1>
 
