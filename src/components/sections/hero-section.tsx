@@ -11,7 +11,7 @@ const LiveTerminal = dynamic(
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 py-2">
+    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 pt-16 sm:pt-20 pb-2">
       {/* Grid background with radial gradient mask */}
       <div
         className="absolute inset-0 bg-[linear-gradient(transparent_0%,transparent_50%,rgba(0,0,0,0.8)_100%)]"

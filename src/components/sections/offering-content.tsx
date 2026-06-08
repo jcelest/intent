@@ -40,7 +40,7 @@ const REVENUE_ITEM: PackageItem = {
 const SOFTWARE_ITEM: PackageItem = {
   title: "We Build Your Application & Software",
   description:
-    "We design and build custom software for your trade business—not off-the-shelf SaaS. Your conversion site, speed-to-lead & intake automation (forms, missed-call SMS, after-hours, follow-up), AI voice qualification when your team can't answer, and an analytics dashboard built for how you operate. Phone-first, not bot-first.",
+    "We design and build custom software for your trade business. Your conversion site, speed-to-lead & intake automation (forms, missed-call SMS, after-hours, follow-up), AI voice qualification when your team can't answer, and an analytics dashboard built for how you operate. Phone-first, not bot-first.",
   Icon: LightningIcon,
   badge: "We Build It",
   variant: "gold",
