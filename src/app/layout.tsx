@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     "lead generation Florida",
     "HVAC lead generation",
     "plumbing lead generation",
-    "engineer revenue",
+    "revenue growth for contractors",
     "revenue generation",
   ],
   authors: [{ name: SITE_NAME, url: SITE_URL }],

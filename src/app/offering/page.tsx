@@ -4,9 +4,9 @@ import { OfferingContent } from "@/components/sections/offering-content";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Lead Generation Package | Get More Contractor Leads — Intent",
+  title: "Full Package | Revenue Growth for Contractors — Intent",
   description:
-    "Full lead generation package for contractors. Speed-to-lead, local SEO, voice qualification, revenue dashboard. Capture and close more leads.",
+    "We map revenue streams, build custom software, grow trades organically at an exceptional pace, and run paid ads & content on Google when it accelerates growth.",
   keywords: [
     "lead generation package",
     "contractor lead generation",

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     PRIMARY_KEYWORD_PHRASE,
     "lead generation for contractors",
     "contractor marketing",
-    "engineer revenue",
+    "revenue growth for contractors",
     "HVAC lead generation",
     "plumbing lead generation",
     "lead generation Florida",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "Intent",
     locale: "en_US",
     type: "website",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Intent — contractor lead generation for the trades" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Intent — revenue growth for contractors and the trades" }],
   },
   twitter: {
     card: "summary_large_image",

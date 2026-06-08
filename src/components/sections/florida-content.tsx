@@ -62,8 +62,9 @@ export function FloridaContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            From Miami to Jacksonville, Tampa to Orlando—we build AI-powered
-            lead generation for contractors and local services. We engineer revenue for Florida businesses statewide.
+            From Miami to Jacksonville, Tampa to Orlando—we grow high-value revenue
+            for contractors and local services with exceptional organic search,
+            paid ads & content, and speed-to-lead intake across Florida.
           </motion.p>
         </div>
       </section>
@@ -127,10 +128,10 @@ export function FloridaContent() {
             className="space-y-5"
           >
             {[
-              "AI voice qualification—real outbound calls that book appointments",
+              "Speed-to-lead & intake—capture every lead; AI voice when your team can't answer",
               "Speed-to-lead—respond to leads in under 60 seconds",
               "pSEO engine—programmatic local landing pages at scale",
-              "Revenue dashboard—track every lead and conversion",
+              "Analytics dashboard—built for your trade business",
               "Custom React builds—conversion-focused, zero bloat",
             ].map((point, i) => (
               <motion.li
@@ -159,7 +160,7 @@ export function FloridaContent() {
           className="max-w-2xl mx-auto text-center"
         >
           <h2 className="text-2xl sm:text-3xl font-display font-semibold mb-4 text-foreground">
-            Ready to engineer revenue in Florida?
+            Ready to grow revenue in Florida?
           </h2>
           <p className="text-foreground/90 text-lg mb-8 font-medium">
             Test our AI or explore our full package.

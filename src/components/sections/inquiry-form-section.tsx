@@ -79,7 +79,7 @@ export function InquiryFormSection() {
           Get a <span className="text-accent">Free Quote</span>
         </h2>
         <p className="mt-4 text-muted text-center">
-          Tell us about your business. We&apos;ll show you how we engineer revenue for contractors and the trades.
+          Tell us about your business. We&apos;ll map revenue streams and how we capture every lead for your trade.
         </p>
 
         {status === "success" ? (

@@ -6,27 +6,27 @@ import Link from "next/link";
 const TRADES = [
   {
     title: "HVAC & Climate",
-    desc: "Dominate local search with pSEO. AI voice calls qualify service calls and book installations. Speed-to-lead captures homeowners before they call the competition.",
+    desc: "Grow repair, install, and maintenance revenue. Exceptional organic search growth, paid ads when needed, plus speed-to-lead intake—so every homeowner gets a response.",
   },
   {
     title: "Plumbing",
-    desc: "Programmatic neighborhood landing pages for plumbers. AI qualification filters emergency vs. non-urgent, books high-value jobs, reduces no-shows.",
+    desc: "Emergency and scheduled work need fast capture. Local landing pages, intake automation, and follow-up on estimates so high-value jobs don't go to the next plumber on Google.",
   },
   {
     title: "Roofing & Exterior",
-    desc: "Storm season, insurance claims, replacements—we capture intent with geo-targeted pages and AI voice qualification that books estimates fast.",
+    desc: "Storm season and replacements spike demand. Geo-targeted pages capture intent; speed-to-lead books estimates before leads cool off.",
   },
   {
     title: "General Contractors",
-    desc: "Remodels, additions, new construction. Custom landing pages per service area. AI calls qualify project scope and budget before your team visits.",
+    desc: "Remodels and builds need qualified scope. Custom service-area pages, fast intake, and reporting that ties marketing to booked consultations.",
   },
   {
     title: "Electrical & Solar",
-    desc: "High-ticket home services need speed. We respond in under 60 seconds, qualify with AI voice, and book consultations before leads go cold.",
+    desc: "High-ticket trades can't afford slow follow-up. Under-60-second response, smart intake when your office is closed, and visibility on Google Search.",
   },
   {
     title: "Landscaping & Lawn",
-    desc: "Recurring revenue businesses need consistent lead flow. pSEO + AI voice fills your schedule with qualified, ready-to-sign customers.",
+    desc: "Recurring revenue needs steady demand and retention. Search visibility plus capture automation to fill routes with ready-to-sign customers.",
   },
 ];
 
@@ -55,7 +55,7 @@ export function ContractorsContent() {
             transition={{ duration: 0.5 }}
             className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight text-foreground"
           >
-            AI Marketing for{" "}
+            Revenue Growth for{" "}
             <span className="text-accent drop-shadow-[0_0_20px_rgba(34,211,238,0.4)]">
               Contractors
             </span>
@@ -66,9 +66,9 @@ export function ContractorsContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            HVAC, plumbing, roofing, construction, home services—we build
-            AI-powered lead generation that dominates local search and qualifies
-            leads before your team touches the phone.
+            HVAC, plumbing, roofing, construction, home services—we find and grow
+            high-value revenue streams, then we build the Intent application and
+            organic search growth and paid ads for your business.
           </motion.p>
         </div>
       </section>
@@ -129,11 +129,12 @@ export function ContractorsContent() {
             className="space-y-5"
           >
             {[
-              "pSEO engine—dominate local search with programmatic neighborhood pages",
-              "AI voice qualification—filter tire-kickers, book only high-intent jobs",
-              "Speed-to-lead—respond in under 60 seconds, before competitors",
-              "Revenue dashboard—track every lead, call, and conversion",
-              "Custom conversion-focused sites—no WordPress templates",
+              "Revenue streams—we identify and grow demand, conversion, and repeat work on your behalf",
+              "We build your application & software—custom site, speed-to-lead, intake automation, and analytics dashboard",
+              "Google Search organic growth—exceptional pace on local SEO, pages, and content",
+              "Paid ads & content—we create creative and run Google campaigns that complement organic",
+              "AI voice when your team can't answer—not on every live call",
+              "Ongoing optimization—reporting and adjustments as your business grows",
             ].map((point, i) => (
               <motion.li
                 key={point}
@@ -161,10 +162,10 @@ export function ContractorsContent() {
           className="max-w-2xl mx-auto text-center"
         >
           <h2 className="text-2xl sm:text-3xl font-display font-semibold mb-4 text-foreground">
-            Ready to engineer revenue as a contractor?
+            Ready to grow revenue as a contractor?
           </h2>
           <p className="text-foreground/90 text-lg mb-8 font-medium">
-            Test our AI or see the full package.
+            Get a free quote or see the full package.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
@@ -172,7 +173,7 @@ export function ContractorsContent() {
                 href="/#get-in-touch"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg bg-accent text-black hover:bg-accent/90 transition-colors shadow-[0_0_25px_rgba(34,211,238,0.3)]"
               >
-                Test the AI
+                Get a Free Quote
               </Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>

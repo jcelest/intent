@@ -7,7 +7,7 @@ const CITIES = [
   { name: "Orlando", desc: "Theme parks, tourism, and tech—we help Orlando businesses capture high-intent leads." },
   { name: "Tampa", desc: "Healthcare, finance, and growth—Tampa companies use our AI to qualify and close faster." },
   { name: "Kissimmee", desc: "Hospitality and local services—Kissimmee businesses dominate local search with our pSEO engine." },
-  { name: "Winter Park", desc: "Upscale retail and professional services—Winter Park brands scale with AI voice qualification." },
+  { name: "Winter Park", desc: "Upscale retail and professional services—Winter Park brands grow with organic search, paid ads, and fast lead capture." },
   { name: "Lakeland", desc: "Manufacturing and logistics—Lakeland businesses automate lead capture and revenue tracking." },
 ];
 
@@ -47,8 +47,9 @@ export function CentralFloridaContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Orlando, Tampa, Kissimmee, Winter Park, Lakeland—we build AI-powered
-            lead generation for contractors and local services. We engineer revenue for Central Florida businesses.
+            Orlando, Tampa, Kissimmee, Winter Park, Lakeland—we open revenue
+            streams for contractors and local services with exceptional organic
+            search, paid ads & content, and phone-first intake in Central Florida.
           </motion.p>
         </div>
       </section>
@@ -109,10 +110,10 @@ export function CentralFloridaContent() {
             className="space-y-5"
           >
             {[
-              "AI voice qualification—real calls that book high-intent appointments",
+              "Speed-to-lead & intake—missed calls, forms, after-hours; AI voice when you can't answer",
               "Speed-to-lead automation—respond in under 60 seconds",
               "pSEO engine—dominate local search in Orlando, Tampa, and beyond",
-              "Revenue dashboard—track every lead and conversion",
+              "Analytics dashboard—built for your trade business",
               "Custom conversion-focused web experiences—no WordPress templates",
             ].map((point, i) => (
               <motion.li
@@ -141,7 +142,7 @@ export function CentralFloridaContent() {
           className="max-w-2xl mx-auto text-center"
         >
           <h2 className="text-2xl sm:text-3xl font-display font-semibold mb-4 text-foreground">
-            Ready to engineer revenue in Central Florida?
+            Ready to grow revenue in Central Florida?
           </h2>
           <p className="text-foreground/90 text-lg mb-8 font-medium">
             Test our AI or see the full package.

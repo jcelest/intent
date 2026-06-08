@@ -40,10 +40,10 @@ export function HeroSection() {
             Intent
           </span>
           <span className="block mt-2 text-2xl sm:text-3xl md:text-4xl text-foreground font-semibold">
-            Contractor lead generation for the trades
+            Growth partner for contractors and the trades
           </span>
           <span className="block mt-3 text-xl sm:text-2xl md:text-3xl text-muted font-medium">
-            We engineer revenue.
+            We grow high-value revenue streams.
           </span>
         </motion.h1>
 
@@ -53,9 +53,10 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed"
         >
-          Built for HVAC, plumbing, roofing, and home services. Speed-to-lead,
-          voice qualification, and local SEO—systems that capture and close
-          leads. No vanity metrics, just revenue.
+          Built for HVAC, plumbing, roofing, and home services. We map and grow
+          revenue streams—then we build the Intent application, grow you
+          organically at an exceptional pace, and run paid ads & content when
+          it accelerates the plan. Phone-first, not bot-first.
         </motion.p>
 
         <motion.div

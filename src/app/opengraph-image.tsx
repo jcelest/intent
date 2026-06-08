@@ -3,7 +3,7 @@ import { SITE_NAME, SITE_TAGLINE } from "@/lib/seo";
 
 export const runtime = "edge";
 
-export const alt = `${SITE_NAME} — contractor lead generation for the trades`;
+export const alt = `${SITE_NAME} — revenue growth for contractors and the trades`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -66,7 +66,7 @@ export default function Image() {
               lineHeight: 1.35,
             }}
           >
-            Contractor lead generation & revenue systems for the trades
+            Revenue streams, organic search, paid ads & software for the trades
           </div>
           <div style={{ marginTop: 32, fontSize: 20, color: "#64748b" }}>intentrev.net</div>
         </div>

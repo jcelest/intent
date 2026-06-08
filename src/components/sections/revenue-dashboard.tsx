@@ -41,10 +41,10 @@ export function RevenueDashboard() {
         className="text-center mb-16"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-semibold">
-          Revenue <span className="text-accent">Dashboard</span>
+          Analytics <span className="text-accent">Dashboard</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          Real metrics from real contractor clients. Leads, calls, conversions—no vanity metrics.
+          Built for your trade business—leads, calls, and outcomes by source so you see what&apos;s working.
         </p>
       </motion.div>
 

@@ -5,12 +5,14 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const BOOT_SEQUENCE = [
-  "root@intent:~# initializing_contractor_engine...",
-  "[OK] AI Voice Dispatcher loaded",
-  "[OK] Lead qualification pipeline active",
-  "[OK] pSEO targeting scripts deployed",
-  "[OK] Revenue dashboard connected",
-  "root@intent:~# ready_for_capture",
+  "root@intent:~# initializing_revenue_engine...",
+  "[OK] Revenue stream mapping active",
+  "[OK] Intent application & software online",
+  "[OK] Speed-to-lead & intake automation loaded",
+  "[OK] Analytics dashboard connected",
+  "[OK] Organic search growth modules ready",
+  "[OK] Paid ads & content pipeline armed",
+  "root@intent:~# ready_for_growth",
   "> ",
 ];
 

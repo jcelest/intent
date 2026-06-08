@@ -20,46 +20,48 @@ export function SeoContentSection() {
           viewport={{ once: true }}
           className="text-3xl sm:text-4xl font-display font-semibold text-foreground"
         >
-          Contractor lead generation that{" "}
-          <span className="text-accent">engineers revenue</span>
+          Revenue growth for contractors that{" "}
+          <span className="text-accent">actually sticks</span>
         </motion.h2>
         <div className="mt-8 space-y-6 text-foreground/90 text-base sm:text-lg leading-relaxed">
           <p>
-            <strong className="text-foreground">Contractor lead generation</strong> is how you fill
-            your schedule with homeowners who are ready to book—not tire-kickers who waste your
-            crew&apos;s time. Intent builds that pipeline for HVAC, plumbing, roofing, electrical,
-            landscaping, and general contractors who want predictable revenue, not guesswork.
+            <strong className="text-foreground">Contractor lead generation</strong> is only
+            useful when it feeds real revenue inside your business—not a pile of
+            tire-kickers. Intent partners with HVAC, plumbing, roofing, electrical,
+            landscaping, and general contractors to find and grow revenue streams:
+            better demand, faster intake, stronger close rates, and repeat work like
+            maintenance agreements.
           </p>
           <p>
-            Most trades businesses lose leads to slow follow-up. A form submission that sits for
-            hours is a lead your competitor already called. We focus on{" "}
-            <strong className="text-foreground">speed-to-lead</strong>, clear qualification, and
-            local visibility so when someone searches for your trade in your service area, you show
-            up and you respond first.
+            Trades run on the phone. The{" "}
+            <strong className="text-foreground">Intent application</strong> is how we
+            run the work—software we build for you: custom site, speed-to-lead and
+            intake automation, analytics dashboard, and AI voice when your team
+            can&apos;t answer. Not a robot on
+            every live call; your CSRs stay in control when someone picks up.
           </p>
           <h3 className="text-xl font-display font-semibold text-foreground pt-2">
-            Lead generation for contractors in Florida
+            Organic-first Google Search—plus paid when it helps
           </h3>
           <p>
-            We work with contractors across Florida—from Central Florida (Orlando, Tampa,
-            Kissimmee) to statewide coverage. Whether you run a single truck or a multi-crew
-            operation, the same principles apply: capture intent, qualify fast, book jobs, and
-            measure what matters. Our stack includes programmatic local pages, voice qualification,
-            and dashboards so you see sessions, leads, and outcomes in one place.
+            We do everything in our power to grow you at an exceptional pace
+            organically: programmatic local pages, local SEO, content, and search
+            strategy in your service area. When someone searches for your trade in
+            Orlando, Lakeland, Winter Haven, Poinciana, or statewide, you show up—and
+            you respond first. We also create content and run Google ad campaigns when
+            paid lift complements that organic foundation.
           </p>
           <h3 className="text-xl font-display font-semibold text-foreground pt-2">
             Revenue engineering—not vanity metrics
           </h3>
           <p>
-            &ldquo;We engineer revenue&rdquo; means we tie marketing to booked calls and revenue,
-            not likes or impressions alone. You get infrastructure built for conversion: forms that
-            route instantly, follow-up that doesn&apos;t sleep on weekends, and reporting that shows
-            whether your contractor lead generation is paying for itself. When you&apos;re ready to
-            scale, that foundation is already there.
+            Dashboards tie marketing to leads and booked outcomes by source. You see
+            whether your investment is paying for itself. When you&apos;re ready to
+            scale, the foundation—demand, capture, and reporting—is already there.
           </p>
           <p>
-            Request a free quote and tell us your trade and territory—we&apos;ll map how contractor
-            lead generation can work for your business.
+            Request a free quote and tell us your trade and territory—we&apos;ll map
+            revenue streams and how we can grow them for your business.
           </p>
         </div>
       </div>

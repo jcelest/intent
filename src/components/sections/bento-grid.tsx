@@ -3,43 +3,55 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-  DispatcherIcon,
   LightningIcon,
   TargetIcon,
   AtomIcon,
+  DispatcherIcon,
 } from "@/components/ui/icons";
 
 const BENTO_ITEMS = [
   {
-    title: "The Dispatcher",
-    description: "Automated voice calls that qualify leads before your team touches the phone. Filter tire-kickers, book high-intent jobs—built for contractors who can't afford no-shows.",
-    Icon: DispatcherIcon,
+    title: "Revenue Streams",
+    description:
+      "We work on your behalf to find and grow high-value revenue—demand, conversion, maintenance agreements, and repeat work—not just more clicks.",
+    Icon: AtomIcon,
     span: "col-span-1 row-span-2",
-    accent: true,
+    accent: false,
+    gold: true,
+    kicker: "#1 — Strategy & growth",
     visual: null,
   },
   {
-    title: "Speed-to-Lead",
-    description: "When a homeowner submits a form, we respond in under 60 seconds—before competitors even see the lead.",
+    title: "We Build Your Application & Software",
+    description:
+      "Custom site, speed-to-lead & intake automation, AI voice when your team can't answer, and an analytics dashboard built for your trade—software we build for you, not off-the-shelf.",
     Icon: LightningIcon,
-    span: "col-span-1 row-span-1",
+    span: "col-span-1 row-span-2",
     accent: false,
+    gold: true,
+    kicker: "#2 — We build it for your trade",
     visual: "speed",
   },
   {
-    title: "pSEO Engine",
-    description: "Geo-targeted landing pages for your service areas. Dominate local search so homeowners find you first.",
+    title: "Google Search — Organic Growth",
+    description:
+      "We push exceptional organic pace—geo-targeted pages, local SEO, and content on Google. Organic-first, always.",
     Icon: TargetIcon,
     span: "col-span-1 row-span-1",
     accent: false,
+    gold: false,
+    kicker: "Organic-first",
     visual: null,
   },
   {
-    title: "Custom React Logic",
-    description: "Conversion-focused sites built for contractors. No WordPress templates—purpose-built to capture and nurture leads.",
-    Icon: AtomIcon,
-    span: "col-span-1 md:col-span-2 row-span-1",
+    title: "Paid Ads & Content",
+    description:
+      "Content creation and Google ad campaigns that complement organic—creative, targeting, and management tied to leads.",
+    Icon: DispatcherIcon,
+    span: "col-span-1 row-span-1",
     accent: false,
+    gold: false,
+    kicker: "Amplifies organic",
     visual: null,
   },
 ];
@@ -73,7 +85,8 @@ export function BentoGrid() {
           Built for the <span className="text-accent">Trades</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          AI infrastructure that captures and qualifies leads for contractors—HVAC, plumbing, roofing, and more.
+          Revenue strategy and software first—then exceptional organic growth on
+          Google Search, with paid ads & content when you need more lift.
         </p>
       </motion.div>
 
@@ -82,44 +95,58 @@ export function BentoGrid() {
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, margin: "-100px" }}
-        className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
       >
         {BENTO_ITEMS.map((bento) => (
           <motion.article
             key={bento.title}
             variants={item}
             className={cn(
-              "rounded-xl border border-border bg-card p-6 sm:p-8 transition-all duration-300",
-              "hover:border-accent/50 hover:shadow-glow",
+              "rounded-xl border p-5 sm:p-6 lg:p-8 transition-all duration-300 min-w-0",
+              bento.gold
+                ? "border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/[0.14] via-amber-600/[0.08] to-card shadow-[0_0_40px_rgba(217,169,65,0.18)] hover:border-amber-300/70 hover:shadow-[0_0_48px_rgba(217,169,65,0.26)]"
+                : "border-border bg-card hover:border-accent/50 hover:shadow-glow",
               bento.span
             )}
           >
             <div
               className={cn(
-                "mb-4 flex items-center justify-start text-foreground",
-                bento.accent && "drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]"
+                "mb-4 flex items-center justify-start",
+                bento.accent && "text-foreground drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]",
+                bento.gold && "text-amber-200",
+                !bento.gold && !bento.accent && "text-accent"
               )}
             >
-              <bento.Icon accent={bento.accent} />
+              <bento.Icon accent={bento.gold || bento.accent} />
             </div>
-            <h3 className="text-xl font-display font-semibold text-foreground mb-2">
+            <h3 className="text-lg sm:text-xl font-display font-semibold text-foreground mb-2 leading-snug break-words">
               {bento.title}
             </h3>
-            <p className="text-muted text-sm sm:text-base leading-relaxed">
+            {"kicker" in bento && bento.kicker && (
+              <p
+                className={cn(
+                  "text-[11px] sm:text-xs font-mono uppercase tracking-wider mb-2 leading-relaxed break-words",
+                  bento.gold ? "text-amber-200/85" : "text-accent/80"
+                )}
+              >
+                {bento.kicker}
+              </p>
+            )}
+            <p className="text-muted text-sm sm:text-base leading-relaxed break-words">
               {bento.description}
             </p>
             {bento.visual === "speed" && (
               <div className="mt-4 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-accent">AI: &lt;1s</span>
-                  <span className="text-muted">Human: 5min</span>
+                  <span className="text-amber-200">Intent: &lt;1s</span>
+                  <span className="text-muted">Manual: 5min</span>
                 </div>
                 <div className="flex gap-1 h-2 w-full">
                   <motion.div
                     initial={{ scaleX: 0 }}
                     whileInView={{ scaleX: 1 }}
                     viewport={{ once: true }}
-                    className="origin-left w-[3%] rounded bg-accent h-full"
+                    className="origin-left w-[3%] rounded bg-amber-400 h-full"
                   />
                   <motion.div
                     initial={{ scaleX: 0 }}

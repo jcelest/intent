@@ -71,7 +71,7 @@ export function OrganizationJsonLd() {
       "Contractor lead generation",
       "Lead generation for contractors",
       "Contractor marketing",
-      "Revenue engineering",
+      "Revenue growth for contractors",
     ],
   };
 
