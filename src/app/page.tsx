@@ -28,13 +28,13 @@ export const metadata: Metadata = {
     siteName: "Intent",
     locale: "en_US",
     type: "website",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Intent — revenue growth for contractors and the trades" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Intent — revenue growth for contractors and the trades" }],
   },
   twitter: {
     card: "summary_large_image",
     title: SEO_TITLE_DEFAULT,
     description: DEFAULT_DESCRIPTION,
-    images: ["/opengraph-image"],
+    images: ["/og-image.png"],
   },
 };
 
