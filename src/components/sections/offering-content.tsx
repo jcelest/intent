@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const GOLD_CARD =
-  "border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/[0.22] via-[rgba(2,6,23,0.90)] to-card shadow-[0_0_48px_rgba(217,169,65,0.2)] hover:border-amber-300/70 hover:shadow-[0_0_56px_rgba(217,169,65,0.28)]";
+  "border-2 border-amber-500/45 bg-gradient-to-br from-amber-600/40 via-amber-900/88 to-amber-950/95 shadow-[0_0_48px_rgba(217,169,65,0.2)] hover:border-amber-400/65 hover:shadow-[0_0_56px_rgba(217,169,65,0.28)]";
 const GOLD_ICON = "bg-amber-500/25 text-amber-200";
 const GOLD_BADGE = "bg-amber-500/30 text-amber-100 border-amber-400/45";
 const GOLD_SUBLABEL = "text-amber-200/90";

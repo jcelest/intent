@@ -11,7 +11,7 @@ const LiveTerminal = dynamic(
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-[100dvh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 sm:px-6 pt-20 sm:pt-24 pb-10 sm:pb-12">
+    <section className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-4rem)] flex flex-col items-center justify-start sm:justify-center overflow-hidden px-4 sm:px-6 pt-3 sm:pt-0 pb-10 sm:pb-12">
       {/* Grid background with radial gradient mask */}
       <div
         className="absolute inset-0 bg-[linear-gradient(transparent_0%,transparent_50%,rgba(0,0,0,0.8)_100%)]"
@@ -40,10 +40,10 @@ export function HeroSection() {
             Intent
           </span>
           <span className="block mt-2 text-lg sm:text-3xl md:text-4xl text-foreground font-semibold leading-snug">
-            Growth partner for contractors and the trades
+            Growth Partner For Contractors And The Trades
           </span>
           <span className="block mt-2 sm:mt-3 text-base sm:text-2xl md:text-3xl text-muted font-medium">
-            We grow high-value revenue streams.
+            We Grow High-Value Revenue Streams.
           </span>
         </motion.h1>
 
@@ -60,12 +60,12 @@ export function HeroSection() {
           initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-6 sm:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-md sm:max-w-none"
+          className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full"
         >
           <Button
             variant="primary"
             size="lg"
-            className="w-full sm:w-auto drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"
+            className="w-full max-w-xs sm:w-auto sm:max-w-none drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"
             onClick={() =>
               document
                 .getElementById("get-in-touch")
@@ -77,7 +77,7 @@ export function HeroSection() {
           <Button
             variant="secondary"
             size="lg"
-            className="w-full sm:w-auto"
+            className="w-full max-w-xs sm:w-auto sm:max-w-none"
             onClick={() => (window.location.href = "/offering")}
           >
             See the Package
