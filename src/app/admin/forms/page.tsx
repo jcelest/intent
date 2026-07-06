@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { cn } from "@/lib/utils";
 
 type FormSubmission = {
   id: string;
@@ -12,6 +13,12 @@ type FormSubmission = {
   trade?: string;
   message?: string;
   source?: string;
+  inquiryType?: "partnership" | "launchpad";
+  monthlyJobs?: string;
+  annualRevenue?: string;
+  reviewCount?: string;
+  marketingBudget?: string;
+  yearsInBusiness?: string;
   createdAt: string;
 };
 
@@ -92,11 +99,32 @@ export default function AdminFormsPage() {
                         {s.trade}
                       </span>
                     )}
+                    {s.inquiryType && (
+                      <span
+                        className={cn(
+                          "inline-block mt-2 ml-2 px-2 py-1 rounded text-xs font-mono",
+                          s.inquiryType === "launchpad"
+                            ? "bg-amber-500/20 text-amber-300"
+                            : "bg-emerald-500/20 text-emerald-300"
+                        )}
+                      >
+                        {s.inquiryType === "launchpad" ? "Launchpad" : "Partnership"}
+                      </span>
+                    )}
                   </div>
                   <div className="text-right text-sm text-slate-500 font-mono shrink-0">
                     {formatDate(s.createdAt)}
                   </div>
                 </div>
+                {(s.monthlyJobs || s.annualRevenue || s.reviewCount || s.marketingBudget || s.yearsInBusiness) && (
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs font-mono text-slate-400">
+                    {s.monthlyJobs && <span>Jobs: {s.monthlyJobs}</span>}
+                    {s.annualRevenue && <span>Revenue: {s.annualRevenue}</span>}
+                    {s.reviewCount && <span>Google Reviews: {s.reviewCount}</span>}
+                    {s.marketingBudget && <span>Budget: {s.marketingBudget}</span>}
+                    {s.yearsInBusiness && <span>Tenure: {s.yearsInBusiness}</span>}
+                  </div>
+                )}
                 {s.message && (
                   <p className="mt-4 pt-4 border-t border-slate-700/50 text-slate-300 text-sm leading-relaxed">
                     {s.message}

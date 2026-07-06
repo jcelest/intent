@@ -5,6 +5,8 @@
  * For persistent history, use a database (e.g. Vercel Postgres, Supabase).
  */
 
+export type InquiryType = "partnership" | "launchpad";
+
 export type FormSubmission = {
   id: string;
   name: string;
@@ -13,6 +15,12 @@ export type FormSubmission = {
   trade?: string;
   message?: string;
   source?: string;
+  inquiryType?: InquiryType;
+  monthlyJobs?: string;
+  annualRevenue?: string;
+  reviewCount?: string;
+  marketingBudget?: string;
+  yearsInBusiness?: string;
   createdAt: string;
 };
 

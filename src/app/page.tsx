@@ -1,7 +1,9 @@
 import { Header } from "@/components/sections/header";
 import { HeroSection } from "@/components/sections/hero-section";
+import { MissionStatementSection } from "@/components/sections/mission-statement-section";
 import { BentoGrid } from "@/components/sections/bento-grid";
 import { RevenueDashboard } from "@/components/sections/revenue-dashboard";
+import { ClientQualificationSection } from "@/components/sections/client-qualification-section";
 import { SeoContentSection } from "@/components/sections/seo-content-section";
 import { InquiryFormSection } from "@/components/sections/inquiry-form-section";
 import { Footer } from "@/components/sections/footer";
@@ -44,8 +46,10 @@ export default function Home() {
       <Header />
       <main className="pt-16">
         <HeroSection />
+        <MissionStatementSection />
         <BentoGrid />
         <RevenueDashboard />
+        <ClientQualificationSection />
         <SeoContentSection />
         <InquiryFormSection />
       </main>

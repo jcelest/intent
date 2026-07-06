@@ -4,7 +4,20 @@ import { addSubmission } from "@/lib/form-store";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, phone, trade, message, source } = body;
+    const {
+      name,
+      email,
+      phone,
+      trade,
+      message,
+      source,
+      inquiryType,
+      monthlyJobs,
+      annualRevenue,
+      reviewCount,
+      marketingBudget,
+      yearsInBusiness,
+    } = body;
 
     if (!name?.trim() || !email?.trim() || !phone?.trim()) {
       return NextResponse.json(
@@ -20,6 +33,15 @@ export async function POST(request: Request) {
       trade: trade ? String(trade).trim() : undefined,
       message: message ? String(message).trim() : undefined,
       source: source ? String(source).trim() : undefined,
+      inquiryType:
+        inquiryType === "launchpad" || inquiryType === "partnership"
+          ? inquiryType
+          : undefined,
+      monthlyJobs: monthlyJobs ? String(monthlyJobs).trim() : undefined,
+      annualRevenue: annualRevenue ? String(annualRevenue).trim() : undefined,
+      reviewCount: reviewCount ? String(reviewCount).trim() : undefined,
+      marketingBudget: marketingBudget ? String(marketingBudget).trim() : undefined,
+      yearsInBusiness: yearsInBusiness ? String(yearsInBusiness).trim() : undefined,
     });
 
     // Send email if Resend is configured
@@ -46,7 +68,13 @@ export async function POST(request: Request) {
               <p><strong>Name:</strong> ${submission.name}</p>
               <p><strong>Email:</strong> ${submission.email}</p>
               <p><strong>Phone:</strong> ${submission.phone}</p>
+              ${submission.inquiryType ? `<p><strong>Inquiry type:</strong> ${submission.inquiryType === "launchpad" ? "Intent Launchpad" : "Full Partnership"}</p>` : ""}
               ${submission.trade ? `<p><strong>Trade:</strong> ${submission.trade}</p>` : ""}
+              ${submission.monthlyJobs ? `<p><strong>Monthly jobs:</strong> ${submission.monthlyJobs}</p>` : ""}
+              ${submission.annualRevenue ? `<p><strong>Annual revenue:</strong> ${submission.annualRevenue}</p>` : ""}
+              ${submission.reviewCount ? `<p><strong>Google Reviews:</strong> ${submission.reviewCount}</p>` : ""}
+              ${submission.marketingBudget ? `<p><strong>Marketing budget:</strong> ${submission.marketingBudget}</p>` : ""}
+              ${submission.yearsInBusiness ? `<p><strong>Years in business:</strong> ${submission.yearsInBusiness}</p>` : ""}
               ${submission.message ? `<p><strong>Message:</strong><br>${submission.message}</p>` : ""}
               ${submission.source ? `<p><strong>Source:</strong> ${submission.source}</p>` : ""}
               <p><em>Received at ${submission.createdAt}</em></p>
