@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addSubmission } from "@/lib/form-store";
+import { BRAND_NAME } from "@/lib/seo";
 
 export async function POST(request: Request) {
   try {
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             from: process.env.RESEND_FROM_EMAIL || "Intent <onboarding@resend.dev>",
             to: notifyEmails,
-            subject: `New inquiry from ${submission.name} — Intent`,
+            subject: `New inquiry from ${submission.name} | ${BRAND_NAME}`,
             html: `
               <h2>New Inquiry</h2>
               <p><strong>Name:</strong> ${submission.name}</p>

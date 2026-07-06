@@ -118,7 +118,7 @@ export function googleAdsKeywordResearchConfigured(): boolean {
 function competitionLabel(
   level: string | number | null | undefined
 ): string {
-  if (level === null || level === undefined) return "—";
+  if (level === null || level === undefined) return "N/A";
   if (typeof level === "string") {
     const u = level.toUpperCase();
     if (u.includes("LOW")) return "Low";

@@ -130,7 +130,7 @@ export function LiveTerminal({ className }: { className?: string }) {
               </span>
             </div>
             <p className="mt-2 font-mono text-[10px] text-white/90 tracking-wide text-center truncate">
-              intent — growth engine
+              intent revenue | growth engine
             </p>
           </div>
           {/* sm+: single title bar row */}
@@ -141,7 +141,7 @@ export function LiveTerminal({ className }: { className?: string }) {
               <span className="h-3 w-3 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
             </div>
             <span className="font-mono text-xs text-white/90 tracking-wide text-center truncate min-w-0 flex-1 px-2">
-              intent — growth engine
+              intent revenue | growth engine
             </span>
             <span className="flex items-center gap-1.5 shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5">
               <span className="relative flex h-2 w-2">

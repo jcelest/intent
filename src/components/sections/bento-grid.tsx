@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/seo";
 import {
   LightningIcon,
   TargetIcon,
@@ -13,29 +14,29 @@ const BENTO_ITEMS = [
   {
     title: "Revenue Streams",
     description:
-      "We work on your behalf to find and grow high-value revenue—demand, conversion, maintenance agreements, and repeat work—not just more clicks.",
+      "We work on your behalf to find and grow high-value revenue: demand, conversion, maintenance agreements, and repeat work. Not just more clicks.",
     Icon: AtomIcon,
     span: "col-span-1 row-span-2",
     accent: false,
     gold: true,
-    kicker: "#1 — Strategy & growth",
+    kicker: "#1: Strategy & growth",
     visual: null,
   },
   {
     title: "We Build Your Application & Software",
     description:
-      "Custom site, speed-to-lead & intake automation, AI voice when your team can't answer, and an analytics dashboard built for your trade—software we build for you, not off-the-shelf.",
+      "Custom site, speed-to-lead & intake automation, AI voice when your team can't answer, and an analytics dashboard built for your trade. Software we build for you, not off-the-shelf.",
     Icon: LightningIcon,
     span: "col-span-1 row-span-2",
     accent: false,
     gold: true,
-    kicker: "#2 — We build it for your trade",
+    kicker: "#2: We build it for your trade",
     visual: "speed",
   },
   {
-    title: "Google Search — Organic Growth",
+    title: "Google Search: Organic Growth",
     description:
-      "We push exceptional organic pace—geo-targeted pages, local SEO, and content on Google. Organic-first, always.",
+      "We push exceptional organic pace: geo-targeted pages, local SEO, and content on Google. Organic-first, always.",
     Icon: TargetIcon,
     span: "col-span-1 row-span-1",
     accent: false,
@@ -46,7 +47,7 @@ const BENTO_ITEMS = [
   {
     title: "Paid Ads & Content",
     description:
-      "Content creation and Google ad campaigns that complement organic—creative, targeting, and management tied to leads.",
+      "Content creation and Google ad campaigns that complement organic: creative, targeting, and management tied to leads.",
     Icon: DispatcherIcon,
     span: "col-span-1 row-span-1",
     accent: false,
@@ -85,7 +86,7 @@ export function BentoGrid() {
           Built for the <span className="text-accent">Trades</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          Revenue strategy and software first—then exceptional organic growth on
+          {BRAND_NAME} leads with revenue strategy and software, then exceptional organic growth on
           Google Search, with paid ads & content when you need more lift.
         </p>
       </motion.div>

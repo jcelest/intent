@@ -13,7 +13,7 @@ export type MetricsCurrent = {
   current: number[];
 };
 
-/** GA4 metric config — id = API name, label = display name, format = how to render */
+/** GA4 metric config: id = API name, label = display name, format = how to render */
 export const GA4_METRICS = [
   { id: "sessions", label: "Sessions", format: "number" as const },
   { id: "activeUsers", label: "Users", format: "number" as const },

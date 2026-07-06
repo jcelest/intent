@@ -3,13 +3,14 @@ import { Footer } from "@/components/sections/footer";
 import { CentralFloridaContent } from "@/components/sections/central-florida-content";
 import { LocalBusinessJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
-import { SITE_URL, SITE_NAME } from "@/lib/seo";
+import { SITE_URL, BRAND_NAME } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Lead Generation Central Florida | Orlando, Tampa, Kissimmee — Intent",
+  title: "Lead Generation Central Florida | Orlando, Tampa, Kissimmee",
   description:
-    "Lead generation and marketing for Central Florida contractors. Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Get more leads, grow revenue.",
+    `${BRAND_NAME} drives lead generation and marketing for Central Florida contractors in Orlando, Tampa, Kissimmee, Winter Park, and Lakeland.`,
   keywords: [
+    "Intent Revenue",
     "lead generation Central Florida",
     "lead generation Orlando",
     "lead generation Tampa",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     "Lakeland contractor leads",
   ],
   openGraph: {
-    title: "Lead Generation Central Florida | Orlando, Tampa — Intent",
+    title: `Lead Generation Central Florida | ${BRAND_NAME}`,
     description:
       "Lead generation and marketing for Central Florida. Orlando, Tampa, Kissimmee. Get more contractor leads.",
     url: `${SITE_URL}/central-florida`,
@@ -31,7 +32,7 @@ export default function CentralFloridaPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
-        name={`${SITE_NAME} - Central Florida`}
+        name={`${BRAND_NAME} - Central Florida`}
         description="Lead generation for Central Florida: Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Get more contractor leads, grow revenue."
         url={`${SITE_URL}/central-florida`}
         areaServed={[

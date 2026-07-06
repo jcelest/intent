@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/logo";
 
 const NAV_LINKS = [
   { href: "/offering", label: "Offering" },
+  { href: "/qualification", label: "Qualification" },
   { href: "/#get-in-touch", label: "Get a Quote" },
 ];
 

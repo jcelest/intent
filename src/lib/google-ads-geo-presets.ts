@@ -1,13 +1,13 @@
 /**
  * Google Ads geo target constants (Criteria ID).
- * Florida state = 21142. (21167 is New York state — do not use for Florida.)
+ * Florida state = 21142. (21167 is New York state: do not use for Florida.)
  * IDs from Google geotargets CSV (e.g. geotargets-2026-03-31).
  * @see https://developers.google.com/google-ads/api/data/geotargets
  */
 
 const g = (id: number) => `geoTargetConstants/${id}` as const;
 
-/** Central Florida — I-4 / Osceola / Polk focus (max 10 combined per GenerateKeywordIdeas). */
+/** Central Florida: I-4 / Osceola / Polk focus (max 10 combined per GenerateKeywordIdeas). */
 export const CENTRAL_FLORIDA_10 = [
   { key: "fl-orlando", label: "Orlando", id: 1015150 },
   { key: "fl-sanford", label: "Sanford", id: 1015190 },
@@ -83,7 +83,7 @@ export const GEO_PRESETS = {
 
   /** Combined ideas (10 geos) + sequential per-city volume for the demand table. */
   cf: {
-    label: "Central Florida — 10 cities (combined ideas + per-city demand)",
+    label: "Central Florida: 10 cities (combined ideas + per-city demand)",
     constants: CENTRAL_FLORIDA_10.map((c) => g(c.id)),
     breakdownCities: CENTRAL_FLORIDA_10.map((c) => ({
       label: c.label,
@@ -93,7 +93,7 @@ export const GEO_PRESETS = {
 
   /** Legacy tri-metro preset (kept for old links). */
   metros: {
-    label: "Florida — Miami, Orlando, Tampa (combined)",
+    label: "Florida: Miami, Orlando, Tampa (combined)",
     constants: [g(9057286), g(1015150), g(1015214)],
   },
 

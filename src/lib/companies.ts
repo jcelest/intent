@@ -1,6 +1,6 @@
 /**
  * Central company config for the admin analytics hub.
- * Add new companies here — use dataSource: "mock" for demo data,
+ * Add new companies here: use dataSource: "mock" for demo data,
  * or dataSource: "live" with ga4PropertyId for real GA4 metrics.
  */
 
@@ -23,7 +23,7 @@ export type CompanyConfig = {
   dataSource: "mock" | "live";
   /** GA4 custom event name for phone/tel link clicks (default: phone_click) */
   ga4PhoneClickEvent?: string;
-  /** Mock metrics — only used when dataSource: "mock" */
+  /** Mock metrics: only used when dataSource: "mock" */
   mockMetrics?: {
     revenue: { before: number[]; after: number[] };
     traffic: { before: number[]; after: number[] };
@@ -34,7 +34,7 @@ export type CompanyConfig = {
 };
 
 export const COMPANIES: CompanyConfig[] = [
-  // —— LIVE: Real analytics from GA4 ——
+  // LIVE: Real analytics from GA4 
   {
     id: "novation-hvac",
     name: "Novation Heating and Air Conditioning",
@@ -44,7 +44,7 @@ export const COMPANIES: CompanyConfig[] = [
     chartLayout: "area-dominant",
     dataSource: "live",
   },
-  // —— MOCK: Demo data ——
+  // MOCK: Demo data 
   {
     id: "acme-plumbing",
     name: "Acme Plumbing Co.",

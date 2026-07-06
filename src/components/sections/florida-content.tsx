@@ -7,22 +7,22 @@ const REGIONS = [
   {
     name: "Central Florida",
     cities: "Orlando, Tampa, Kissimmee, Winter Park, Lakeland",
-    desc: "Theme parks, tourism, healthcare, and tech—our core service area.",
+    desc: "Theme parks, tourism, healthcare, and tech: our core service area.",
   },
   {
     name: "South Florida",
     cities: "Miami, Fort Lauderdale, West Palm Beach",
-    desc: "Finance, real estate, and international business—we scale lead capture.",
+    desc: "Finance, real estate, and international business. We scale lead capture.",
   },
   {
     name: "North Florida",
     cities: "Jacksonville, Tallahassee, Gainesville",
-    desc: "Government, education, and logistics—we automate qualification.",
+    desc: "Government, education, and logistics. We automate qualification.",
   },
   {
     name: "Gulf Coast",
     cities: "Sarasota, Naples, Fort Myers",
-    desc: "Retirement, healthcare, and hospitality—we dominate local search.",
+    desc: "Retirement, healthcare, and hospitality. We dominate local search.",
   },
 ];
 
@@ -62,7 +62,7 @@ export function FloridaContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            From Miami to Jacksonville, Tampa to Orlando—we grow high-value revenue
+            From Miami to Jacksonville and Tampa to Orlando. We grow high-value revenue
             for contractors and local services with exceptional organic search,
             paid ads & content, and speed-to-lead intake across Florida.
           </motion.p>
@@ -128,11 +128,11 @@ export function FloridaContent() {
             className="space-y-5"
           >
             {[
-              "Speed-to-lead & intake—capture every lead; AI voice when your team can't answer",
-              "Speed-to-lead—respond to leads in under 60 seconds",
-              "pSEO engine—programmatic local landing pages at scale",
-              "Analytics dashboard—built for your trade business",
-              "Custom React builds—conversion-focused, zero bloat",
+              "Speed-to-lead & intake: capture every lead; AI voice when your team can't answer",
+              "Speed-to-lead: respond to leads in under 60 seconds",
+              "pSEO engine: programmatic local landing pages at scale",
+              "Analytics dashboard: built for your trade business",
+              "Custom React builds: conversion-focused, zero bloat",
             ].map((point, i) => (
               <motion.li
                 key={point}

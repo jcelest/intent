@@ -3,13 +3,14 @@ import { Footer } from "@/components/sections/footer";
 import { FloridaContent } from "@/components/sections/florida-content";
 import { LocalBusinessJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
-import { SITE_URL, SITE_NAME } from "@/lib/seo";
+import { SITE_URL, BRAND_NAME } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Lead Generation Florida | Marketing for Contractors Statewide — Intent",
+  title: "Lead Generation Florida | Marketing for Contractors Statewide",
   description:
-    "Lead generation and marketing for Florida contractors. Miami, Jacksonville, Tampa, Orlando. Get more leads, grow revenue. Statewide.",
+    `${BRAND_NAME} delivers lead generation and marketing for Florida contractors. Miami, Jacksonville, Tampa, Orlando. Grow revenue statewide.`,
   keywords: [
+    "Intent Revenue",
     "lead generation Florida",
     "marketing agency Florida",
     "Florida contractor leads",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     "revenue generation Florida",
   ],
   openGraph: {
-    title: "Lead Generation Florida | Intent",
+    title: `Lead Generation Florida | ${BRAND_NAME}`,
     description:
       "Lead generation and marketing for Florida contractors. Miami, Jacksonville, Tampa, Orlando. Get more leads.",
     url: `${SITE_URL}/florida`,
@@ -31,7 +32,7 @@ export default function FloridaPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
-        name={`${SITE_NAME} - Florida`}
+        name={`${BRAND_NAME} - Florida`}
         description="Lead generation for Florida contractors statewide. Miami, Jacksonville, Tampa, Orlando. Get more leads, grow revenue."
         url={`${SITE_URL}/florida`}
         areaServed={["Florida", "Central Florida", "South Florida", "North Florida"]}

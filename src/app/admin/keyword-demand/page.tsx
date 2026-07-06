@@ -13,11 +13,11 @@ import {
 
 /** Fallback sample rows when Google Ads env is not configured */
 const MOCK_GEO_ROWS = [
-  { region: "Florida — Miami-Fort Lauderdale", share: 28, index: 100, vol: "12.4K–15.1K" },
-  { region: "Florida — Orlando-Kissimmee-Sanford", share: 22, index: 92, vol: "9.8K–11.2K" },
-  { region: "Florida — Tampa-St. Petersburg", share: 18, index: 88, vol: "8.1K–9.4K" },
-  { region: "Georgia — Atlanta", share: 9, index: 71, vol: "4.0K–5.2K" },
-  { region: "Texas — Dallas-Fort Worth", share: 7, index: 65, vol: "3.1K–4.0K" },
+  { region: "Florida: Miami-Fort Lauderdale", share: 28, index: 100, vol: "12.4K–15.1K" },
+  { region: "Florida: Orlando-Kissimmee-Sanford", share: 22, index: 92, vol: "9.8K–11.2K" },
+  { region: "Florida: Tampa-St. Petersburg", share: 18, index: 88, vol: "8.1K–9.4K" },
+  { region: "Georgia: Atlanta", share: 9, index: 71, vol: "4.0K–5.2K" },
+  { region: "Texas: Dallas-Fort Worth", share: 7, index: 65, vol: "3.1K–4.0K" },
   { region: "Other U.S.", share: 16, index: 54, vol: "6.2K–8.0K" },
 ];
 
@@ -77,7 +77,7 @@ type KeywordResearchDebugEvent = {
 };
 
 function formatVol(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
+  if (n == null || Number.isNaN(n)) return "N/A";
   const v = Number(n);
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 10_000) return `${Math.round(v / 1000)}K`;
@@ -175,7 +175,7 @@ export default function KeywordDemandPage() {
         {configured === false && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 font-mono">
             <span className="text-amber-400 font-semibold">NOT CONFIGURED</span>
-            {" — "}
+            {" | "}
             Google Ads API environment variables are missing on this deployment. Use the same names as
             production in <code className="text-amber-200/90">.env.local</code> for local dev. Tables
             below show sample data until live credentials are present.
@@ -184,7 +184,7 @@ export default function KeywordDemandPage() {
         {configured === true && (
           <div className="mb-8 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90 font-mono">
             <span className="text-emerald-400 font-semibold">LIVE</span>
-            {" — "}
+            {" | "}
             Connected to Google Ads API. Results use{" "}
             <code className="text-emerald-200/90">GenerateKeywordIdeas</code> (historical metrics).
             {live && live.ideas.length === 0 && (
@@ -206,7 +206,7 @@ export default function KeywordDemandPage() {
             Intent Traffic
           </h2>
           <p className="mt-2 text-slate-400 text-sm max-w-2xl">
-            Florida-focused search volume and keyword ideas from the Google Ads API — seed keywords,
+            Florida-focused search volume and keyword ideas from the Google Ads API: seed keywords,
             geo targeting, and historical monthly search volumes. Use{" "}
             <strong className="text-slate-300">Central Florida</strong> for combined I-4 / Osceola /
             Polk cities plus per-city demand in the table below.
@@ -236,19 +236,19 @@ export default function KeywordDemandPage() {
                 onChange={(e) => setGeo(e.target.value as GeoPresetKey)}
                 className="w-full rounded-lg border-2 border-slate-600 bg-slate-950/80 px-4 py-3 font-mono text-sm text-white focus:outline-none focus:border-[#00e5ff]/60"
               >
-                <optgroup label="Florida — broad">
+                <optgroup label="Florida: broad">
                   <option value="fl">{GEO_PRESETS.fl.label}</option>
                   <option value="cf">{GEO_PRESETS.cf.label}</option>
                   <option value="metros">{GEO_PRESETS.metros.label}</option>
                 </optgroup>
-                <optgroup label="Central Florida — cities (detailed)">
+                <optgroup label="Central Florida: cities (detailed)">
                   {centralFloridaKeys.map((key) => (
                     <option key={key} value={key}>
                       {GEO_PRESETS[key].label}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Florida — other metros & counties">
+                <optgroup label="Florida: other metros & counties">
                   {otherFloridaKeys.map((key) => (
                     <option key={key} value={key}>
                       {GEO_PRESETS[key].label}
@@ -297,7 +297,7 @@ export default function KeywordDemandPage() {
                 )}
               </span>
               <span className="text-sm text-slate-400 font-mono leading-relaxed">
-                <span className="text-slate-300">Debug trace</span> — log each step to{" "}
+                <span className="text-slate-300">Debug trace</span>: log each step to{" "}
                 <strong className="text-slate-300">Vercel runtime logs</strong> (search{" "}
                 <code className="text-[#00e5ff]/90">[keyword-research]</code>) and show the same
                 timeline below. No secrets are logged (tokens masked / omitted).
@@ -317,7 +317,7 @@ export default function KeywordDemandPage() {
               <p className="text-xs text-slate-500 font-mono mb-3">
                 Response path: API returns JSON with <code className="text-slate-400">ideas</code>,{" "}
                 <code className="text-slate-400">primary</code>, <code className="text-slate-400">meta</code>
-                , and optional <code className="text-slate-400">debugEvents</code> — the page stores that in
+                , and optional <code className="text-slate-400">debugEvents</code>: the page stores that in
                 React state and renders KPIs, chart, geo table, and related keywords.
               </p>
               <ol className="max-h-96 overflow-y-auto space-y-2 text-xs font-mono text-slate-300 list-decimal list-inside">
@@ -326,7 +326,7 @@ export default function KeywordDemandPage() {
                     <span className="text-slate-500">{ev.at}</span>{" "}
                     <span className="text-violet-300 font-semibold">{ev.step}</span>
                     {ev.message ? (
-                      <span className="text-slate-400"> — {ev.message}</span>
+                      <span className="text-slate-400">: {ev.message}</span>
                     ) : null}
                     {ev.data != null ? (
                       <pre className="mt-1 text-[10px] text-slate-500 whitespace-pre-wrap overflow-x-auto">
@@ -348,7 +348,7 @@ export default function KeywordDemandPage() {
               value: primary
                 ? formatVol(primary.avgMonthlySearches)
                 : configured
-                  ? "—"
+                  ? "N/A"
                   : "74K–90K",
               sub: primary
                 ? [
@@ -365,27 +365,27 @@ export default function KeywordDemandPage() {
             },
             {
               label: "Competition",
-              value: primary?.competition ?? (configured ? "—" : "High"),
+              value: primary?.competition ?? (configured ? "N/A" : "High"),
               sub: primary
                 ? primary.competitionIndex != null
                   ? `Index ${primary.competitionIndex}`
                   : "Paid search"
                 : configured
-                  ? "—"
+                  ? "N/A"
                   : "Illustrative",
             },
             {
               label: "YoY trend",
               value: primary?.monthlyVolumes?.length
-                ? live?.yoyTrendPercent ?? "—"
+                ? live?.yoyTrendPercent ?? "N/A"
                 : configured
-                  ? "—"
+                  ? "N/A"
                   : "+12%",
               sub: primary ? "Same geo & language" : configured ? "Run analysis" : "Sample",
             },
             {
               label: "Intent",
-              value: primary ? "Transactional" : configured ? "—" : "Transactional",
+              value: primary ? "Transactional" : configured ? "N/A" : "Transactional",
               sub: primary ? "Heuristic" : configured ? "Run analysis" : "Preview",
             },
           ].map((k) => (
@@ -400,7 +400,7 @@ export default function KeywordDemandPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-10">
           <div className="xl:col-span-2 rounded-xl border-2 border-[#00e5ff]/30 bg-slate-900/60 p-6">
             <h3 className="font-mono text-sm text-slate-400 uppercase tracking-wider mb-6">
-              Search interest — monthly (last points from API)
+              Search interest: monthly (last points from API)
             </h3>
             <p className="text-xs text-slate-500 mb-4 font-mono">
               Query: <span className="text-slate-300">&quot;{live?.seedKeyword ?? titleCase}&quot;</span>
@@ -489,7 +489,7 @@ export default function KeywordDemandPage() {
                   ? "Volume for your selected geo (single Google Ads request for this row)."
                   : configured
                     ? "Run analysis to load metrics for the geo you selected."
-                    : "Sample data — set Google Ads env vars for live results."}
+                    : "Sample data: set Google Ads env vars for live results."}
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -548,7 +548,7 @@ export default function KeywordDemandPage() {
                             className="px-6 py-8 text-center text-sm text-slate-500 font-mono"
                           >
                             {live
-                              ? "No geo breakdown — Google returned no searchable volume for this seed (see LIVE note above)."
+                              ? "No geo breakdown: Google returned no searchable volume for this seed (see LIVE note above)."
                               : "Run analysis to load demand for the selected Florida geo."}
                           </td>
                         </tr>

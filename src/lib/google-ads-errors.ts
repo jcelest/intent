@@ -54,7 +54,7 @@ export function toGoogleAdsHttpError(err: unknown): GoogleAdsHttpError {
         "GOOGLE_ADS_CLIENT_ID / GOOGLE_ADS_CLIENT_SECRET (Desktop or Web app in Google Cloud " +
         "→ Credentials). Typical causes: token revoked in Google Account security, user password " +
         "change, refresh token was issued under a different client id, or (OAuth consent in " +
-        "Testing mode) refresh tokens expired after ~7 days—in that case set the app to Production " +
+        "Testing mode) refresh tokens expired after ~7 days, in that case set the app to Production " +
         "or repeat the offline OAuth flow. Original: " +
         message,
     };

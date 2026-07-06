@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { BRAND_NAME } from "@/lib/seo";
 
 /**
  * Visible long-form copy for SEO: word count, keyword consistency, readability.
@@ -23,45 +24,35 @@ export function SeoContentSection() {
           Revenue growth for contractors that{" "}
           <span className="text-accent">actually sticks</span>
         </motion.h2>
-        <div className="mt-8 space-y-6 text-foreground/90 text-base sm:text-lg leading-relaxed">
+        <div className="mt-8 space-y-5 text-foreground/90 text-base sm:text-lg leading-relaxed">
           <p>
-            <strong className="text-foreground">Contractor lead generation</strong> is only
-            useful when it feeds real revenue inside your business—not a pile of
-            tire-kickers. Intent partners with HVAC, plumbing, roofing, electrical,
-            landscaping, and general contractors to find and grow revenue streams:
-            better demand, faster intake, stronger close rates, and repeat work like
-            maintenance agreements.
+            <strong className="text-foreground">Contractor lead generation</strong> only
+            useful when it turns into booked jobs. {BRAND_NAME} partners with HVAC, plumbing,
+            roofing, electrical, landscaping, and general contractors to grow real
+            revenue: demand, intake, close rates, and repeat work.
           </p>
           <p>
             Trades run on the phone. The{" "}
-            <strong className="text-foreground">Intent application</strong> is how we
-            run the work—software we build for you: custom site, speed-to-lead and
-            intake automation, analytics dashboard, and AI voice when your team
-            can&apos;t answer. Not a robot on
-            every live call; your CSRs stay in control when someone picks up.
+            <strong className="text-foreground">{BRAND_NAME} application</strong> is custom
+            software we build for you: site, speed-to-lead, dashboard, and AI voice when
+            your team can&apos;t answer. Your CSRs stay in control.
           </p>
-          <h3 className="text-xl font-display font-semibold text-foreground pt-2">
-            Organic-first Google Search—plus paid when it helps
+          <h3 className="text-xl font-display font-semibold text-foreground pt-1">
+            Organic-first Google Search, plus paid when it helps
           </h3>
           <p>
-            We do everything in our power to grow you at an exceptional pace
-            organically: programmatic local pages, local SEO, content, and search
-            strategy in your service area. When someone searches for your trade in
-            Orlando, Lakeland, Winter Haven, Poinciana, or statewide, you show up—and
-            you respond first. We also create content and run Google ad campaigns when
-            paid lift complements that organic foundation.
+            Local pages, SEO, and content so you rank in your service area and respond
+            first. Paid ads when they accelerate what organic already built.
           </p>
-          <h3 className="text-xl font-display font-semibold text-foreground pt-2">
-            Revenue engineering—not vanity metrics
+          <h3 className="text-xl font-display font-semibold text-foreground pt-1">
+            Revenue engineering, not vanity metrics
           </h3>
           <p>
-            Dashboards tie marketing to leads and booked outcomes by source. You see
-            whether your investment is paying for itself. When you&apos;re ready to
-            scale, the foundation—demand, capture, and reporting—is already there.
+            Dashboards tie every lead to booked outcomes by source. You always know
+            what&apos;s working and what&apos;s paying for itself.
           </p>
           <p>
-            Request a free quote and tell us your trade and territory—we&apos;ll map
-            revenue streams and how we can grow them for your business.
+            Tell us your trade and territory. {BRAND_NAME} will map how we grow your revenue.
           </p>
         </div>
       </div>

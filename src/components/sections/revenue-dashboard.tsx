@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { BRAND_NAME } from "@/lib/seo";
 
 const MOCK_LEADS = [12, 28, 45, 38, 62, 78, 95, 88, 112, 98, 125, 140];
 const MOCK_ROI = 847;
@@ -44,7 +45,7 @@ export function RevenueDashboard() {
           Analytics <span className="text-accent">Dashboard</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          Built for your trade business—leads, calls, and outcomes by source so you see what&apos;s working.
+          Built for your trade business: {BRAND_NAME} ties leads, calls, and outcomes by source so you see what&apos;s working.
         </p>
       </motion.div>
 

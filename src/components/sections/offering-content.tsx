@@ -9,6 +9,7 @@ import {
   DispatcherIcon,
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/seo";
 
 const GOLD_CARD =
   "border-2 border-amber-500/45 bg-gradient-to-br from-amber-600/40 via-amber-900/88 to-amber-950/95 shadow-[0_0_48px_rgba(217,169,65,0.2)] hover:border-amber-400/65 hover:shadow-[0_0_56px_rgba(217,169,65,0.28)]";
@@ -30,27 +31,27 @@ type PackageItem = {
 const REVENUE_ITEM: PackageItem = {
   title: "Revenue Streams",
   description:
-    "We work on your behalf to find and grow high-value revenue inside your trade business—demand, conversion, ticket size, and repeat work. Not vanity metrics: booked jobs and measurable outcomes.",
+    "We work on your behalf to find and grow high-value revenue inside your trade business: demand, conversion, ticket size, and repeat work. Not vanity metrics: booked jobs and measurable outcomes.",
   Icon: AtomIcon,
   badge: "Core",
   variant: "gold",
-  kicker: "#1 — Strategy & growth",
+  kicker: "#1: Strategy & growth",
 };
 
 const SOFTWARE_ITEM: PackageItem = {
   title: "We Build Your Application & Software",
   description:
-    "We design and build custom software for your trade business. Your conversion site, speed-to-lead & intake automation (forms, missed-call SMS, after-hours, follow-up), AI voice qualification when your team can't answer, and an analytics dashboard built for how you operate. Phone-first, not bot-first.",
+    "We design and build custom software for your trade business. Your conversion site, speed-to-lead & intake automation (forms, missed-call SMS, after-hours, follow-up), AI voice qualification when your team can't answer, and an analytics dashboard built for how you operate. We integrate with your CRM, business email, scheduling tools, and ad accounts. Phone-first, not bot-first.",
   Icon: LightningIcon,
   badge: "We Build It",
   variant: "gold",
-  kicker: "#2 — Custom-built for your business",
+  kicker: "#2: Custom-built for your business",
 };
 
 const ORGANIC_ITEM: PackageItem = {
-  title: "Google Search — Organic Growth",
+  title: "Google Search: Organic Growth",
   description:
-    "We do everything in our power to grow you at an exceptional pace organically—geo-targeted landing pages, local SEO, content, and search strategy on Google. Organic-first, always: the foundation everything else builds on.",
+    "We do everything in our power to grow you at an exceptional pace organically: geo-targeted landing pages, local SEO, content, and search strategy on Google. Organic-first, always: the foundation everything else builds on.",
   Icon: TargetIcon,
   badge: "Organic",
   variant: "standard",
@@ -59,7 +60,7 @@ const ORGANIC_ITEM: PackageItem = {
 const PAID_ADS_ITEM: PackageItem = {
   title: "Paid Ads & Content",
   description:
-    "Content creation and Google ad campaigns when you need paid lift—creative, targeting, and management built for trades. Complements organic growth; we run ads to accelerate, not to replace ranking the right way.",
+    "Content creation and Google ad campaigns when you need paid lift: creative, targeting, and management built for trades. Complements organic growth; we run ads to accelerate, not to replace ranking the right way.",
   Icon: DispatcherIcon,
   badge: "Paid ads",
   variant: "standard",
@@ -68,19 +69,22 @@ const PAID_ADS_ITEM: PackageItem = {
 const PARTNERSHIP_ITEM: PackageItem = {
   title: "Ongoing Partnership",
   description:
-    "We stay in the work with you—optimization, reporting reviews, and adjustments as your markets and seasons shift.",
+    "We stay in the work with you: optimization, reporting reviews, and adjustments as your markets and seasons shift.",
   Icon: AtomIcon,
   badge: "Support",
   variant: "standard",
 };
 
 const INCLUSIONS = [
-  "Revenue stream discovery & growth—we map underused opportunities and grow the revenue streams that matter most",
-  "We build your Intent application & software—custom site, intake automation, and an analytics dashboard built for your trade business",
+  "Partnership qualification: we assess fit on job volume, Google Reviews, territory, growth investment, and owner engagement before we start",
+  "Revenue stream discovery & growth: we map underused opportunities and grow the revenue streams that matter most",
+  `We build your ${BRAND_NAME} application & software: custom site, intake automation, and an analytics dashboard built for your trade business`,
   "Speed-to-lead & intake automation (forms, missed-call recovery, SMS, after-hours, follow-up)",
-  "AI voice qualification & appointment booking when your team can't answer—not on every inbound call",
-  "Google Search organic growth—we push exceptional organic pace: local SEO, landing pages, and content",
-  "Paid ads & content creation—we produce creative and run Google campaigns that complement organic",
+  "AI voice qualification & appointment booking when your team can't answer. Not on every inbound call",
+  "Google Reviews & Google Business Profile: post-job review capture straight to Google, profile optimization, and reputation tracking",
+  "Google Search organic growth: we push exceptional organic pace on local SEO, landing pages, and content",
+  "Paid ads & content creation: we produce creative and run Google campaigns that complement organic",
+  "Deep business integration: we work inside your CRM, business email, scheduling software, and ad accounts to facilitate real change",
   "Ongoing optimization & support",
 ];
 
@@ -167,7 +171,7 @@ export function OfferingContent() {
             transition={{ duration: 0.5 }}
             className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight text-foreground"
           >
-            The <span className="text-accent drop-shadow-[0_0_20px_rgba(34,211,238,0.4)]">Intent</span> Package
+            The <span className="text-accent drop-shadow-[0_0_20px_rgba(34,211,238,0.4)]">{BRAND_NAME}</span> Package
           </motion.h1>
           <motion.p
             initial={{ opacity: 1, y: 16 }}
@@ -175,15 +179,15 @@ export function OfferingContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Built for contractors and the trades. We map and grow high-value
-            revenue streams—then we build the Intent application, grow you
+            Built for contractors and the trades. {BRAND_NAME} maps and grows high-value
+            revenue streams. Then we build your application, grow you
             organically at an exceptional pace, and run paid ads & content when
             it accelerates the plan.
           </motion.p>
         </div>
       </section>
 
-      {/* What's Included — explicit layout for even spacing */}
+      {/* What's Included: explicit layout for even spacing */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="max-w-5xl mx-auto">
           <motion.h2
@@ -200,7 +204,7 @@ export function OfferingContent() {
             viewport={{ once: true }}
             className="text-center text-foreground/80 max-w-2xl mx-auto mb-12 text-base sm:text-lg"
           >
-            Strategy first—then we build the software. Organic growth is the
+            Strategy first, then we build the software. Organic growth is the
             priority; paid ads and content amplify when you need more lift.
           </motion.p>
           <motion.div
@@ -221,12 +225,17 @@ export function OfferingContent() {
         </div>
       </section>
 
-      {/* Full Package Overview — static list (no motion y-offset; keeps even spacing) */}
+      {/* Full Package Overview: static list (no motion y-offset; keeps even spacing) */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-display font-semibold text-center mb-10 text-foreground">
+          <h2 className="text-2xl sm:text-3xl font-display font-semibold text-center mb-4 text-foreground">
             Full Package Overview
           </h2>
+          <p className="text-center text-foreground/80 max-w-2xl mx-auto mb-10 text-base sm:text-lg leading-relaxed">
+            Full partnership is selective. {BRAND_NAME} only takes contractors we can guarantee
+            results for, and we need inside your operation to make it happen. Every
+            item below is part of the complete {BRAND_NAME} package for qualified operators.
+          </p>
           <ul className="list-none m-0 p-0 space-y-6">
             {INCLUSIONS.map((inclusion, i) => (
               <li
@@ -242,6 +251,23 @@ export function OfferingContent() {
               </li>
             ))}
           </ul>
+          <div className="mt-12 rounded-xl border-2 border-amber-500/35 bg-gradient-to-br from-amber-600/15 via-amber-900/30 to-amber-950/50 p-6 sm:p-8">
+            <h3 className="text-lg sm:text-xl font-display font-semibold text-amber-100">
+              Not qualified yet? Start with Intent Launchpad
+            </h3>
+            <p className="mt-3 text-sm sm:text-base text-amber-100/80 leading-relaxed">
+              If you&apos;re still building Google Reviews, intake infrastructure, or
+              job volume, Launchpad gets you there: post-job Google review capture,
+              Google Business Profile build-out, intake basics, and monthly milestones
+              until you graduate to full partnership.
+            </p>
+            <Link
+              href="/qualification#intent-launchpad"
+              className="mt-5 inline-block font-mono text-sm text-amber-200 hover:text-amber-100 transition-colors"
+            >
+              See Intent Launchpad →
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -254,11 +280,11 @@ export function OfferingContent() {
           className="max-w-2xl mx-auto text-center"
         >
           <h2 className="text-2xl sm:text-3xl font-display font-semibold mb-4 text-foreground">
-            Ready to grow revenue—not just traffic?
+            Ready to grow revenue, not just traffic?
           </h2>
           <p className="text-foreground/90 text-lg mb-8 font-medium">
-            Get a free quote. We&apos;ll map revenue opportunities and what we
-            will build for your trade business.
+            Apply for full partnership or start with Launchpad. {BRAND_NAME} will assess fit
+            and map what we build for your trade business.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
@@ -266,7 +292,15 @@ export function OfferingContent() {
                 href="/#get-in-touch"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg bg-accent text-black hover:bg-accent/90 transition-colors shadow-[0_0_25px_rgba(34,211,238,0.3)]"
               >
-                Get a Free Quote
+                Apply for Partnership
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/qualification#intent-launchpad"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg border-2 border-amber-400/50 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 transition-colors"
+              >
+                Start with Launchpad
               </Link>
             </motion.div>
           </div>

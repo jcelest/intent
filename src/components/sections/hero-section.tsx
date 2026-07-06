@@ -37,7 +37,7 @@ export function HeroSection() {
           className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-semibold tracking-tight max-w-4xl w-full text-balance"
         >
           <span className="drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] text-accent">
-            Intent
+            Intent Revenue
           </span>
           <span className="block mt-2 text-lg sm:text-3xl md:text-4xl text-foreground font-semibold leading-snug">
             Growth Partner For Contractors And The Trades
@@ -73,6 +73,14 @@ export function HeroSection() {
             }
           >
             Get a Free Quote
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full max-w-xs sm:w-auto sm:max-w-none"
+            onClick={() => (window.location.href = "/qualification")}
+          >
+            See Qualification
           </Button>
           <Button
             variant="secondary"

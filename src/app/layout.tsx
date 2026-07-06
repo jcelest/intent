@@ -4,7 +4,7 @@ import "./globals.css";
 import { OrganizationJsonLd } from "@/components/seo/json-ld";
 import {
   SITE_URL,
-  SITE_NAME,
+  BRAND_NAME,
   SEO_TITLE_DEFAULT,
   DEFAULT_DESCRIPTION,
 } from "@/lib/seo";
@@ -25,10 +25,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SEO_TITLE_DEFAULT,
-    template: `%s | ${SITE_NAME}`,
+    template: `%s | ${BRAND_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: [
+    "Intent Revenue",
     "contractor lead generation",
     "lead generation for contractors",
     "contractor marketing",
@@ -38,13 +39,13 @@ export const metadata: Metadata = {
     "revenue growth for contractors",
     "revenue generation",
   ],
-  authors: [{ name: SITE_NAME, url: SITE_URL }],
-  creator: SITE_NAME,
+  authors: [{ name: BRAND_NAME, url: SITE_URL }],
+  creator: BRAND_NAME,
   openGraph: {
     type: "website",
     locale: "en_US",
     url: SITE_URL,
-    siteName: SITE_NAME,
+    siteName: BRAND_NAME,
     title: SEO_TITLE_DEFAULT,
     description: DEFAULT_DESCRIPTION,
     images: [
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Intent — contractor lead generation for the trades",
+        alt: `${BRAND_NAME}: contractor lead generation for the trades`,
       },
     ],
   },

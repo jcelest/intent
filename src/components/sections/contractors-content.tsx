@@ -2,11 +2,12 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/seo";
 
 const TRADES = [
   {
     title: "HVAC & Climate",
-    desc: "Grow repair, install, and maintenance revenue. Exceptional organic search growth, paid ads when needed, plus speed-to-lead intake—so every homeowner gets a response.",
+    desc: "Grow repair, install, and maintenance revenue. Exceptional organic search growth, paid ads when needed, plus speed-to-lead intake so every homeowner gets a response.",
   },
   {
     title: "Plumbing",
@@ -66,8 +67,8 @@ export function ContractorsContent() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mt-6 text-xl sm:text-2xl text-foreground/90 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            HVAC, plumbing, roofing, construction, home services—we find and grow
-            high-value revenue streams, then we build the Intent application and
+            HVAC, plumbing, roofing, construction, and home services. We find and grow
+            high-value revenue streams, then {BRAND_NAME} builds your application and
             organic search growth and paid ads for your business.
           </motion.p>
         </div>
@@ -119,7 +120,7 @@ export function ContractorsContent() {
             viewport={{ once: true }}
             className="text-2xl sm:text-3xl font-display font-semibold text-center mb-10 text-foreground"
           >
-            Why Contractors Choose Intent
+            Why Contractors Choose {BRAND_NAME}
           </motion.h2>
           <motion.ul
             variants={container}
@@ -129,12 +130,12 @@ export function ContractorsContent() {
             className="space-y-5"
           >
             {[
-              "Revenue streams—we identify and grow demand, conversion, and repeat work on your behalf",
-              "We build your application & software—custom site, speed-to-lead, intake automation, and analytics dashboard",
-              "Google Search organic growth—exceptional pace on local SEO, pages, and content",
-              "Paid ads & content—we create creative and run Google campaigns that complement organic",
-              "AI voice when your team can't answer—not on every live call",
-              "Ongoing optimization—reporting and adjustments as your business grows",
+              "Revenue streams: we identify and grow demand, conversion, and repeat work on your behalf",
+              "We build your application & software: custom site, speed-to-lead, intake automation, and analytics dashboard",
+              "Google Search organic growth: exceptional pace on local SEO, pages, and content",
+              "Paid ads & content: we create creative and run Google campaigns that complement organic",
+              "AI voice when your team can't answer. Not on every live call",
+              "Ongoing optimization: reporting and adjustments as your business grows",
             ].map((point, i) => (
               <motion.li
                 key={point}

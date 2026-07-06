@@ -558,7 +558,7 @@ function AnalyticsContent({
                   style={{ borderColor: `${accent}40` }}
                 >
                   <h3 className="font-mono text-sm text-slate-400 uppercase tracking-wider mb-6">
-                    {s.label} — {data.ga4!.dateRange} (GA4)
+                    {s.label}: {data.ga4!.dateRange} (GA4)
                   </h3>
                   <AreaChartVisual
                     data={chartData as Array<{ month: string; [k: string]: string | number | undefined }>}
@@ -690,7 +690,7 @@ function AnalyticsContent({
           <div className="rounded-xl border-2 bg-slate-900/60 p-6 border-[#00e5ff]/30 hover:border-[#00e5ff]/50 transition-colors">
             <h3 className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2">AI Calls (YTD)</h3>
             <span className="text-2xl font-display font-bold" style={{ color: accent }}>
-              {data.metrics.aiCalls?.after?.toLocaleString() ?? "—"}
+              {data.metrics.aiCalls?.after?.toLocaleString() ?? "N/A"}
             </span>
             <p className="mt-2 text-sm font-mono text-slate-400">Dispatcher active</p>
           </div>
@@ -699,7 +699,7 @@ function AnalyticsContent({
 
       <div className="space-y-12">
         {hasBeforeAfter && data.metrics.revenue && (
-          <ChartCard title="Revenue — Before vs After Intent" borderColor={`${accent}40`}>
+          <ChartCard title="Revenue: Before vs After Intent" borderColor={`${accent}40`}>
             <AreaChartVisual
               data={chartData}
               dataKey="revenueBefore"
@@ -713,7 +713,7 @@ function AnalyticsContent({
           </ChartCard>
         )}
 
-        <ChartCard title={isLive ? "Sessions — Last 12 Months (GA4)" : "Traffic — Before vs After Intent"} borderColor={`${accent}40`}>
+        <ChartCard title={isLive ? "Sessions: Last 12 Months (GA4)" : "Traffic: Before vs After Intent"} borderColor={`${accent}40`}>
           {isLive && "current" in data.metrics.traffic ? (
             <AreaChartVisual
               data={chartData}
@@ -739,7 +739,7 @@ function AnalyticsContent({
         </ChartCard>
 
         {hasBeforeAfter && data.metrics.leads && (
-          <ChartCard title="Leads — Before vs After Intent" borderColor={`${accent}40`}>
+          <ChartCard title="Leads: Before vs After Intent" borderColor={`${accent}40`}>
             <AreaChartVisual
               data={chartData}
               dataKey="leadsBefore"
@@ -754,7 +754,7 @@ function AnalyticsContent({
         )}
 
         {hasBeforeAfter && data.metrics.aiCalls && (
-          <ChartCard title="AI Call Volume — Dispatcher Activity" borderColor={`${accent}40`}>
+          <ChartCard title="AI Call Volume: Dispatcher Activity" borderColor={`${accent}40`}>
             <AreaChartVisual
               data={chartData}
               dataKey="aiCalls"
@@ -768,7 +768,7 @@ function AnalyticsContent({
         )}
 
         {hasBeforeAfter && data.metrics.conversionRate && (
-          <ChartCard title="Conversion Rate — Before vs After Intent" borderColor={`${ACCENT_VIOLET}40`}>
+          <ChartCard title="Conversion Rate: Before vs After Intent" borderColor={`${ACCENT_VIOLET}40`}>
             <AreaChartVisual
               data={chartData}
               dataKey="conversionRate"

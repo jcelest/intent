@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { BRAND_NAME } from "@/lib/seo";
 
 export function Footer() {
   return (
@@ -16,6 +17,12 @@ export function Footer() {
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
           >
             Offering
+          </Link>
+          <Link
+            href="/qualification"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Qualification
           </Link>
           <Link
             href="/central-florida"
@@ -42,7 +49,7 @@ export function Footer() {
             Admin
           </Link>
           <p className="text-muted text-sm font-mono">
-            We Engineer Revenue. © {new Date().getFullYear()}
+            {BRAND_NAME}. We Engineer Revenue. © {new Date().getFullYear()}
           </p>
         </nav>
       </div>

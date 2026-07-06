@@ -1,4 +1,4 @@
-import { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION } from "@/lib/seo";
+import { SITE_URL, BRAND_NAME, DEFAULT_DESCRIPTION } from "@/lib/seo";
 
 export function LocalBusinessJsonLd({
   name,
@@ -43,7 +43,7 @@ export function OrganizationJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: SITE_NAME,
+    name: BRAND_NAME,
     url: SITE_URL,
     description: DEFAULT_DESCRIPTION,
     areaServed: [
@@ -68,6 +68,7 @@ export function OrganizationJsonLd() {
       geoRadius: "200 mi",
     },
     knowsAbout: [
+      "Intent Revenue",
       "Contractor lead generation",
       "Lead generation for contractors",
       "Contractor marketing",
