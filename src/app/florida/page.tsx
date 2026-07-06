@@ -32,7 +32,7 @@ export default function FloridaPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
-        name={`${BRAND_NAME} - Florida`}
+        name={`${BRAND_NAME} | Florida`}
         description="Lead generation for Florida contractors statewide. Miami, Jacksonville, Tampa, Orlando. Get more leads, grow revenue."
         url={`${SITE_URL}/florida`}
         areaServed={["Florida", "Central Florida", "South Florida", "North Florida"]}

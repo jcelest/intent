@@ -32,7 +32,7 @@ export default function CentralFloridaPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
-        name={`${BRAND_NAME} - Central Florida`}
+        name={`${BRAND_NAME} | Central Florida`}
         description="Lead generation for Central Florida: Orlando, Tampa, Kissimmee, Winter Park, Lakeland. Get more contractor leads, grow revenue."
         url={`${SITE_URL}/central-florida`}
         areaServed={[

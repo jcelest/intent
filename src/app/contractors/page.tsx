@@ -34,7 +34,7 @@ export default function ContractorsPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <LocalBusinessJsonLd
-        name={`${BRAND_NAME} - Contractors`}
+        name={`${BRAND_NAME} | Contractors`}
         description="Lead generation and marketing for contractors: HVAC, plumbing, roofing, home services. Get more leads, grow revenue. Florida and nationwide."
         url={`${SITE_URL}/contractors`}
         areaServed={["Florida", "Central Florida", "United States"]}
