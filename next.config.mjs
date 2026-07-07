@@ -4,9 +4,6 @@ const nextConfig = {
     instrumentationHook: true,
     serverComponentsExternalPackages: ["@google-analytics/data", "google-gax"],
   },
-  async redirects() {
-    return [{ source: "/pitch", destination: "/pitch/", permanent: true }];
-  },
   webpack: (config, { dev }) => {
     // Disable webpack cache in dev to avoid Windows cache corruption (ENOENT, MODULE_NOT_FOUND)
     if (dev) {
