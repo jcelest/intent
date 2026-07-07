@@ -80,7 +80,6 @@ const INCLUSIONS = [
   "Revenue stream discovery & growth: we map underused opportunities and grow the revenue streams that matter most",
   `We build your ${BRAND_NAME} application & software: custom site, intake automation, and an analytics dashboard built for your trade business`,
   "Speed-to-lead & intake automation (forms, missed-call recovery, SMS, after-hours, follow-up)",
-  "AI voice qualification & appointment booking when your team can't answer. Not on every inbound call",
   "Google Reviews & Google Business Profile: post-job review capture straight to Google, profile optimization, and reputation tracking",
   "Google Search organic growth: we push exceptional organic pace on local SEO, landing pages, and content",
   "Paid ads & content creation: we produce creative and run Google campaigns that complement organic",
