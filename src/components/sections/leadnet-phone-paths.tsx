@@ -42,8 +42,8 @@ export function LeadNetPhonePaths({ compact = false }: { compact?: boolean }) {
               key={path.id}
               className={
                 index === 0
-                  ? "rounded-xl border-2 border-accent/50 bg-card/80 p-5 sm:p-6"
-                  : "rounded-xl border-2 border-white/40 bg-card/80 p-5 sm:p-6"
+                  ? "rounded-xl border-2 border-accent/50 bg-oled p-5 sm:p-6"
+                  : "rounded-xl border-2 border-white/40 bg-oled p-5 sm:p-6"
               }
             >
               <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
