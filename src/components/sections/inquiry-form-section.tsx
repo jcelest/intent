@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -167,6 +168,16 @@ export function InquiryFormSection() {
             <p className="mt-2 text-muted text-sm">
               We typically respond within 24 hours.
             </p>
+            {inquiryType === "launchpad" ? (
+              <p className="mt-4 text-sm">
+                <Link
+                  href="/begin?path=launchpad"
+                  className="text-accent hover:underline"
+                >
+                  Ready to start? Begin Launchpad
+                </Link>
+              </p>
+            ) : null}
           </motion.div>
         ) : (
           <form

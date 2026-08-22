@@ -9,6 +9,12 @@ import {
   AtomIcon,
   DispatcherIcon,
 } from "@/components/ui/icons";
+import {
+  OrganicSearchVisual,
+  PaidAdsVisual,
+  RevenueStreamsVisual,
+  SoftwareStackVisual,
+} from "@/components/visuals/package-visuals";
 
 const BENTO_ITEMS = [
   {
@@ -20,7 +26,7 @@ const BENTO_ITEMS = [
     accent: false,
     gold: true,
     kicker: "#1: Strategy & growth",
-    visual: null,
+    Visual: RevenueStreamsVisual,
   },
   {
     title: "We Build Your Application & Software",
@@ -31,7 +37,7 @@ const BENTO_ITEMS = [
     accent: false,
     gold: true,
     kicker: "#2: We build it for your trade",
-    visual: "speed",
+    Visual: SoftwareStackVisual,
   },
   {
     title: "Google Search: Organic Growth",
@@ -42,7 +48,7 @@ const BENTO_ITEMS = [
     accent: false,
     gold: false,
     kicker: "Organic-first",
-    visual: null,
+    Visual: OrganicSearchVisual,
   },
   {
     title: "Paid Ads & Content",
@@ -53,7 +59,7 @@ const BENTO_ITEMS = [
     accent: false,
     gold: false,
     kicker: "Amplifies organic",
-    visual: null,
+    Visual: PaidAdsVisual,
   },
 ];
 
@@ -136,29 +142,9 @@ export function BentoGrid() {
             <p className="text-muted text-sm sm:text-base leading-relaxed break-words">
               {bento.description}
             </p>
-            {bento.visual === "speed" && (
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-amber-200">Intent: &lt;1s</span>
-                  <span className="text-muted">Manual: 5min</span>
-                </div>
-                <div className="flex gap-1 h-2 w-full">
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: 1 }}
-                    viewport={{ once: true }}
-                    className="origin-left w-[3%] rounded bg-amber-400 h-full"
-                  />
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.15 }}
-                    className="origin-left flex-1 rounded bg-muted/30 h-full"
-                  />
-                </div>
-              </div>
-            )}
+            <div className="mt-4">
+              <bento.Visual tone={bento.gold ? "gold" : "cyan"} />
+            </div>
           </motion.article>
         ))}
       </motion.div>

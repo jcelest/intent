@@ -239,7 +239,7 @@ export function ClientQualificationSection() {
 
             <div className="mt-6 flex flex-col sm:flex-row gap-4 sm:items-center">
               <Link
-                href="#get-in-touch"
+                href="/begin?path=launchpad"
                 className="inline-flex items-center justify-center rounded-lg bg-amber-500/90 px-6 py-3 font-display font-semibold text-amber-950 hover:bg-amber-400 transition-colors"
               >
                 Start with Launchpad

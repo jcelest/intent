@@ -13,6 +13,12 @@ export function Footer() {
         </Link>
         <nav className="flex items-center gap-6 flex-wrap justify-center sm:justify-end">
           <Link
+            href="/leadnet"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            LeadNet
+          </Link>
+          <Link
             href="/offering"
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
           >
@@ -41,6 +47,18 @@ export function Footer() {
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
           >
             Contractors
+          </Link>
+          <Link
+            href="/terms"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Terms of Service
+          </Link>
+          <Link
+            href="/privacy"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Privacy Policy
           </Link>
           <Link
             href="/admin/login"

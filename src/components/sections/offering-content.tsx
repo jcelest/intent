@@ -10,6 +10,16 @@ import {
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/seo";
+import {
+  CaptureFlowVisual,
+  InclusionMark,
+  OrganicSearchVisual,
+  PackageHeroVisual,
+  PaidAdsVisual,
+  PartnershipVisual,
+  RevenueStreamsVisual,
+  SoftwareStackVisual,
+} from "@/components/visuals/package-visuals";
 
 const GOLD_CARD =
   "border-2 border-amber-500/45 bg-gradient-to-br from-amber-600/40 via-amber-900/88 to-amber-950/95 shadow-[0_0_48px_rgba(217,169,65,0.2)] hover:border-amber-400/65 hover:shadow-[0_0_56px_rgba(217,169,65,0.28)]";
@@ -26,6 +36,7 @@ type PackageItem = {
   badge: string;
   variant: "standard" | "gold";
   kicker?: string;
+  Visual: typeof RevenueStreamsVisual;
 };
 
 const REVENUE_ITEM: PackageItem = {
@@ -36,6 +47,7 @@ const REVENUE_ITEM: PackageItem = {
   badge: "Core",
   variant: "gold",
   kicker: "#1: Strategy & growth",
+  Visual: RevenueStreamsVisual,
 };
 
 const SOFTWARE_ITEM: PackageItem = {
@@ -46,6 +58,7 @@ const SOFTWARE_ITEM: PackageItem = {
   badge: "We Build It",
   variant: "gold",
   kicker: "#2: Custom-built for your business",
+  Visual: SoftwareStackVisual,
 };
 
 const ORGANIC_ITEM: PackageItem = {
@@ -55,6 +68,7 @@ const ORGANIC_ITEM: PackageItem = {
   Icon: TargetIcon,
   badge: "Organic",
   variant: "standard",
+  Visual: OrganicSearchVisual,
 };
 
 const PAID_ADS_ITEM: PackageItem = {
@@ -64,6 +78,7 @@ const PAID_ADS_ITEM: PackageItem = {
   Icon: DispatcherIcon,
   badge: "Paid ads",
   variant: "standard",
+  Visual: PaidAdsVisual,
 };
 
 const PARTNERSHIP_ITEM: PackageItem = {
@@ -73,6 +88,7 @@ const PARTNERSHIP_ITEM: PackageItem = {
   Icon: AtomIcon,
   badge: "Support",
   variant: "standard",
+  Visual: PartnershipVisual,
 };
 
 const INCLUSIONS = [
@@ -154,6 +170,9 @@ function PackageCard({ pkg }: { pkg: PackageItem }) {
       >
         {pkg.description}
       </p>
+      <div className="mt-6 opacity-90">
+        <pkg.Visual tone={isGold ? "gold" : "cyan"} />
+      </div>
     </motion.article>
   );
 }
@@ -183,6 +202,14 @@ export function OfferingContent() {
             organically at an exceptional pace, and run paid ads & content when
             it accelerates the plan.
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.25 }}
+            className="mt-12 max-w-4xl mx-auto"
+          >
+            <PackageHeroVisual />
+          </motion.div>
         </div>
       </section>
 
@@ -236,13 +263,13 @@ export function OfferingContent() {
             item below is part of the complete {BRAND_NAME} package for qualified operators.
           </p>
           <ul className="list-none m-0 p-0 space-y-6">
-            {INCLUSIONS.map((inclusion, i) => (
+            {INCLUSIONS.map((inclusion) => (
               <li
                 key={inclusion}
                 className="flex items-start sm:items-center gap-3 sm:gap-4 rounded-lg border border-border/60 bg-card/50 px-4 sm:px-5 py-4 sm:py-5 transition-all duration-300 hover:border-accent/30 hover:bg-card/80"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent font-bold text-sm">
-                  {i + 1}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                  <InclusionMark />
                 </span>
                 <span className="text-foreground/95 font-medium text-sm sm:text-base lg:text-lg leading-relaxed min-w-0">
                   {inclusion}
@@ -265,6 +292,25 @@ export function OfferingContent() {
               className="mt-5 inline-block font-mono text-sm text-amber-200 hover:text-amber-100 transition-colors"
             >
               See Intent Launchpad →
+            </Link>
+          </div>
+          <div className="mt-8 rounded-xl border-2 border-accent/30 bg-accent/5 p-6 sm:p-8">
+            <h3 className="text-lg sm:text-xl font-display font-semibold text-accent">
+              Launching now: Intent LeadNet
+            </h3>
+            <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
+              Missed-call text-back, lead intake, owner alerts, Google review
+              SMS, and a shop dashboard. $999 to start. Every lead stays in.
+              Custom styling and no watermark are optional.
+            </p>
+            <div className="mt-5 opacity-90">
+              <CaptureFlowVisual />
+            </div>
+            <Link
+              href="/leadnet"
+              className="mt-5 inline-block font-mono text-sm text-accent hover:underline"
+            >
+              See Intent LeadNet →
             </Link>
           </div>
         </div>
@@ -296,7 +342,7 @@ export function OfferingContent() {
             </motion.div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
               <Link
-                href="/qualification#intent-launchpad"
+                href="/begin?path=launchpad"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold text-lg border-2 border-amber-400/50 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 transition-colors"
               >
                 Start with Launchpad
