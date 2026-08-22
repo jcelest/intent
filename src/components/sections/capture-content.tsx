@@ -76,8 +76,11 @@ export function CaptureContent() {
             trades first. One tracking number. Leads stay in the system.
             Nothing slips through the cracks.
           </motion.p>
-          <p className="mt-6 font-mono text-sm text-accent">
-            {formatCurrency(99900)} sprint
+          <p className="mt-8 text-6xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-accent">
+            {formatCurrency(99900)}
+          </p>
+          <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
+            sprint
           </p>
         </div>
         <div className="mt-10 max-w-4xl mx-auto">
@@ -104,10 +107,15 @@ export function CaptureContent() {
       <section className="px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-xl mx-auto rounded-2xl border border-accent/30 bg-card/90 p-6 sm:p-8">
           <h2 className="text-2xl font-semibold">Start LeadNet</h2>
-          <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
-            Base sprint is {formatCurrency(99900)}. Add only what you want.
-            Software we build stays with Intent unless a signed contract says
-            otherwise. Every lead stays in.
+          <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
+            {formatCurrency(99900)}
+          </p>
+          <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
+            base sprint
+          </p>
+          <p className="mt-4 text-sm text-foreground/75 leading-relaxed">
+            Add only what you want. Software we build stays with Intent unless
+            a signed contract says otherwise. Every lead stays in.
           </p>
           <div className="mt-6 space-y-3">
             {CAPTURE_ADDONS.map((addon) => {
@@ -128,7 +136,7 @@ export function CaptureContent() {
                       <p className="font-semibold">{addon.label}</p>
                       <p className="mt-1 text-sm text-muted">{addon.detail}</p>
                     </div>
-                    <p className="font-mono text-sm text-accent shrink-0">
+                    <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-accent shrink-0">
                       {formatCurrency(addon.amountCents)}
                     </p>
                   </div>
@@ -136,8 +144,12 @@ export function CaptureContent() {
               );
             })}
           </div>
-          <p className="mt-6 font-mono text-sm text-muted">Due to start</p>
-          <p className="text-3xl font-semibold tracking-tight">{formatCurrency(total)}</p>
+          <p className="mt-8 font-mono text-xs uppercase tracking-[0.18em] text-muted">
+            Due to start
+          </p>
+          <p className="mt-1 text-6xl sm:text-7xl font-semibold tracking-tight text-accent">
+            {formatCurrency(total)}
+          </p>
           <Link
             href={beginHref}
             className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
