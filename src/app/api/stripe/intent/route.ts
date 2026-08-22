@@ -30,8 +30,14 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const engagement = getEngagement(parseEngagementId(body?.path));
+  if (engagement.id !== "capture") {
+    return NextResponse.json(
+      { error: "LeadNet is the only path that takes payment here." },
+      { status: 400 }
+    );
+  }
   const addons = parseAddons(body?.addons);
-  const extra = engagement.id === "capture" ? addonAmount(addons) : 0;
+  const extra = addonAmount(addons);
   if (!engagement.amountCents) {
     return NextResponse.json(
       { error: "This start path is not open yet." },

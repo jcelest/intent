@@ -1,4 +1,4 @@
-export type EngagementId = "capture" | "launchpad" | "partnership";
+export type EngagementId = "capture" | "launchpad" | "partnership" | "custom";
 
 export type CaptureAddonId = "styling" | "nowatermark";
 
@@ -45,17 +45,17 @@ export function getEngagement(id: EngagementId): Engagement {
   if (id === "partnership") {
     return {
       id: "partnership",
-      kicker: "Full partnership",
-      title: "Begin partnership",
+      kicker: "Full system",
+      title: "Intent Partnership",
       summary:
         "Revenue, software, search, and ads. We go all in with shops that already hit the bar.",
       points: [
-        "Custom software and intake",
-        "Organic search growth",
-        "Paid ads and content when it accelerates the work",
+        "Revenue mapping and booked-job growth",
+        "Custom software and intake built for the shop",
+        "Organic search first, paid ads when they accelerate the work",
       ],
-      confirmLabel: "Begin Partnership",
-      amountCents: amountFromEnv("PARTNERSHIP_AMOUNT_CENTS"),
+      confirmLabel: "Talk partnership",
+      amountCents: null,
     };
   }
 
@@ -71,8 +71,25 @@ export function getEngagement(id: EngagementId): Engagement {
         "Google Business Profile build-out",
         "Missed-call text-back and lead intake",
       ],
-      confirmLabel: "Start Launchpad",
-      amountCents: amountFromEnv("LAUNCHPAD_AMOUNT_CENTS"),
+      confirmLabel: "Apply for Launchpad",
+      amountCents: null,
+    };
+  }
+
+  if (id === "custom") {
+    return {
+      id: "custom",
+      kicker: "Built to spec",
+      title: "Custom package",
+      summary:
+        "When LeadNet, Launchpad, or partnership is not the fit. We scope software, search, and ads to the shop and write the work before it starts.",
+      points: [
+        "Scoped software, not a template",
+        "Search and ads only where they move jobs",
+        "Written proposal before we build",
+      ],
+      confirmLabel: "Request a scope",
+      amountCents: null,
     };
   }
 
@@ -122,5 +139,6 @@ export function isDocuSignConfigured() {
 export function parseEngagementId(value: string | null | undefined): EngagementId {
   if (value === "partnership") return "partnership";
   if (value === "launchpad") return "launchpad";
+  if (value === "custom") return "custom";
   return "capture";
 }
