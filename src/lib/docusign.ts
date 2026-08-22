@@ -85,10 +85,26 @@ export async function startCaptureSigning(input: {
               routingOrder: "1",
               tabs: {
                 signHereTabs: [
-                  { documentId: "1", pageNumber: "1", xPosition: "72", yPosition: "620" },
+                  {
+                    documentId: "1",
+                    anchorString: "Client signature:",
+                    anchorUnits: "pixels",
+                    anchorXOffset: "130",
+                    anchorYOffset: "-8",
+                    anchorIgnoreIfNotPresent: "false",
+                    anchorCaseSensitive: "true",
+                  },
                 ],
                 dateSignedTabs: [
-                  { documentId: "1", pageNumber: "1", xPosition: "360", yPosition: "620" },
+                  {
+                    documentId: "1",
+                    anchorString: "Date signed:",
+                    anchorUnits: "pixels",
+                    anchorXOffset: "85",
+                    anchorYOffset: "-4",
+                    anchorIgnoreIfNotPresent: "false",
+                    anchorCaseSensitive: "true",
+                  },
                 ],
               },
             },

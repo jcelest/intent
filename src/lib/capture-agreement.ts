@@ -63,8 +63,11 @@ export function captureAgreementHtml(input: {
     <p>The LeadNet sprint fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing. The client may cancel the monthly before a new month starts. Cancel stops new monthly charges. It does not refund the sprint. After cancel, Intent may release the tracking number.</p>
     <h2 style="font-size: 16px;">10. Law</h2>
     <p>Florida law governs this agreement.</p>
-    <p style="margin-top: 48px;">Client signature: _________________________________ Date: ______________</p>
-    <p>${BRAND_NAME}</p>
+    <div style="margin-top: 56px; page-break-inside: avoid;">
+      <p>Client signature: ____________________________________________</p>
+      <p>Date signed: ______________</p>
+      <p>${BRAND_NAME}</p>
+    </div>
   </body>
 </html>`;
 }
