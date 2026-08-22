@@ -199,6 +199,11 @@ export function BeginFlow({
         >
           {engagement.title}
         </h2>
+        {path === "capture" ? (
+          <p className="mt-2 text-sm tracking-wide text-foreground/80">
+            Missed-Call Software
+          </p>
+        ) : null}
         <p className="mt-3 text-foreground/85 leading-relaxed">{engagement.summary}</p>
         <div className="mt-6 opacity-90">
           {path === "capture" ? (

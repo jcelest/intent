@@ -32,9 +32,9 @@ Voice on the tracking number can go live after the number is active. Public SMS 
 ## 4. Phone setup
 LeadNet uses a tracking number Intent provides. The Client chooses one of two setups at kickoff. Neither setup is sold as a Stripe add-on. Intent does not sell cell plans.
 
-**Keep the public number.** The number on the truck and Google forwards into LeadNet. The Phone app rings a private second line the Client buys from a carrier, typically about $8/month for an eSIM talk line. Intent does not bill that line. The Client pays the carrier.
+**Keep The Public Number.** That number forwards to LeadNet. The Phone app rings a private carrier line, about $8/month. The Client pays the carrier. Intent does not.
 
-**Keep the phone as it is.** Google and ads show the LeadNet tracking number. The Phone app keeps ringing the number already on the SIM. No extra carrier bill. This is the faster install if you will not add a line.
+**Keep The Phone As It Is.** Google and ads show the LeadNet number. The Phone app keeps the SIM number. No extra carrier bill.
 
 ## 5. What is not included
 Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise. A second cell line, eSIM, or carrier add-a-line is paid by the Client to their carrier, not to Intent. Unusual voice or SMS volume may be billed extra or moved to a higher plan. Intent will contact the Client before extra usage charges.

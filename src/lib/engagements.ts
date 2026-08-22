@@ -19,15 +19,15 @@ export const LEADNET_INCLUDED_DAYS = 30;
 export const LEADNET_PHONE_PATHS = [
   {
     id: "keep-public",
-    title: "Keep the public number",
-    kicker: "Van, signs, Google stay the same",
-    body: "The number on the truck and Google forwards into LeadNet. Your Phone app rings a private second line you buy from a carrier, typically about $8/month for an eSIM talk line. Intent does not bill that line. You pay the carrier.",
+    title: "Keep The Public Number",
+    kicker: "Van, Signs, Google Stay",
+    body: "That number forwards to LeadNet. Your Phone app rings a private carrier line, about $8/month. You pay the carrier. Intent does not.",
   },
   {
     id: "keep-phone",
-    title: "Keep the phone as it is",
-    kicker: "No second line",
-    body: "Google and ads show the LeadNet tracking number. Your Phone app keeps ringing the number already on the SIM. No extra carrier bill. This is the faster install if you will not add a line.",
+    title: "Keep The Phone As It Is",
+    kicker: "No Second Line",
+    body: "Google and ads show the LeadNet number. Your Phone app keeps the SIM number. No extra carrier bill.",
   },
 ] as const;
 
@@ -39,13 +39,13 @@ export const CAPTURE_ADDONS: Array<{
 }> = [
   {
     id: "styling",
-    label: "Custom application styling",
+    label: "Custom Application Styling",
     detail: "Brand colors, type, and layout matched to the company.",
     amountCents: 49900,
   },
   {
     id: "nowatermark",
-    label: "No watermark",
+    label: "No Watermark",
     detail: "Removes Designed with Intent Revenue from the live app.",
     amountCents: 25000,
   },

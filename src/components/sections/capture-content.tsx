@@ -17,22 +17,22 @@ import { BRAND_NAME } from "@/lib/seo";
 const FEATURES = [
   {
     title: "Your Company",
-    body: "Your Company gets its own LeadNet application. Intake, missed-call text-back, owner alerts, and the dashboard run as their system, not a generic form.",
+    body: "Your Company gets its own LeadNet app. Intake, missed-call text-back, owner alerts, and the dashboard run as their system.",
   },
   {
-    title: "Missed-call text-back",
-    body: "If the company misses the ring, the homeowner gets a text from the tracking number. The lead is not gone.",
+    title: "Missed-Call Text-Back",
+    body: "If they miss the ring, the homeowner gets a text from the tracking number. The lead stays in.",
   },
   {
-    title: "Priority intake",
-    body: "A mobile form that captures the job, system age, and a Central Florida value estimate without the tech typing dollars.",
+    title: "Priority Intake",
+    body: "A mobile form for the job, system age, and a Central Florida value estimate. The tech does not type dollars.",
   },
   {
-    title: "Owner alerts",
+    title: "Owner Alerts",
     body: "New leads hit the owner’s phone. The dashboard shows open est. value as jobs move.",
   },
   {
-    title: "Google review SMS",
+    title: "Google Review SMS",
     body: "After the job, send the 5 star request from the same system. Follow-up is automatic.",
   },
 ];
@@ -77,6 +77,9 @@ export function CaptureContent() {
           >
             Intent <span className="text-accent">LeadNet</span>
           </motion.h1>
+          <p className="mt-3 text-sm sm:text-base tracking-wide text-foreground/80">
+            Missed-Call Software
+          </p>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -117,7 +120,7 @@ export function CaptureContent() {
           {FEATURES.map((feature) => (
             <article
               key={feature.title}
-              className="rounded-xl border border-border bg-card/80 p-6"
+              className="rounded-xl border-2 border-accent/45 bg-card/80 p-6"
             >
               <h2 className="text-lg font-semibold">{feature.title}</h2>
               <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
@@ -131,7 +134,7 @@ export function CaptureContent() {
       <LeadNetPhonePaths />
 
       <section className="px-4 sm:px-6 lg:px-8 py-12">
-        <div className="max-w-xl mx-auto rounded-2xl border border-accent/30 bg-card/90 p-6 sm:p-8">
+        <div className="max-w-xl mx-auto rounded-2xl border-2 border-accent/50 bg-card/90 p-6 sm:p-8">
           <h2 className="text-2xl font-semibold">Start LeadNet</h2>
           <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
             {formatCurrency(99900)}
@@ -157,7 +160,7 @@ export function CaptureContent() {
                   className={`w-full rounded-xl border p-4 text-left transition-colors ${
                     on
                       ? "border-accent bg-accent/10"
-                      : "border-border hover:border-accent/40"
+                      : "border-white/25 hover:border-accent/50"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
