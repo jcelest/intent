@@ -4,21 +4,45 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
+  { id: "captured", label: "Payment captured" },
   { id: "planning", label: "Planning" },
   { id: "design", label: "Design and Setup" },
   { id: "production", label: "Production" },
 ] as const;
 
-type Phase = "planning" | "design";
+type StepId = (typeof STEPS)[number]["id"];
+type Phase = "captured" | "planning" | "design";
+type Status = "done" | "active" | "loading" | "waiting";
+
+const ORDER: Phase[] = ["captured", "planning", "design"];
+
+function statusFor(step: StepId, phase: Phase): Status {
+  if (step === "production") return "waiting";
+  const stepIndex = ORDER.indexOf(step as Phase);
+  const phaseIndex = ORDER.indexOf(phase);
+  if (stepIndex < phaseIndex) return "done";
+  if (step === phase) return step === "design" ? "loading" : "active";
+  return "waiting";
+}
 
 export function BeginProgress() {
-  const [phase, setPhase] = useState<Phase>("planning");
+  const [phase, setPhase] = useState<Phase>("captured");
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const id = window.setTimeout(() => setPhase("design"), reduce ? 0 : 1200);
-    return () => window.clearTimeout(id);
+    if (reduce) {
+      setPhase("design");
+      return;
+    }
+    const planning = window.setTimeout(() => setPhase("planning"), 900);
+    const design = window.setTimeout(() => setPhase("design"), 2100);
+    return () => {
+      window.clearTimeout(planning);
+      window.clearTimeout(design);
+    };
   }, []);
+
+  const phaseIndex = ORDER.indexOf(phase);
 
   return (
     <ol
@@ -26,19 +50,9 @@ export function BeginProgress() {
       aria-label="LeadNet build progress"
     >
       {STEPS.map((step, index) => {
-        const status =
-          step.id === "planning"
-            ? phase === "planning"
-              ? "active"
-              : "done"
-            : step.id === "design"
-              ? phase === "design"
-                ? "loading"
-                : "waiting"
-              : "waiting";
+        const status = statusFor(step.id, phase);
         const next = STEPS[index + 1];
-        const connectorOn =
-          step.id === "planning" && phase === "design" ? "filled" : "idle";
+        const connectorOn = index < phaseIndex;
 
         return (
           <li key={step.id} className="flex gap-3">
@@ -48,7 +62,7 @@ export function BeginProgress() {
                 <span
                   className={cn(
                     "begin-progress-line my-1 w-px flex-1 min-h-[1.75rem]",
-                    connectorOn === "filled" && "begin-progress-line-on"
+                    connectorOn && "begin-progress-line-on"
                   )}
                   aria-hidden
                 />
@@ -85,11 +99,7 @@ export function BeginProgress() {
   );
 }
 
-function StepMark({
-  status,
-}: {
-  status: "done" | "active" | "loading" | "waiting";
-}) {
+function StepMark({ status }: { status: Status }) {
   return (
     <span
       className={cn(
