@@ -29,7 +29,7 @@ export function captureAgreementHtml(input: {
     <strong>Email:</strong> ${escapeHtml(input.email)}<br/>
     <strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
     <h2 style="font-size: 16px;">1. Service</h2>
-    <p>Intent will set up Intent LeadNet for the client: a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a shop dashboard so inbound jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
+    <p>Intent will set up Intent LeadNet for the client: the shop's own LeadNet application, a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a shop dashboard so inbound jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
     <h2 style="font-size: 16px;">2. Payment</h2>
     <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> through Stripe before signing. That amount is:</p>
     <ul>
@@ -37,7 +37,7 @@ export function captureAgreementHtml(input: {
       ${addonLines}
     </ul>
     <h2 style="font-size: 16px;">3. What is included</h2>
-    <p>Branded LeadNet intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a shop dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.</p>
+    <p>The shop's own LeadNet application, branded intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a shop dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.</p>
     <h2 style="font-size: 16px;">4. What is not included</h2>
     <p>Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise.</p>
     <h2 style="font-size: 16px;">5. Software ownership</h2>

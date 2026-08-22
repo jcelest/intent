@@ -22,7 +22,7 @@ export const CAPTURE_ADDONS: Array<{
     id: "styling",
     label: "Custom application styling",
     detail: "Brand colors, type, and layout matched to the shop.",
-    amountCents: 25000,
+    amountCents: 49900,
   },
   {
     id: "nowatermark",
@@ -100,6 +100,7 @@ export function getEngagement(id: EngagementId): Engagement {
     summary:
       "Missed-call text-back, lead intake, owner alerts, Google review SMS, and a shop dashboard. Every ring stays in the system. Nothing slips through the cracks.",
     points: [
+      "The shop gets its own LeadNet app",
       "Tracking number and missed-call recovery",
       "Priority intake and owner SMS",
       "Google review requests and a live dashboard",

@@ -11,12 +11,13 @@ Intent will set up Intent LeadNet for the Client: a branded intake page, a track
 The Client pays the amount on the envelope through Stripe before signing. That amount is:
 
 - Intent LeadNet base: $999
-- Custom application styling (optional): $250
+- Custom application styling (optional): $499
 - No watermark (optional): $250
 
 Add-ons are included only if they appear on the envelope.
 
 ## 3. What is included
+- The Client's own LeadNet application
 - Branded LeadNet intake
 - Tracking number and missed-call text-back
 - Owner SMS on new leads

@@ -10,6 +10,10 @@ import { BRAND_NAME } from "@/lib/seo";
 
 const FEATURES = [
   {
+    title: "Your own app",
+    body: "The shop gets its own LeadNet application. Intake, missed-call text-back, owner alerts, and the dashboard run as their system, not a generic form.",
+  },
+  {
     title: "Missed-call text-back",
     body: "If the shop misses the ring, the homeowner gets a text from the tracking number. The lead is not gone.",
   },

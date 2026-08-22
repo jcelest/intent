@@ -301,7 +301,7 @@ export function OfferingContent() {
             <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
               Missed-call text-back, lead intake, owner alerts, Google review
               SMS, and a shop dashboard. $999 to start. Every lead stays in.
-              Custom styling and no watermark are optional.
+              The shop gets its own app. Custom styling is $499. No watermark is $250.
             </p>
             <div className="mt-5 opacity-90">
               <CaptureFlowVisual />
