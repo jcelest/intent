@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   addonAmount,
   getEngagement,
+  isDocuSignConfigured,
   isStripeConfigured,
   parseAddons,
   parseEngagementId,
@@ -81,8 +82,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const afterPay =
+    engagement.id === "capture" && isDocuSignConfigured()
+      ? "/begin/sign"
+      : "/begin/confirmed";
+
   return NextResponse.json({
     clientSecret: intent.client_secret,
-    returnUrl: `${origin.replace(/\/$/, "")}/begin/confirmed`,
+    returnUrl: `${origin.replace(/\/$/, "")}${afterPay}`,
   });
 }

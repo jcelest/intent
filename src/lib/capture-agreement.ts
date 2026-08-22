@@ -29,24 +29,26 @@ export function captureAgreementHtml(input: {
     <strong>Email:</strong> ${escapeHtml(input.email)}<br/>
     <strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
     <h2 style="font-size: 16px;">1. Service</h2>
-    <p>Intent will set up Intent LeadNet for the client: a branded intake page, missed-call text-back, owner lead alerts, Google review SMS, and a shop dashboard so nothing slips through the cracks. This is a productized sprint, not a custom software assignment unless a later signed contract says otherwise.</p>
-    <h2 style="font-size: 16px;">2. Amount</h2>
-    <p>The client will pay <strong>${formatCurrency(input.amountCents)}</strong> for:</p>
+    <p>Intent will set up Intent LeadNet for the client: a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a shop dashboard so inbound jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
+    <h2 style="font-size: 16px;">2. Payment</h2>
+    <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> through Stripe before signing. That amount is:</p>
     <ul>
       <li>Intent LeadNet base (${formatCurrency(99900)})</li>
       ${addonLines}
     </ul>
-    <h2 style="font-size: 16px;">3. Software ownership</h2>
-    <p>Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Paying this invoice does not transfer ownership.</p>
-    <h2 style="font-size: 16px;">4. Client materials</h2>
+    <h2 style="font-size: 16px;">3. What is included</h2>
+    <p>Branded LeadNet intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a shop dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.</p>
+    <h2 style="font-size: 16px;">4. What is not included</h2>
+    <p>Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise.</p>
+    <h2 style="font-size: 16px;">5. Software ownership</h2>
+    <p>Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Payment does not transfer ownership.</p>
+    <h2 style="font-size: 16px;">6. Client materials</h2>
     <p>The client's name, logo, job data, and customer lists remain the client's. Intent may use them to perform the work.</p>
-    <h2 style="font-size: 16px;">5. Carriers and platforms</h2>
-    <p>Voice forwarding can go live after the tracking number is active. SMS to the public may wait on carrier registration (10DLC or toll-free verification). Intent will start that process promptly. Intent does not guarantee a specific number of leads, reviews, or jobs.</p>
-    <h2 style="font-size: 16px;">6. Add-ons</h2>
-    <p>Custom application styling and no watermark are optional and only included if listed in section 2. No watermark removes the Designed with Intent Revenue mark from the live LeadNet app.</p>
-    <h2 style="font-size: 16px;">7. Refunds</h2>
-    <p>The LeadNet sprint is non-refundable once setup has started, except as required by law or a later signed writing.</p>
-    <h2 style="font-size: 16px;">8. Law</h2>
+    <h2 style="font-size: 16px;">7. Add-ons</h2>
+    <p>Custom application styling and no watermark are included only if listed in section 2. No watermark removes the Designed with Intent Revenue mark from the live LeadNet app.</p>
+    <h2 style="font-size: 16px;">8. Refunds</h2>
+    <p>The LeadNet fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing.</p>
+    <h2 style="font-size: 16px;">9. Law</h2>
     <p>Florida law governs this agreement.</p>
     <p style="margin-top: 48px;">Client signature: _________________________________ Date: ______________</p>
     <p>${BRAND_NAME}</p>

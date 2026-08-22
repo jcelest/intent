@@ -87,7 +87,7 @@ export function getEngagement(id: EngagementId): Engagement {
       "Priority intake and owner SMS",
       "Google review requests and a live dashboard",
     ],
-    confirmLabel: "Start LeadNet",
+    confirmLabel: "Pay and start LeadNet",
     amountCents: amountFromEnv("CAPTURE_AMOUNT_CENTS", 99900),
   };
 }

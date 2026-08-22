@@ -242,23 +242,7 @@ function StartForm({
     setError(null);
     setLoading(true);
     const details = { path: engagement.id, name, company, email, phone, addons };
-
-    if (docusignReady) {
-      const sign = await fetch("/api/docusign/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(details),
-      });
-      const payload = await sign.json().catch(() => ({}));
-      setLoading(false);
-      if (!sign.ok || !payload.url) {
-        setError(payload.error ?? "Could not open the agreement.");
-        return;
-      }
-      sessionStorage.setItem("intent-begin", JSON.stringify(details));
-      window.location.href = payload.url;
-      return;
-    }
+    sessionStorage.setItem("intent-begin", JSON.stringify(details));
 
     const response = await fetch("/api/stripe/intent", {
       method: "POST",
@@ -282,8 +266,9 @@ function StartForm({
           Confirm to begin
         </p>
         <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
-          Software we build stays with Intent unless a signed contract says
-          otherwise.
+          {docusignReady
+            ? "Pay now. After that you will sign the LeadNet agreement."
+            : "Software we build stays with Intent unless a signed contract says otherwise."}
         </p>
         <Elements stripe={stripePromise} options={options}>
           <ConfirmStep
@@ -334,7 +319,11 @@ function StartForm({
       </Field>
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       <Button type="submit" className="w-full" size="lg" disabled={loading}>
-        {loading ? "One moment…" : docusignReady ? "Sign the agreement" : "Continue"}
+        {loading
+          ? "One moment…"
+          : docusignReady
+            ? "Continue to payment"
+            : "Continue"}
       </Button>
       <p className="text-center text-xs text-muted leading-relaxed">
         By continuing you agree to the{" "}

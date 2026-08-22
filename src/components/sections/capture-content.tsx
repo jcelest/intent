@@ -82,6 +82,12 @@ export function CaptureContent() {
           <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
             sprint
           </p>
+          <Link
+            href={beginHref}
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
+          >
+            Pay and start LeadNet
+          </Link>
         </div>
         <div className="mt-10 max-w-4xl mx-auto">
           <CaptureFlowVisual />
@@ -154,10 +160,10 @@ export function CaptureContent() {
             href={beginHref}
             className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
           >
-            Begin LeadNet
+            Pay and start LeadNet
           </Link>
           <p className="mt-4 text-center text-xs text-muted">
-            Next step is the agreement, then confirm. See{" "}
+            Pay first. Then sign the LeadNet agreement. See{" "}
             <Link href="/terms" className="text-accent hover:underline">
               Terms of Service
             </Link>
