@@ -143,6 +143,28 @@ export function PartnershipVisual({ className, tone = "cyan" }: VisualProps) {
   );
 }
 
+function FlowLabel({
+  x,
+  children,
+}: {
+  x: number;
+  children: string;
+}) {
+  return (
+    <text
+      x={x}
+      y="168"
+      textAnchor="middle"
+      fill="#94a3b8"
+      fontSize="13"
+      letterSpacing="0.14em"
+      fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+    >
+      {children}
+    </text>
+  );
+}
+
 export function CaptureFlowVisual({ className }: { className?: string }) {
   return (
     <svg
@@ -151,32 +173,106 @@ export function CaptureFlowVisual({ className }: { className?: string }) {
       aria-hidden
       fill="none"
     >
-      <rect x="24" y="48" width="140" height="104" rx="16" stroke="#22d3ee" strokeWidth="2" />
-      <path d="M70 88c18-22 50-22 68 0" stroke="#22d3ee" strokeWidth="2" />
-      <circle cx="94" cy="118" r="5" fill="#22d3ee" />
-      <text x="94" y="172" textAnchor="middle" fill="#64748b" fontSize="11" fontFamily="ui-monospace, monospace">
-        MISSED CALL
-      </text>
-      <path d="M176 100h52" stroke="#22d3ee" strokeOpacity="0.6" markerEnd="url(#arrow)" />
-      <rect x="240" y="48" width="140" height="104" rx="16" stroke="#22d3ee" strokeWidth="2" />
-      <rect x="258" y="70" width="104" height="48" rx="8" fill="rgba(34,211,238,0.12)" />
-      <path d="M270 86h80M270 98h52" stroke="#22d3ee" />
-      <text x="310" y="172" textAnchor="middle" fill="#64748b" fontSize="11" fontFamily="ui-monospace, monospace">
-        TEXT BACK
-      </text>
-      <path d="M392 100h52" stroke="#22d3ee" strokeOpacity="0.6" />
-      <rect x="456" y="48" width="140" height="104" rx="16" stroke="#f59e0b" strokeWidth="2" />
-      <rect x="476" y="68" width="100" height="10" rx="2" fill="#f59e0b" fillOpacity="0.4" />
-      <rect x="476" y="86" width="72" height="8" rx="2" fill="#f59e0b" fillOpacity="0.25" />
-      <rect x="476" y="102" width="88" height="8" rx="2" fill="#f59e0b" fillOpacity="0.25" />
-      <text x="526" y="172" textAnchor="middle" fill="#64748b" fontSize="11" fontFamily="ui-monospace, monospace">
-        DASHBOARD
-      </text>
-      <path
-        d="M628 78l10 22 24 2-18 16 6 24-22-14-22 14 6-24-18-16 24-2z"
-        stroke="#f59e0b"
-        strokeWidth="2"
-      />
+      <defs>
+        <linearGradient id="ln-rail" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.2" />
+          <stop offset="55%" stopColor="#22d3ee" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.55" />
+        </linearGradient>
+      </defs>
+
+      <path d="M162 86h36M246 86h72M366 86h36M450 86h72M570 86h36" stroke="url(#ln-rail)" strokeWidth="1.25" />
+      <circle cx="208" cy="86" r="2.25" fill="#22d3ee" fillOpacity="0.8" />
+      <circle cx="360" cy="86" r="2.25" fill="#22d3ee" fillOpacity="0.55" />
+      <circle cx="512" cy="86" r="2.25" fill="#f59e0b" fillOpacity="0.85" />
+
+      <g>
+        <circle
+          cx="120"
+          cy="86"
+          r="40"
+          fill="rgba(34,211,238,0.06)"
+          stroke="#22d3ee"
+          strokeWidth="1.25"
+          strokeOpacity="0.8"
+        />
+        <g
+          transform="translate(102.5 68.5) scale(1.45)"
+          stroke="#22d3ee"
+          strokeWidth="1.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+        </g>
+        <path
+          d="M139 64l10 10M149 64l-10 10"
+          stroke="#22d3ee"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+        <FlowLabel x={120}>MISSED CALL</FlowLabel>
+      </g>
+
+      <g>
+        <circle
+          cx="360"
+          cy="86"
+          r="40"
+          fill="rgba(34,211,238,0.06)"
+          stroke="#22d3ee"
+          strokeWidth="1.25"
+          strokeOpacity="0.8"
+        />
+        <g
+          transform="translate(342.5 68.5) scale(1.45)"
+          stroke="#22d3ee"
+          strokeWidth="1.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </g>
+        <path
+          d="M350 82h16M350 89h10"
+          stroke="#22d3ee"
+          strokeWidth="1.45"
+          strokeLinecap="round"
+        />
+        <FlowLabel x={360}>TEXT BACK</FlowLabel>
+      </g>
+
+      <g>
+        <circle
+          cx="600"
+          cy="86"
+          r="40"
+          fill="rgba(245,158,11,0.07)"
+          stroke="#f59e0b"
+          strokeWidth="1.25"
+          strokeOpacity="0.9"
+        />
+        <g
+          transform="translate(582.5 68.5) scale(1.45)"
+          stroke="#f59e0b"
+          strokeWidth="1.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="8" height="9" rx="1.2" />
+          <rect x="13" y="3" width="8" height="5" rx="1.2" />
+          <rect x="13" y="10" width="8" height="11" rx="1.2" />
+          <rect x="3" y="14" width="8" height="7" rx="1.2" />
+        </g>
+        <path
+          d="M624 62.5l1.5 3.1 3.4.4-2.6 2.3.7 3.4-3-1.9-3 1.9.7-3.4-2.6-2.3 3.4-.4z"
+          stroke="#f59e0b"
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+          fill="rgba(245,158,11,0.28)"
+        />
+        <FlowLabel x={600}>DASHBOARD</FlowLabel>
+      </g>
     </svg>
   );
 }
