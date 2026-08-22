@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
-import { BRAND_NAME } from "@/lib/seo";
+import { BeginOutcome } from "@/components/sections/begin-outcome";
+import { BeginProgress } from "@/components/sections/begin-progress";
 
 export const metadata: Metadata = {
-  title: "You're in",
+  title: "Ready to save leads",
   robots: { index: false, follow: false },
 };
 
@@ -14,26 +15,22 @@ export default function BeginSignedPage() {
     <div className="relative z-10 min-h-screen">
       <Header />
       <main className="pt-24 pb-16 px-4">
-        <div className="mx-auto max-w-lg rounded-2xl border border-accent/40 bg-accent/10 p-8 sm:p-10 text-center">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
-            {BRAND_NAME}
-          </p>
-          <h1 className="mt-4 text-3xl sm:text-4xl font-semibold">
-            You&apos;re in.
-          </h1>
-          <p className="mt-4 text-foreground/80 leading-relaxed">
-            Payment and the LeadNet agreement are done. Keep your phone close.
-            We will reach out to pick a phone path and kick off the work. The
-            first 30 days of the tracking number and texts are in the sprint.
-            Then $49/month.
-          </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex font-semibold text-accent hover:underline"
-          >
-            Back to Intent
-          </Link>
-        </div>
+        <BeginOutcome
+          stage="done"
+          kicker="LeadNet is on"
+          title="Ready to save leads."
+          body="The net is up. Payment and the agreement are done. Keep your phone close. We will pick a phone path and turn on the tracking number. First 30 days of the number and texts are in the sprint. Then $49/month. The next missed call stays in."
+        >
+          <div className="flex flex-col items-center gap-8">
+            <BeginProgress />
+            <Link
+              href="/"
+              className="inline-flex font-semibold text-accent hover:underline"
+            >
+              Back to Intent
+            </Link>
+          </div>
+        </BeginOutcome>
       </main>
       <Footer />
     </div>

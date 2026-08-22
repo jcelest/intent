@@ -16,6 +16,10 @@ import {
   CAPTURE_ADDONS,
   LEADNET_INCLUDED_DAYS,
   LEADNET_MONTHLY_CENTS,
+  addonAmount,
+  addonDisplayCents,
+  isLeadNetTestCheckout,
+  leadNetSprintCents,
   type CaptureAddonId,
   type Engagement,
   type EngagementId,
@@ -143,12 +147,8 @@ export function BeginFlow({
           : capture;
   const theme = THEMES[path];
   const checkoutOpen = stripeReady && path === "capture" && capture.amountCents !== null;
-  const total =
-    (capture.amountCents ?? 99900) +
-    CAPTURE_ADDONS.filter((addon) => addons.includes(addon.id)).reduce(
-      (sum, addon) => sum + addon.amountCents,
-      0
-    );
+  const sprintCents = capture.amountCents ?? leadNetSprintCents();
+  const total = sprintCents + addonAmount(addons);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -219,8 +219,13 @@ export function BeginFlow({
         {path === "capture" ? (
           <div className="mt-6">
             <p className="text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
-              {formatCurrency(99900)}
+              {formatCurrency(sprintCents)}
             </p>
+            {isLeadNetTestCheckout() ? (
+              <p className="mt-2 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
+                Test checkout. Not the live sprint.
+              </p>
+            ) : null}
             <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
               sprint
             </p>
@@ -270,7 +275,7 @@ export function BeginFlow({
                       <p className="mt-1 text-sm text-foreground/65">{addon.detail}</p>
                     </div>
                     <p className="text-xl font-semibold tracking-tight text-accent shrink-0">
-                      {formatCurrency(addon.amountCents)}
+                      {formatCurrency(addonDisplayCents(addon.amountCents))}
                     </p>
                   </div>
                 </button>

@@ -60,6 +60,30 @@ function amountFromEnv(key: string, fallback?: number): number | null {
   return fallback ?? null;
 }
 
+export const LEADNET_SPRINT_CENTS = 99900;
+export const LEADNET_TEST_SPRINT_CENTS = 50;
+
+export function isLeadNetTestCheckout() {
+  return process.env.NEXT_PUBLIC_LEADNET_TEST_CHECKOUT === "1";
+}
+
+export function leadNetSprintCents() {
+  if (isLeadNetTestCheckout()) return LEADNET_TEST_SPRINT_CENTS;
+  return amountFromEnv("CAPTURE_AMOUNT_CENTS", LEADNET_SPRINT_CENTS) ?? LEADNET_SPRINT_CENTS;
+}
+
+export function addonDisplayCents(amountCents: number) {
+  return isLeadNetTestCheckout() ? 0 : amountCents;
+}
+
+export function addonAmount(ids: CaptureAddonId[]) {
+  if (isLeadNetTestCheckout()) return 0;
+  return CAPTURE_ADDONS.filter((addon) => ids.includes(addon.id)).reduce(
+    (sum, addon) => sum + addon.amountCents,
+    0
+  );
+}
+
 export function getEngagement(id: EngagementId): Engagement {
   if (id === "partnership") {
     return {
@@ -126,15 +150,8 @@ export function getEngagement(id: EngagementId): Engagement {
       `First ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are in the sprint. Then $${LEADNET_MONTHLY_CENTS / 100}/month.`,
     ],
     confirmLabel: "Pay and start LeadNet",
-    amountCents: amountFromEnv("CAPTURE_AMOUNT_CENTS", 99900),
+    amountCents: leadNetSprintCents(),
   };
-}
-
-export function addonAmount(ids: CaptureAddonId[]) {
-  return CAPTURE_ADDONS.filter((addon) => ids.includes(addon.id)).reduce(
-    (sum, addon) => sum + addon.amountCents,
-    0
-  );
 }
 
 export function parseAddons(value: unknown): CaptureAddonId[] {

@@ -4,6 +4,8 @@ import {
   LEADNET_INCLUDED_DAYS,
   LEADNET_MONTHLY_CENTS,
   LEADNET_PHONE_PATHS,
+  addonDisplayCents,
+  leadNetSprintCents,
   type CaptureAddonId,
 } from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
@@ -20,7 +22,7 @@ export function captureAgreementHtml(input: {
     ? CAPTURE_ADDONS.filter((addon) => input.addons.includes(addon.id))
         .map(
           (addon) =>
-            `<li>${addon.label} (${formatCurrency(addon.amountCents)})</li>`
+            `<li>${addon.label} (${formatCurrency(addonDisplayCents(addon.amountCents))})</li>`
         )
         .join("")
     : "<li>None</li>";
@@ -39,7 +41,7 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">2. Payment</h2>
     <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> through Stripe before signing. That amount is the sprint due today:</p>
     <ul>
-      <li>Intent LeadNet base (${formatCurrency(99900)})</li>
+      <li>Intent LeadNet base (${formatCurrency(leadNetSprintCents())})</li>
       ${addonLines}
     </ul>
     <p>After ${LEADNET_INCLUDED_DAYS} days from the sprint payment, LeadNet is <strong>${formatCurrency(LEADNET_MONTHLY_CENTS)} per month</strong>. The monthly covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume. Intent bills the monthly separately. It is not charged on the sprint card in this payment. The client is an active client while the monthly is current (or during the included ${LEADNET_INCLUDED_DAYS} days). If the monthly lapses, Intent may suspend the tracking number, texts, and app access.</p>

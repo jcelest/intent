@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { PaidSign } from "@/components/sections/paid-sign";
+import { BeginOutcome } from "@/components/sections/begin-outcome";
 
 export const metadata: Metadata = {
-  title: "Sign the agreement",
+  title: "Ready to save leads",
   robots: { index: false, follow: false },
 };
 
@@ -13,11 +14,14 @@ export default function BeginSignPage() {
     <div className="relative z-10 min-h-screen">
       <Header />
       <main className="mx-auto max-w-xl pt-24 pb-16 px-4">
-        <h1 className="text-center text-3xl font-semibold">Payment received.</h1>
-        <p className="mt-3 mb-8 text-center text-foreground/75">
-          Last step: sign the LeadNet agreement.
-        </p>
-        <PaidSign />
+        <BeginOutcome
+          stage="sign"
+          kicker="Payment landed"
+          title="Ready to save leads."
+          body="The net is almost up. Sign the LeadNet agreement and every missed ring stays in the system."
+        >
+          <PaidSign />
+        </BeginOutcome>
       </main>
       <Footer />
     </div>

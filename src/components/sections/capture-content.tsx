@@ -7,6 +7,10 @@ import {
   CAPTURE_ADDONS,
   LEADNET_INCLUDED_DAYS,
   LEADNET_MONTHLY_CENTS,
+  addonAmount,
+  addonDisplayCents,
+  isLeadNetTestCheckout,
+  leadNetSprintCents,
   type CaptureAddonId,
 } from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
@@ -38,15 +42,12 @@ const FEATURES = [
 ];
 
 export function CaptureContent() {
+  const sprintCents = leadNetSprintCents();
+  const testCheckout = isLeadNetTestCheckout();
   const [addons, setAddons] = useState<CaptureAddonId[]>([]);
   const total = useMemo(
-    () =>
-      99900 +
-      CAPTURE_ADDONS.filter((addon) => addons.includes(addon.id)).reduce(
-        (sum, addon) => sum + addon.amountCents,
-        0
-      ),
-    [addons]
+    () => sprintCents + addonAmount(addons),
+    [addons, sprintCents]
   );
 
   function toggle(id: CaptureAddonId) {
@@ -70,6 +71,11 @@ export function CaptureContent() {
           >
             Launching now
           </motion.p>
+          {testCheckout ? (
+            <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
+              Test checkout {formatCurrency(sprintCents)}. Not the live sprint.
+            </p>
+          ) : null}
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -90,7 +96,7 @@ export function CaptureContent() {
             Nothing slips through the cracks.
           </motion.p>
           <p className="mt-8 text-6xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-accent">
-            {formatCurrency(99900)}
+            {formatCurrency(sprintCents)}
           </p>
           <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
             sprint
@@ -137,7 +143,7 @@ export function CaptureContent() {
         <div className="max-w-xl mx-auto rounded-2xl border-2 border-accent/50 bg-card/90 p-6 sm:p-8">
           <h2 className="text-2xl font-semibold">Start LeadNet</h2>
           <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
-            {formatCurrency(99900)}
+            {formatCurrency(sprintCents)}
           </p>
           <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
             base sprint
@@ -169,7 +175,7 @@ export function CaptureContent() {
                       <p className="mt-1 text-sm text-muted">{addon.detail}</p>
                     </div>
                     <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-accent shrink-0">
-                      {formatCurrency(addon.amountCents)}
+                      {formatCurrency(addonDisplayCents(addon.amountCents))}
                     </p>
                   </div>
                 </button>

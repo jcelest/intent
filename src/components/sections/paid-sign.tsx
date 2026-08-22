@@ -43,7 +43,7 @@ export function PaidSign() {
         <p className="text-red-300 leading-relaxed">{error}</p>
         <p className="mt-3 text-sm text-foreground/75 leading-relaxed">
           You are paid. We will send the LeadNet agreement by email if this
-          page cannot open it.
+          page cannot open it. Your leads are still in line.
         </p>
         <Link
           href="/#get-in-touch"
@@ -56,6 +56,8 @@ export function PaidSign() {
   }
 
   return (
-    <p className="text-center text-foreground/80">Opening the agreement…</p>
+    <p className="text-center text-foreground/80 leading-relaxed">
+      Opening the agreement. Almost there.
+    </p>
   );
 }
