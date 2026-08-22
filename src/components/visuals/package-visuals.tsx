@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 type VisualProps = {
   className?: string;
-  tone?: "cyan" | "gold";
+  tone?: "cyan" | "gold" | "diamond";
 };
 
 function palette(tone: VisualProps["tone"] = "cyan") {
@@ -12,6 +12,14 @@ function palette(tone: VisualProps["tone"] = "cyan") {
       glow: "#f59e0b",
       dim: "rgba(251, 191, 36, 0.25)",
       fill: "rgba(251, 191, 36, 0.12)",
+    };
+  }
+  if (tone === "diamond") {
+    return {
+      line: "#f8fafc",
+      glow: "#e2e8f0",
+      dim: "rgba(255, 255, 255, 0.28)",
+      fill: "rgba(255, 255, 255, 0.12)",
     };
   }
   return {
@@ -130,15 +138,27 @@ export function PaidAdsVisual({ className, tone = "cyan" }: VisualProps) {
   );
 }
 
-export function PartnershipVisual({ className, tone = "cyan" }: VisualProps) {
+export function PartnershipVisual({ className, tone = "diamond" }: VisualProps) {
   const c = palette(tone);
   return (
     <svg viewBox="0 0 320 120" className={cn("w-full h-auto", className)} aria-hidden fill="none">
-      <circle cx="96" cy="60" r="22" stroke={c.line} strokeWidth="2" />
-      <circle cx="224" cy="60" r="22" stroke={c.glow} strokeWidth="2" />
-      <path d="M118 60h84" stroke={c.line} strokeWidth="2" />
-      <circle cx="160" cy="60" r="7" fill={c.glow} />
-      <path d="M96 48c-18-22-44-14-52 8M224 48c18-22 44-14 52 8" stroke={c.dim} />
+      <defs>
+        <linearGradient id="gem-fill" x1="0.2" y1="0" x2="0.9" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+          <stop offset="45%" stopColor="#67e8f9" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.08" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M160 10 L214 48 L160 110 L106 48 Z"
+        fill="url(#gem-fill)"
+        stroke={c.line}
+        strokeWidth="2"
+      />
+      <path d="M106 48h108" stroke={c.line} strokeWidth="1.5" />
+      <path d="M160 10 L160 110" stroke={c.glow} strokeWidth="1.25" strokeOpacity="0.85" />
+      <path d="M160 10 L128 48 L160 110 M160 10 L192 48 L160 110" stroke={c.dim} />
+      <circle cx="160" cy="48" r="3.5" fill={c.line} />
     </svg>
   );
 }

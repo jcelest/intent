@@ -89,15 +89,15 @@ const THEMES: Record<
     applyHover: "hover:bg-amber-300",
   },
   partnership: {
-    card: "border-2 border-cyan-200/30 bg-gradient-to-br from-cyan-400/15 via-slate-950 to-amber-950/80 shadow-[0_0_48px_rgba(34,211,238,0.12)]",
-    kicker: "text-cyan-100",
-    mark: "text-cyan-200",
+    card: "border-2 border-white/70 bg-gradient-to-br from-white/20 via-slate-950 to-cyan-950/70 shadow-[0_0_56px_rgba(255,255,255,0.22),0_0_80px_rgba(34,211,238,0.14)] ring-1 ring-white/25",
+    kicker: "text-white",
+    mark: "text-white",
     btnActive:
-      "border-cyan-200/70 bg-cyan-400/10 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.16)]",
+      "border-white/90 bg-white/15 text-white shadow-[0_0_28px_rgba(255,255,255,0.3)]",
     btnIdle:
-      "border-border text-muted hover:border-cyan-200/40 hover:text-foreground",
-    apply: "bg-cyan-100 text-oled",
-    applyHover: "hover:bg-white",
+      "border-border text-muted hover:border-white/50 hover:text-white",
+    apply: "bg-white text-oled shadow-[0_0_24px_rgba(255,255,255,0.28)]",
+    applyHover: "hover:bg-cyan-50",
   },
   custom: {
     card: "border-2 border-slate-400/40 bg-gradient-to-br from-slate-300/15 via-card to-oled shadow-[0_0_40px_rgba(148,163,184,0.14)]",
@@ -189,7 +189,14 @@ export function BeginFlow({
         <p className={cn("font-mono text-xs uppercase tracking-[0.2em]", theme.kicker)}>
           {engagement.kicker}
         </p>
-        <h2 className="mt-3 text-2xl sm:text-3xl font-semibold text-foreground">
+        <h2
+          className={cn(
+            "mt-3 text-2xl sm:text-3xl font-semibold",
+            path === "partnership"
+              ? "bg-gradient-to-r from-white via-cyan-100 to-white bg-clip-text text-transparent"
+              : "text-foreground"
+          )}
+        >
           {engagement.title}
         </h2>
         <p className="mt-3 text-foreground/85 leading-relaxed">{engagement.summary}</p>
@@ -199,7 +206,7 @@ export function BeginFlow({
           ) : path === "launchpad" ? (
             <RevenueStreamsVisual />
           ) : path === "partnership" ? (
-            <PartnershipVisual />
+            <PartnershipVisual tone="diamond" />
           ) : (
             <SoftwareStackVisual tone="cyan" />
           )}

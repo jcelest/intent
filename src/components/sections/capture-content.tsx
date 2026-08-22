@@ -83,7 +83,7 @@ export function CaptureContent() {
             className="mt-5 text-lg sm:text-xl text-foreground/80 max-w-2xl mx-auto leading-relaxed"
           >
             The missed-call and review system {BRAND_NAME} is rolling out to
-            trades first. One tracking number. Leads stay in the system.
+            trades. One tracking number. Leads stay in the system.
             Nothing slips through the cracks.
           </motion.p>
           <p className="mt-8 text-6xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-accent">
@@ -92,11 +92,13 @@ export function CaptureContent() {
           <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
             sprint
           </p>
-          <p className="mt-3 text-base sm:text-lg text-foreground/80">
+          <p className="mt-3 text-center text-base sm:text-lg text-foreground/80">
             Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
-            {LEADNET_INCLUDED_DAYS} days. Tracking number and texts are in the
-            monthly. A second cell line, if you use one, is paid to your
-            carrier.
+            {LEADNET_INCLUDED_DAYS} days.
+          </p>
+          <p className="mt-2 mx-auto max-w-md text-center text-sm text-foreground/65 leading-relaxed">
+            Tracking number and texts are in the monthly. A second cell line,
+            if you use one, is paid to your carrier.
           </p>
           <Link
             href={beginHref}
@@ -179,8 +181,10 @@ export function CaptureContent() {
           </p>
           <p className="mt-2 text-sm text-foreground/70 leading-relaxed">
             Due today. Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
-            {LEADNET_INCLUDED_DAYS} days. Not in this total: a pocket cell line
-            if you keep the public number.
+            {LEADNET_INCLUDED_DAYS} days.
+          </p>
+          <p className="mt-4 text-sm text-foreground/55">
+            Not included.
           </p>
           <Link
             href={beginHref}
