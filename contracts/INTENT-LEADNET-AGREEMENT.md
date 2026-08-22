@@ -5,7 +5,7 @@ This is the agreement the site sends through DocuSign after LeadNet payment. You
 **Parties:** Intent Revenue ("Intent") and the Client named on the envelope.
 
 ## 1. Service
-Intent will set up Intent LeadNet for the Client: a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a shop dashboard so inbound jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
+Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet application, a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a company dashboard so inbound jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
 
 ## 2. Payment
 The Client pays the amount on the envelope through Stripe before signing. That amount is:
@@ -17,12 +17,12 @@ The Client pays the amount on the envelope through Stripe before signing. That a
 Add-ons are included only if they appear on the envelope.
 
 ## 3. What is included
-- The Client's own LeadNet application
+- Your Company's own LeadNet application
 - Branded LeadNet intake
 - Tracking number and missed-call text-back
 - Owner SMS on new leads
 - Google review SMS after the job
-- Shop dashboard with open estimated job value
+- Company dashboard with open estimated job value
 
 Voice on the tracking number can go live after the number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.
 
@@ -36,7 +36,7 @@ Unless a written contract signed by Intent expressly assigns ownership or grants
 The Client's name, logo, job data, and customer lists remain the Client's. Intent may use them to perform the work.
 
 ## 7. Add-ons
-Custom application styling matches brand colors, type, and layout to the shop. No watermark removes "Designed with Intent Revenue" from the live LeadNet app.
+Custom application styling matches brand colors, type, and layout to the company. No watermark removes "Designed with Intent Revenue" from the live LeadNet app.
 
 ## 8. Refunds
 The LeadNet fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing.

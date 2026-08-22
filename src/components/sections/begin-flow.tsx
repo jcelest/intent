@@ -317,9 +317,9 @@ function ApplyCard({
     path === "launchpad" ? "/qualification#intent-launchpad" : "/#get-in-touch";
   const copy =
     path === "launchpad"
-      ? "Launchpad opens after we see the shop. Start with qualification."
+      ? "Launchpad opens after we see the company. Start with qualification."
       : path === "partnership"
-        ? "Partnership starts after we talk. Tell us about the shop."
+        ? "Partnership starts after we talk. Tell us about the company."
         : path === "custom"
           ? "Tell us what you need. We write the scope before we build."
           : "Stripe is not open on this path yet.";
@@ -416,7 +416,7 @@ function StartForm({
       className="mt-8 space-y-4 rounded-2xl border-2 border-accent/30 bg-card/80 p-6 sm:p-8"
     >
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
-        Shop details
+        Company details
       </p>
       <Field label="Your name">
         <Input
@@ -426,7 +426,7 @@ function StartForm({
           onChange={(event) => setName(event.target.value)}
         />
       </Field>
-      <Field label="Shop name">
+      <Field label="Company name">
         <Input
           required
           autoComplete="organization"

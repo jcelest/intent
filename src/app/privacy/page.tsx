@@ -105,7 +105,7 @@ export default function PrivacyPage() {
           inquiry. Message and data rates may apply. Reply STOP to opt out of
           texts from us, and HELP for help. We do not use your inquiry number
           to run unrelated marketing lists. Client-facing missed-call or review
-          texts we build for a shop are sent for that shop under their own
+          texts we build for a company are sent for that company under their own
           practices and carrier rules.
         </p>
       </LegalSection>

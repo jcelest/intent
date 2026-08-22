@@ -21,7 +21,7 @@ export const CAPTURE_ADDONS: Array<{
   {
     id: "styling",
     label: "Custom application styling",
-    detail: "Brand colors, type, and layout matched to the shop.",
+    detail: "Brand colors, type, and layout matched to the company.",
     amountCents: 49900,
   },
   {
@@ -48,10 +48,10 @@ export function getEngagement(id: EngagementId): Engagement {
       kicker: "Full system",
       title: "Intent Partnership",
       summary:
-        "Revenue, software, search, and ads. We go all in with shops that already hit the bar.",
+        "Revenue, software, search, and ads. We go all in with companies that already hit the bar.",
       points: [
         "Revenue mapping and booked-job growth",
-        "Custom software and intake built for the shop",
+        "Custom software and intake built for the company",
         "Organic search first, paid ads when they accelerate the work",
       ],
       confirmLabel: "Talk partnership",
@@ -65,7 +65,7 @@ export function getEngagement(id: EngagementId): Engagement {
       kicker: "Path to qualification",
       title: "Intent Launchpad",
       summary:
-        "Reviews, intake, and the runway into full partnership. This is how shops that are not there yet start.",
+        "Reviews, intake, and the runway into full partnership. This is how companies that are not there yet start.",
       points: [
         "Post-job Google review engine",
         "Google Business Profile build-out",
@@ -82,7 +82,7 @@ export function getEngagement(id: EngagementId): Engagement {
       kicker: "Built to spec",
       title: "Custom package",
       summary:
-        "When LeadNet, Launchpad, or partnership is not the fit. We scope software, search, and ads to the shop and write the work before it starts.",
+        "When LeadNet, Launchpad, or partnership is not the fit. We scope software, search, and ads to the company and write the work before it starts.",
       points: [
         "Scoped software, not a template",
         "Search and ads only where they move jobs",
@@ -98,9 +98,9 @@ export function getEngagement(id: EngagementId): Engagement {
     kicker: "Nothing slips through",
     title: "Intent LeadNet",
     summary:
-      "Missed-call text-back, lead intake, owner alerts, Google review SMS, and a shop dashboard. Every ring stays in the system. Nothing slips through the cracks.",
+      "Missed-call text-back, lead intake, owner alerts, Google review SMS, and a company dashboard. Every ring stays in the system. Nothing slips through the cracks.",
     points: [
-      "The shop gets its own LeadNet app",
+      "Your Company gets its own LeadNet app",
       "Tracking number and missed-call recovery",
       "Priority intake and owner SMS",
       "Google review requests and a live dashboard",
