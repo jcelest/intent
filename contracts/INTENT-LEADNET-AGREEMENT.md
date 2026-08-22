@@ -8,13 +8,15 @@ This is the agreement the site sends through DocuSign after LeadNet payment. You
 Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet application, a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a company dashboard so inbound jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
 
 ## 2. Payment
-The Client pays the amount on the envelope through Stripe before signing. That amount is:
+The Client pays the sprint amount on the envelope through Stripe before signing. That amount is:
 
 - Intent LeadNet base: $999
 - Custom application styling (optional): $499
 - No watermark (optional): $250
 
 Add-ons are included only if they appear on the envelope.
+
+After 30 days from the sprint payment, LeadNet is **$49 per month**. The monthly covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume. Intent bills the monthly separately. It is not charged on the sprint card in this payment. The Client is an active client while the monthly is current (or during the included 30 days). If the monthly lapses, Intent may suspend the tracking number, texts, and app access.
 
 ## 3. What is included
 - Your Company's own LeadNet application
@@ -23,25 +25,33 @@ Add-ons are included only if they appear on the envelope.
 - Owner SMS on new leads
 - Google review SMS after the job
 - Company dashboard with open estimated job value
+- First 30 days of the tracking number and texts, included in the sprint
 
 Voice on the tracking number can go live after the number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.
 
-## 4. What is not included
-Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise.
+## 4. Phone setup
+LeadNet uses a tracking number Intent provides. The Client chooses one of two setups at kickoff. Neither setup is sold as a Stripe add-on. Intent does not sell cell plans.
 
-## 5. Software ownership
-Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The Client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Payment does not transfer ownership.
+**Keep the public number.** The number on the truck and Google forwards into LeadNet. The Phone app rings a private second line the Client buys from a carrier, typically about $8/month for an eSIM talk line. Intent does not bill that line. The Client pays the carrier.
 
-## 6. Client materials
+**Keep the phone as it is.** Google and ads show the LeadNet tracking number. The Phone app keeps ringing the number already on the SIM. No extra carrier bill. This is the faster install if you will not add a line.
+
+## 5. What is not included
+Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise. A second cell line, eSIM, or carrier add-a-line is paid by the Client to their carrier, not to Intent. Unusual voice or SMS volume may be billed extra or moved to a higher plan. Intent will contact the Client before extra usage charges.
+
+## 6. Software ownership
+Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The Client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Payment of the sprint does not transfer ownership.
+
+## 7. Client materials
 The Client's name, logo, job data, and customer lists remain the Client's. Intent may use them to perform the work.
 
-## 7. Add-ons
+## 8. Add-ons
 Custom application styling matches brand colors, type, and layout to the company. No watermark removes "Designed with Intent Revenue" from the live LeadNet app.
 
-## 8. Refunds
-The LeadNet fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing.
+## 9. Refunds and cancel
+The LeadNet sprint fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing. The Client may cancel the monthly before a new month starts. Cancel stops new monthly charges. It does not refund the sprint. After cancel, Intent may release the tracking number.
 
-## 9. Law
+## 10. Law
 Florida law governs this agreement.
 
 ---

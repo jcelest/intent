@@ -3,9 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CAPTURE_ADDONS, type CaptureAddonId } from "@/lib/engagements";
+import {
+  CAPTURE_ADDONS,
+  LEADNET_INCLUDED_DAYS,
+  LEADNET_MONTHLY_CENTS,
+  type CaptureAddonId,
+} from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
 import { CaptureFlowVisual } from "@/components/visuals/package-visuals";
+import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
 import { BRAND_NAME } from "@/lib/seo";
 
 const FEATURES = [
@@ -86,6 +92,12 @@ export function CaptureContent() {
           <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
             sprint
           </p>
+          <p className="mt-3 text-base sm:text-lg text-foreground/80">
+            Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
+            {LEADNET_INCLUDED_DAYS} days. Tracking number and texts are in the
+            monthly. A second cell line, if you use one, is paid to your
+            carrier.
+          </p>
           <Link
             href={beginHref}
             className="mt-8 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
@@ -114,6 +126,8 @@ export function CaptureContent() {
         </div>
       </section>
 
+      <LeadNetPhonePaths />
+
       <section className="px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-xl mx-auto rounded-2xl border border-accent/30 bg-card/90 p-6 sm:p-8">
           <h2 className="text-2xl font-semibold">Start LeadNet</h2>
@@ -125,7 +139,10 @@ export function CaptureContent() {
           </p>
           <p className="mt-4 text-sm text-foreground/75 leading-relaxed">
             Add only what you want. Software we build stays with Intent unless
-            a signed contract says otherwise. Every lead stays in.
+            a signed contract says otherwise. Every lead stays in. The amount
+            due today is the sprint and any add-ons.{" "}
+            {formatCurrency(LEADNET_MONTHLY_CENTS)}/month starts after{" "}
+            {LEADNET_INCLUDED_DAYS} days.
           </p>
           <div className="mt-6 space-y-3">
             {CAPTURE_ADDONS.map((addon) => {
@@ -160,14 +177,20 @@ export function CaptureContent() {
           <p className="mt-1 text-6xl sm:text-7xl font-semibold tracking-tight text-accent">
             {formatCurrency(total)}
           </p>
+          <p className="mt-2 text-sm text-foreground/70 leading-relaxed">
+            Due today. Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
+            {LEADNET_INCLUDED_DAYS} days. Not in this total: a pocket cell line
+            if you keep the public number.
+          </p>
           <Link
             href={beginHref}
             className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
           >
             Pay and start LeadNet
           </Link>
-          <p className="mt-4 text-center text-xs text-muted">
-            Pay first. Then sign the LeadNet agreement. See{" "}
+          <p className="mt-4 text-center text-xs text-muted leading-relaxed">
+            Pay the sprint first. Then sign the LeadNet agreement, including
+            the monthly. See{" "}
             <Link href="/terms" className="text-accent hover:underline">
               Terms of Service
             </Link>

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="August 21, 2026">
+    <LegalShell title="Terms of Service" updated="August 22, 2026">
       <LegalSection title="1. Agreement">
         <p>
           These Terms of Service (the &quot;Terms&quot;) govern your use of{" "}
@@ -70,7 +70,33 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Services and results">
+      <LegalSection title="5. Intent LeadNet">
+        <p>
+          Intent LeadNet is a productized sprint sold on this site. The amount
+          due today is the sprint and any add-ons you select ($999 base,
+          optional custom styling, optional no watermark). After 30 days,
+          LeadNet is $49 per month for the tracking number, voice on that
+          number, missed-call texts, owner alerts, and Google review SMS under
+          ordinary trade volume. The monthly is billed separately. It is not
+          charged on the sprint card at checkout.
+        </p>
+        <p>
+          You choose one phone setup at kickoff: keep the public number and
+          forward it into LeadNet (your Phone app rings a private second line
+          you pay your carrier for, typically about $8/month), or keep the
+          phone as it is and put the LeadNet tracking number on Google and ads.
+          Intent does not sell cell plans. A second line is never billed by
+          Intent.
+        </p>
+        <p>
+          Software we build stays with {BRAND_NAME} unless a signed contract
+          says otherwise. You may use LeadNet while you are an active client
+          (current on the monthly, or in the included 30 days). Scope, refunds,
+          and cancel are in the LeadNet agreement you sign after payment.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="6. Services and results">
         <p>
           Paid work starts only after a written agreement (proposal, statement
           of work, or contract). We do not guarantee a specific number of
@@ -86,7 +112,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Your materials">
+      <LegalSection title="7. Your materials">
         <p>
           If you send us logos, photos, reviews, account access, or other
           materials, you grant {BRAND_NAME} a license to use them to evaluate
@@ -96,7 +122,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Intellectual property and software we build">
+      <LegalSection title="8. Intellectual property and software we build">
         <p>
           The site, branding, copy, software, systems, and designs we publish
           are owned by {BRAND_NAME} or our licensors.
@@ -128,17 +154,20 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Starting work and payments">
+      <LegalSection title="9. Starting work and payments">
         <p>
-          If you start Launchpad or partnership through this site, that
-          confirmation is payment for the engagement described on that page,
-          not a purchase of software ownership. Refunds apply only if a signed
-          contract says so. Card processing is handled by Stripe. Stripe&apos;s
-          terms apply to the payment itself.
+          If you start LeadNet, Launchpad, or partnership through this site,
+          that confirmation is payment for the engagement described on that
+          page, not a purchase of software ownership. LeadNet checkout is the
+          sprint and selected add-ons. The $49 monthly described on /leadnet
+          and in the LeadNet agreement is billed separately after the included
+          30 days. Refunds apply only if a signed contract says so. Card
+          processing is handled by Stripe. Stripe&apos;s terms apply to the
+          payment itself.
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Third-party tools">
+      <LegalSection title="10. Third-party tools">
         <p>
           The site and our services may use hosting, analytics, email, ads,
           telephony, and similar providers. Those providers have their own
@@ -147,7 +176,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Disclaimers">
+      <LegalSection title="11. Disclaimers">
         <p>
           THE SITE AND ANY INFORMATION ON IT ARE PROVIDED &quot;AS IS.&quot; TO
           THE FULLEST EXTENT ALLOWED BY LAW, {BRAND_NAME.toUpperCase()}{" "}
@@ -157,7 +186,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="11. Limitation of liability">
+      <LegalSection title="12. Limitation of liability">
         <p>
           TO THE FULLEST EXTENT ALLOWED BY LAW, {BRAND_NAME.toUpperCase()} WILL
           NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
@@ -173,7 +202,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="12. Indemnity">
+      <LegalSection title="13. Indemnity">
         <p>
           You will defend and indemnify {BRAND_NAME} against claims arising from
           your misuse of the site, your content, or your violation of these
@@ -181,7 +210,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="13. Governing law">
+      <LegalSection title="14. Governing law">
         <p>
           These Terms are governed by the laws of the State of Florida, without
           regard to conflict-of-law rules. You agree to exclusive venue in
@@ -190,7 +219,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="14. Changes">
+      <LegalSection title="15. Changes">
         <p>
           We may update these Terms by posting a new version on this page. The
           &quot;Last updated&quot; date will change. Continued use of the site
@@ -198,7 +227,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="15. Contact">
+      <LegalSection title="16. Contact">
         <p>
           Questions about these Terms: use the{" "}
           <Link href="/#get-in-touch" className="text-accent hover:underline">

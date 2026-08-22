@@ -23,7 +23,9 @@ export default function BeginSignedPage() {
           </h1>
           <p className="mt-4 text-foreground/80 leading-relaxed">
             Payment and the LeadNet agreement are done. Keep your phone close.
-            We will reach out to kick off the work.
+            We will reach out to pick a phone path and kick off the work. The
+            first 30 days of the tracking number and texts are in the sprint.
+            Then $49/month.
           </p>
           <Link
             href="/"

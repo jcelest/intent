@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   CAPTURE_ADDONS,
+  LEADNET_INCLUDED_DAYS,
+  LEADNET_MONTHLY_CENTS,
   type CaptureAddonId,
   type Engagement,
   type EngagementId,
@@ -24,6 +26,7 @@ import {
   RevenueStreamsVisual,
   SoftwareStackVisual,
 } from "@/components/visuals/package-visuals";
+import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
@@ -209,6 +212,12 @@ export function BeginFlow({
             <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
               sprint
             </p>
+            <p className="mt-3 text-sm text-foreground/75 leading-relaxed">
+              Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
+              {LEADNET_INCLUDED_DAYS} days. Tracking number and texts are in
+              that monthly.
+            </p>
+            <LeadNetPhonePaths compact />
           </div>
         ) : null}
         <ul className="mt-6 space-y-3 text-sm text-foreground/80">
@@ -260,6 +269,10 @@ export function BeginFlow({
             </p>
             <p className="text-4xl font-semibold tracking-tight text-accent">
               {formatCurrency(total)}
+            </p>
+            <p className="text-sm text-foreground/65 leading-relaxed">
+              Due today. {formatCurrency(LEADNET_MONTHLY_CENTS)}/month is billed
+              after {LEADNET_INCLUDED_DAYS} days, not on this card.
             </p>
           </div>
         ) : null}
@@ -397,7 +410,7 @@ function StartForm({
         </p>
         <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
           {docusignReady
-            ? "Pay now. After that you will sign the LeadNet agreement."
+            ? "Pay the sprint now. After that you will sign the LeadNet agreement, including the monthly and phone setup."
             : "Software we build stays with Intent unless a signed contract says otherwise."}
         </p>
         <Elements stripe={stripePromise} options={options}>

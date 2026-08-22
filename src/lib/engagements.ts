@@ -12,6 +12,25 @@ export type Engagement = {
   amountCents: number | null;
 };
 
+/** Recurring LeadNet after the included days. Customer-facing; not billed on the sprint card yet. */
+export const LEADNET_MONTHLY_CENTS = 4900;
+export const LEADNET_INCLUDED_DAYS = 30;
+
+export const LEADNET_PHONE_PATHS = [
+  {
+    id: "keep-public",
+    title: "Keep the public number",
+    kicker: "Van, signs, Google stay the same",
+    body: "The number on the truck and Google forwards into LeadNet. Your Phone app rings a private second line you buy from a carrier, typically about $8/month for an eSIM talk line. Intent does not bill that line. You pay the carrier.",
+  },
+  {
+    id: "keep-phone",
+    title: "Keep the phone as it is",
+    kicker: "No second line",
+    body: "Google and ads show the LeadNet tracking number. Your Phone app keeps ringing the number already on the SIM. No extra carrier bill. This is the faster install if you will not add a line.",
+  },
+] as const;
+
 export const CAPTURE_ADDONS: Array<{
   id: CaptureAddonId;
   label: string;
@@ -104,6 +123,7 @@ export function getEngagement(id: EngagementId): Engagement {
       "Tracking number and missed-call recovery",
       "Priority intake and owner SMS",
       "Google review requests and a live dashboard",
+      `First ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are in the sprint. Then $${LEADNET_MONTHLY_CENTS / 100}/month.`,
     ],
     confirmLabel: "Pay and start LeadNet",
     amountCents: amountFromEnv("CAPTURE_AMOUNT_CENTS", 99900),

@@ -7,7 +7,7 @@ import { BRAND_NAME, SITE_URL } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Intent LeadNet",
   description:
-    "Protect every lead. Missed-call text-back, intake, owner alerts, Google review SMS, and a company dashboard. Nothing slips through the cracks. $999 from Intent Revenue.",
+    "Protect every lead. Missed-call text-back, intake, owner alerts, Google review SMS, and a company dashboard. $999 sprint, then $49/month from Intent Revenue.",
   alternates: { canonical: `${SITE_URL}/leadnet` },
   openGraph: {
     title: `Intent LeadNet | ${BRAND_NAME}`,
