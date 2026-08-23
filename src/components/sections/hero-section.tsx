@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -62,18 +63,12 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full"
         >
-          <Button
-            variant="primary"
-            size="lg"
-            className="w-full max-w-xs sm:w-auto sm:max-w-none drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]"
-            onClick={() =>
-              document
-                .getElementById("get-in-touch")
-                ?.scrollIntoView({ behavior: "smooth" })
-            }
+          <Link
+            href="/leadnet"
+            className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
           >
-            Get a Free Quote
-          </Button>
+            See LeadNet
+          </Link>
           <Button
             variant="secondary"
             size="lg"
