@@ -15,6 +15,7 @@ import {
 } from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
 import { CaptureFlowVisual } from "@/components/visuals/package-visuals";
+import { LeadNetDemoVideo } from "@/components/sections/leadnet-demo-video";
 import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
 import { BRAND_NAME } from "@/lib/seo";
 
@@ -115,6 +116,9 @@ export function CaptureContent() {
           >
             Pay and start LeadNet
           </Link>
+        </div>
+        <div className="mt-10 max-w-4xl mx-auto">
+          <LeadNetDemoVideo />
         </div>
         <div className="mt-10 max-w-4xl mx-auto">
           <CaptureFlowVisual />
