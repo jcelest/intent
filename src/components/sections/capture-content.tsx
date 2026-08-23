@@ -14,7 +14,6 @@ import {
   type CaptureAddonId,
 } from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
-import { CaptureFlowVisual } from "@/components/visuals/package-visuals";
 import { LeadNetDemoVideo } from "@/components/sections/leadnet-demo-video";
 import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
 import { BRAND_NAME } from "@/lib/seo";
@@ -30,7 +29,7 @@ const FEATURES = [
   },
   {
     title: "Priority Intake",
-    body: "A mobile form for the job, system age, and a Central Florida value estimate. The tech does not type dollars.",
+    body: "A mobile form for the job, system age, and a job value estimate. The tech does not type dollars.",
   },
   {
     title: "Owner Alerts",
@@ -70,7 +69,7 @@ export function CaptureContent() {
             animate={{ opacity: 1, y: 0 }}
             className="font-mono text-xs uppercase tracking-[0.2em] text-accent"
           >
-            Launching now
+            The call you missed still gets a text
           </motion.p>
           {testCheckout ? (
             <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
@@ -96,32 +95,31 @@ export function CaptureContent() {
             trades. One tracking number. Leads stay in the system.
             Nothing slips through the cracks.
           </motion.p>
-          <p className="mt-8 text-6xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-accent">
+        </div>
+        <div className="mt-10 max-w-4xl mx-auto">
+          <LeadNetDemoVideo />
+        </div>
+        <div className="mt-10 max-w-xl mx-auto text-center">
+          <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-accent">
             {formatCurrency(sprintCents)}
           </p>
           <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
             sprint
           </p>
-          <p className="mt-3 text-center text-base sm:text-lg text-foreground/80">
+          <p className="mt-3 text-base sm:text-lg text-foreground/80">
             Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
             {LEADNET_INCLUDED_DAYS} days.
           </p>
-          <p className="mt-2 mx-auto max-w-md text-center text-sm text-foreground/65 leading-relaxed">
+          <p className="mt-2 mx-auto max-w-md text-sm text-foreground/65 leading-relaxed">
             Tracking number and texts are in the monthly. A second cell line,
             if you use one, is paid to your carrier.
           </p>
-          <Link
-            href={beginHref}
+          <a
+            href="#start-leadnet"
             className="mt-8 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
           >
-            Pay and start LeadNet
-          </Link>
-        </div>
-        <div className="mt-10 max-w-4xl mx-auto">
-          <LeadNetDemoVideo />
-        </div>
-        <div className="mt-10 max-w-4xl mx-auto">
-          <CaptureFlowVisual />
+            See pricing
+          </a>
         </div>
       </section>
 
@@ -143,7 +141,7 @@ export function CaptureContent() {
 
       <LeadNetPhonePaths />
 
-      <section className="px-4 sm:px-6 lg:px-8 py-12">
+      <section id="start-leadnet" className="px-4 sm:px-6 lg:px-8 py-12 scroll-mt-24">
         <div className="max-w-xl mx-auto rounded-2xl border-2 border-accent/50 bg-card/90 p-6 sm:p-8">
           <h2 className="text-2xl font-semibold">Start LeadNet</h2>
           <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
@@ -196,8 +194,10 @@ export function CaptureContent() {
             Due today. Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
             {LEADNET_INCLUDED_DAYS} days.
           </p>
-          <p className="mt-4 text-sm text-foreground/55">
-            Not included.
+          <p className="mt-4 text-sm text-foreground/65 leading-relaxed">
+            Not in this total: ads, a website, or a second cell line. We do not
+            guarantee a number of leads. The monthly starts after{" "}
+            {LEADNET_INCLUDED_DAYS} days.
           </p>
           <Link
             href={beginHref}

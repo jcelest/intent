@@ -15,7 +15,7 @@ export function LeadNetDemoVideo() {
             src={DEMO_SRC}
             controls={playing}
             playsInline
-            preload="metadata"
+            preload="none"
             className="absolute inset-0 h-full w-full object-contain bg-oled"
             onPlay={() => setPlaying(true)}
           />
