@@ -28,6 +28,14 @@ const FEATURES = [
     body: "If they miss the ring, the homeowner gets a text from the tracking number. The lead stays in.",
   },
   {
+    title: "Database Reactivation Engine",
+    body: "Extract thousands in booked jobs from dormant past customer lists with 1-click seasonal SMS campaigns and automated 10DLC safe-drip delivery.",
+  },
+  {
+    title: "Angi & Google LSA Auto-Replies",
+    body: "Instant 3-second automated text replies for Angi (HomeAdvisor) and Google Local Services Ads message leads so you engage homeowners before competitors.",
+  },
+  {
     title: "Priority Intake",
     body: "A mobile form for the job, system age, and a job value estimate. The tech does not type dollars.",
   },
