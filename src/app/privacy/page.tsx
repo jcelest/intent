@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="August 21, 2026">
+    <LegalShell title="Privacy Policy" updated="August 24, 2026">
       <LegalSection title="1. Scope">
         <p>
           This Privacy Policy explains how {BRAND_NAME} (&quot;Intent,&quot;
@@ -74,39 +74,58 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Sharing">
-        <p>We share information only as needed to run the business:</p>
+      <LegalSection title="5. Sharing and service providers">
+        <p>We share information only as needed to run our services and operations:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            Hosting and infrastructure (for example, Vercel or similar
-            providers)
+            Hosting, database, and infrastructure providers (such as Vercel,
+            Supabase, and cloud services)
           </li>
-          <li>Email delivery if we notify our team of a new inquiry</li>
+          <li>Email delivery services when you submit an inquiry</li>
           <li>
-            Stripe, if you start Launchpad or partnership through this site.
-            Stripe processes the card. We receive confirmation, amount, and
-            contact details you entered, not your full card number
+            Stripe, when you start LeadNet, Launchpad, or related services.
+            Stripe processes payment details securely under its own privacy standards;
+            we receive transaction confirmation, not your full card number
           </li>
-          <li>Analytics providers such as Google</li>
           <li>
-            Professional advisors, or authorities, when required by law or to
-            protect rights and safety
+            DocuSign, to generate, route, and execute electronic onboarding
+            agreements following checkout
+          </li>
+          <li>
+            Telephony and SMS carriers (including Twilio) to deliver automated
+            alerts, text-backs, and client dispatches
+          </li>
+          <li>Analytics providers such as Google Analytics</li>
+          <li>
+            Professional advisors, regulators, or legal authorities when required
+            by law or to protect legal rights and safety
           </li>
         </ul>
+        <p className="pt-2">
+          We do not sell your personal information. We do not sell or rent
+          client customer lists or inquiry data to unrelated third parties.
+        </p>
         <p className="pt-2">
           If we later assign or reorganize the business, information may
           transfer with it, still subject to this policy or a successor policy.
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Text messages and calls">
+      <LegalSection title="6. Text messages, calls, and client customer data">
         <p>
-          If you give us a phone number, we may call or text you about your
-          inquiry. Message and data rates may apply. Reply STOP to opt out of
-          texts from us, and HELP for help. We do not use your inquiry number
-          to run unrelated marketing lists. Client-facing missed-call or review
-          texts we build for a company are sent for that company under their own
-          practices and carrier rules.
+          If you give us a phone number, we may call or text you regarding your
+          inquiry or service onboarding. Message and data rates may apply. Reply
+          STOP to opt out of texts from us, and HELP for help. We do not use your
+          inquiry phone number for unrelated marketing blasts.
+        </p>
+        <p>
+          <strong>Client Customer Data &amp; Reactivation Processing:</strong> When
+          a client uploads past customer lists or receives inbound leads via LeadNet
+          (including missed-call text-back, review requests, Angi/LSA auto-replies,
+          and database reactivation campaigns), {BRAND_NAME} acts solely as a technology
+          service provider and data processor executing automated dispatches on the
+          client&apos;s behalf. The client owns and maintains its customer lists.
+          {BRAND_NAME} does not monetize, sell, share, or market to client customer lists.
         </p>
       </LegalSection>
 

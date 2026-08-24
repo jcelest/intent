@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="August 22, 2026">
+    <LegalShell title="Terms of Service" updated="August 24, 2026">
       <LegalSection title="1. Agreement">
         <p>
           These Terms of Service (the &quot;Terms&quot;) govern your use of{" "}
@@ -91,24 +91,37 @@ export default function TermsPage() {
         <p>
           Software we build stays with {BRAND_NAME} unless a signed contract
           says otherwise. You may use LeadNet while you are an active client
-          (current on the monthly, or in the included 30 days). Scope, refunds,
-          and cancel are in the LeadNet agreement you sign after payment.
+          (current on the monthly, or in the included 30 days). Starting LeadNet
+          via this site requires agreeing to these Terms at checkout and
+          executing the standard onboarding agreement via DocuSign immediately
+          following payment. Scope, refunds, and cancellations are governed by
+          these Terms and the signed onboarding agreement.
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Services and results">
+      <LegalSection title="6. Services, results, and TCPA messaging compliance">
         <p>
           Paid work starts only after a written agreement (proposal, statement
-          of work, or contract). We do not guarantee a specific number of
-          leads, jobs, rankings, ad results, or revenue. Search, ads, carriers,
-          and platforms are outside our full control. SMS, call tracking, and
-          similar tools may also require carrier or platform approval before
-          they can go live.
+          of work, or onboarding contract). We do not guarantee a specific number of
+          leads, jobs, rankings, ad results, or revenue. Search algorithms, ad auctions,
+          telecom carriers, and third-party platforms operate outside our direct control.
+          SMS, call tracking, and automated response tools may require carrier 10DLC
+          or toll-free registration before public messaging goes live.
         </p>
         <p>
-          You are responsible for your business licenses, insurance, job
-          quality, customer communications, and compliance with telemarketing,
-          SMS, advertising, and consumer laws in the places you operate.
+          <strong>TCPA &amp; Messaging Warranty:</strong> If you use LeadNet (including
+          speed-to-lead auto-replies, missed-call recovery, review requests, or the
+          database reactivation engine), you represent and warrant that you have
+          obtained all necessary prior express consents, opt-ins, and legal authorizations
+          under the Telephone Consumer Protection Act (TCPA), state telemarketing laws,
+          and CTIA carrier guidelines for all phone numbers and customer lists you upload
+          or message. You are the sole sender of record and remain strictly responsible
+          for customer communications, consent records, and regulatory compliance.
+        </p>
+        <p>
+          You are responsible for your business licenses, trade insurance, job
+          quality, customer fulfillment, and compliance with telemarketing,
+          SMS, advertising, and consumer protection laws in all jurisdictions where you operate.
         </p>
       </LegalSection>
 
@@ -167,12 +180,14 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Third-party tools">
+      <LegalSection title="10. Third-party tools and carriers">
         <p>
-          The site and our services may use hosting, analytics, email, ads,
-          telephony, and similar providers. Those providers have their own
-          terms. We are not responsible for outages or policy changes on those
-          platforms.
+          The site and LeadNet services connect with third-party hosting, analytics,
+          payment, telecommunications, and advertising providers (including Stripe, DocuSign,
+          Twilio, telecommunication carriers, Apple, Google, and Angi). Those providers
+          operate under their own terms and carrier guidelines. {BRAND_NAME} is not
+          responsible for third-party network outages, carrier 10DLC vetting delays,
+          carrier spam filtering, or third-party platform API modifications.
         </p>
       </LegalSection>
 
@@ -181,8 +196,8 @@ export default function TermsPage() {
           THE SITE AND ANY INFORMATION ON IT ARE PROVIDED &quot;AS IS.&quot; TO
           THE FULLEST EXTENT ALLOWED BY LAW, {BRAND_NAME.toUpperCase()}{" "}
           DISCLAIMS WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-          PURPOSE, AND NON-INFRINGEMENT. We do not warrant that the site will
-          be uninterrupted or error-free.
+          PURPOSE, AND NON-INFRINGEMENT. We do not warrant that the site or automated
+          messaging will be uninterrupted or error-free.
         </p>
       </LegalSection>
 
@@ -190,23 +205,27 @@ export default function TermsPage() {
         <p>
           TO THE FULLEST EXTENT ALLOWED BY LAW, {BRAND_NAME.toUpperCase()} WILL
           NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
-          LOST-PROFIT DAMAGES, OR FOR LOSS OF DATA, ARISING FROM THE SITE OR
-          THESE TERMS. OUR TOTAL LIABILITY FOR CLAIMS ARISING FROM THE SITE IS
-          LIMITED TO ONE HUNDRED U.S. DOLLARS ($100). Some states do not allow
-          certain limits, so part of this section may not apply to you.
+          LOST-PROFIT DAMAGES, LOST LEADS, OR LOSS OF DATA, ARISING FROM THE SITE,
+          LEADNET SERVICES, OR THESE TERMS. OUR TOTAL AGGREGATE LIABILITY FOR CLAIMS
+          ARISING FROM THIS WEBSITE IS LIMITED TO ONE HUNDRED U.S. DOLLARS ($100).
         </p>
         <p>
-          Liability for paid services is governed by the written client
-          agreement, not this website-only cap, except where that agreement
-          says otherwise.
+          For paid services and LeadNet engagements, {BRAND_NAME}&apos;s maximum
+          aggregate liability is limited to the fees actually paid by the client
+          to {BRAND_NAME} in the three (3) months preceding the claim, as codified
+          in the signed onboarding agreement.
         </p>
       </LegalSection>
 
       <LegalSection title="13. Indemnity">
         <p>
-          You will defend and indemnify {BRAND_NAME} against claims arising from
-          your misuse of the site, your content, or your violation of these
-          Terms or the law.
+          You agree to defend, indemnify, and hold harmless {BRAND_NAME}, its officers,
+          and contractors from and against any third-party claims, damages, liabilities,
+          carrier fines, regulatory penalties, or legal expenses arising out of:
+          (a) your misuse of the website or LeadNet software; (b) any customer lists,
+          contact data, or message content you upload or transmit; (c) your breach of
+          TCPA or consumer protection regulations; or (d) your violation of these
+          Terms or applicable law.
         </p>
       </LegalSection>
 
