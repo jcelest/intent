@@ -159,11 +159,9 @@ export function CaptureContent() {
             base sprint
           </p>
           <p className="mt-4 text-sm text-foreground/75 leading-relaxed">
-            Add only what you want. Software we build stays with Intent unless
-            a signed contract says otherwise. Every lead stays in. The amount
-            due today is the sprint and any add-ons.{" "}
-            {formatCurrency(LEADNET_MONTHLY_CENTS)}/month starts after{" "}
-            {LEADNET_INCLUDED_DAYS} days.
+            Complete setup of your company&apos;s dedicated LeadNet revenue capture
+            engine, tracking line, speed-to-lead auto-replies, and reactivation
+            system. First {LEADNET_INCLUDED_DAYS} days included.
           </p>
           <div className="mt-6 space-y-3">
             {CAPTURE_ADDONS.map((addon) => {
@@ -199,13 +197,9 @@ export function CaptureContent() {
             {formatCurrency(total)}
           </p>
           <p className="mt-2 text-sm text-foreground/70 leading-relaxed">
-            Due today. Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
-            {LEADNET_INCLUDED_DAYS} days.
-          </p>
-          <p className="mt-4 text-sm text-foreground/65 leading-relaxed">
-            Not in this total: ads, a website, or a second cell line. We do not
-            guarantee a number of leads. The monthly starts after{" "}
-            {LEADNET_INCLUDED_DAYS} days.
+            Due today. Includes setup sprint and first {LEADNET_INCLUDED_DAYS} days.
+            Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month for continuous tracking
+            line, SMS auto-replies, and dashboard access. Cancel anytime.
           </p>
           <Link
             href={beginHref}
@@ -214,8 +208,8 @@ export function CaptureContent() {
             Pay and start LeadNet
           </Link>
           <p className="mt-4 text-center text-xs text-muted leading-relaxed">
-            Pay the sprint first. Then sign the LeadNet agreement, including
-            the monthly. See{" "}
+            Secure checkout via Stripe. You will review and sign the standard
+            onboarding agreement immediately following payment. Subject to{" "}
             <Link href="/terms" className="text-accent hover:underline">
               Terms of Service
             </Link>

@@ -427,8 +427,8 @@ function StartForm({
         </p>
         <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
           {docusignReady
-            ? "Pay the sprint now. After that you will sign the LeadNet agreement, including the monthly and phone setup."
-            : "Software we build stays with Intent unless a signed contract says otherwise."}
+            ? "Pay the sprint now. After that you will review and sign the onboarding agreement, including the monthly and phone setup."
+            : "Complete payment to begin your sprint. You will review and sign the onboarding agreement next."}
         </p>
         <Elements stripe={stripePromise} options={options}>
           <ConfirmStep
