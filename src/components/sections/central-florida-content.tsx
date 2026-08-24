@@ -7,7 +7,7 @@ import { BRAND_NAME } from "@/lib/seo";
 const CITIES = [
   { name: "Orlando", desc: "Theme parks, tourism, and tech. We help Orlando businesses capture high-intent leads." },
   { name: "Tampa", desc: "Healthcare, finance, and growth. Tampa companies use our AI to qualify and close faster." },
-  { name: "Kissimmee", desc: "Hospitality and local services. Kissimmee businesses dominate local search with our pSEO engine." },
+  { name: "Kissimmee", desc: "Hospitality and local services. Kissimmee businesses dominate local search with our organic growth engine." },
   { name: "Winter Park", desc: "Upscale retail and professional services. Winter Park brands grow with organic search, paid ads, and fast lead capture." },
   { name: "Lakeland", desc: "Manufacturing and logistics. Lakeland businesses automate lead capture and revenue tracking." },
 ];
@@ -113,7 +113,7 @@ export function CentralFloridaContent() {
             {[
               "Speed-to-lead & intake: missed calls, forms, after-hours; AI voice when you can't answer",
               "Speed-to-lead automation: respond in under 60 seconds",
-              "pSEO engine: dominate local search in Orlando, Tampa, and beyond",
+              "Organic search engine: dominate local Google search in Orlando, Tampa, and beyond",
               "Analytics dashboard: built for your trade business",
               "Custom conversion-focused web experiences: no WordPress templates",
             ].map((point, i) => (

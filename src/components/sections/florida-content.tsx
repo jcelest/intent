@@ -130,9 +130,9 @@ export function FloridaContent() {
             {[
               "Speed-to-lead & intake: capture every lead; AI voice when your team can't answer",
               "Speed-to-lead: respond to leads in under 60 seconds",
-              "pSEO engine: programmatic local landing pages at scale",
+              "Local search engine: high-ranking local landing pages across your service territory",
               "Analytics dashboard: built for your trade business",
-              "Custom React builds: conversion-focused, zero bloat",
+              "Custom high-conversion web applications: zero bloat, built for your trade",
             ].map((point, i) => (
               <motion.li
                 key={point}
