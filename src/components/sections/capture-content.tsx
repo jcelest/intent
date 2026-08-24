@@ -29,7 +29,7 @@ const FEATURES = [
   },
   {
     title: "Database Reactivation Engine",
-    body: "Extract thousands in booked jobs from dormant past customer lists with 1-click seasonal SMS campaigns and automated 10DLC safe-drip delivery.",
+    body: "Turn dormant past customer lists into booked jobs with 1-click seasonal campaigns and intelligent, carrier-safe automated delivery.",
   },
   {
     title: "Angi & Google LSA Auto-Replies",
