@@ -208,7 +208,7 @@ export function CaptureContent() {
             Pay and start LeadNet
           </Link>
           <p className="mt-4 text-center text-xs text-muted leading-relaxed">
-            Secure checkout via Stripe. You will review and sign the standard
+            Secure checkout. You will review and sign the standard
             onboarding agreement immediately following payment. Subject to{" "}
             <Link href="/terms" className="text-accent hover:underline">
               Terms of Service

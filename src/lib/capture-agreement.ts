@@ -39,7 +39,7 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">1. Service</h2>
     <p>Intent will set up Intent LeadNet for the client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
     <h2 style="font-size: 16px;">2. Payment</h2>
-    <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> through Stripe before signing. That amount is the sprint due today:</p>
+    <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> upon checkout before signing. That amount is the sprint due today:</p>
     <ul>
       <li>Intent LeadNet base (${formatCurrency(leadNetSprintCents())})</li>
       ${addonLines}
@@ -48,7 +48,7 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">3. What is included</h2>
     <p>Your Company's own LeadNet application, branded intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a company dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly. The first ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are included in the sprint.</p>
     <h2 style="font-size: 16px;">4. Phone setup</h2>
-    <p>LeadNet uses a tracking number Intent provides. The client chooses one of two setups at kickoff. Neither setup is sold as a Stripe add-on. Intent does not sell cell plans.</p>
+    <p>LeadNet uses a tracking number Intent provides. The client chooses one of two setups at kickoff. Neither setup is sold as an add-on. Intent does not sell cell plans.</p>
     <p><strong>${LEADNET_PHONE_PATHS[0].title}.</strong> ${LEADNET_PHONE_PATHS[0].body}</p>
     <p><strong>${LEADNET_PHONE_PATHS[1].title}.</strong> ${LEADNET_PHONE_PATHS[1].body}</p>
     <h2 style="font-size: 16px;">5. What is not included</h2>
@@ -68,7 +68,7 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">12. Limitation of Liability &amp; Indemnity</h2>
     <p>To the maximum extent permitted by law, Intent&apos;s total aggregate liability arising out of or related to this agreement or the LeadNet service is limited to the fees actually paid by the client to Intent in the three (3) months preceding the claim. In no event is Intent liable for lost profits, lost leads, indirect, special, or consequential damages. The client agrees to indemnify, defend, and hold harmless Intent from and against any third-party claims, carrier fines, regulatory penalties, or legal expenses arising from the client&apos;s customer lists, messaging practices, or business operations.</p>
     <h2 style="font-size: 16px;">13. Third-Party Services &amp; Carriers</h2>
-    <p>LeadNet connects with third-party telecommunications carriers and platforms (including Twilio, Apple, Google, and Angi). Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API changes.</p>
+    <p>LeadNet connects with third-party telecommunications carriers, messaging gateways, and platforms. Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API modifications.</p>
     <h2 style="font-size: 16px;">14. Corporate Authority</h2>
     <p>The individual signing below affirms that they have the full legal power and corporate authority to bind the client to this agreement.</p>
     <div style="margin-top: 56px; page-break-inside: avoid;">

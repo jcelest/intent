@@ -93,7 +93,7 @@ export default function TermsPage() {
           says otherwise. You may use LeadNet while you are an active client
           (current on the monthly, or in the included 30 days). Starting LeadNet
           via this site requires agreeing to these Terms at checkout and
-          executing the standard onboarding agreement via DocuSign immediately
+          executing the standard onboarding agreement electronically immediately
           following payment. Scope, refunds, and cancellations are governed by
           these Terms and the signed onboarding agreement.
         </p>
@@ -175,19 +175,19 @@ export default function TermsPage() {
           sprint and selected add-ons. The $197 monthly described on /leadnet
           and in the LeadNet agreement is billed separately after the included
           30 days. Refunds apply only if a signed contract says so. Card
-          processing is handled by Stripe. Stripe&apos;s terms apply to the
-          payment itself.
+          processing is handled by secure third-party payment processors.
+          Payment processor terms apply to the transaction itself.
         </p>
       </LegalSection>
 
       <LegalSection title="10. Third-party tools and carriers">
         <p>
           The site and LeadNet services connect with third-party hosting, analytics,
-          payment, telecommunications, and advertising providers (including Stripe, DocuSign,
-          Twilio, telecommunication carriers, Apple, Google, and Angi). Those providers
-          operate under their own terms and carrier guidelines. {BRAND_NAME} is not
-          responsible for third-party network outages, carrier 10DLC vetting delays,
-          carrier spam filtering, or third-party platform API modifications.
+          payment processing, electronic signature, and telecommunications providers.
+          Those providers operate under their own terms and carrier guidelines.
+          {BRAND_NAME} is not responsible for third-party network outages, carrier
+          10DLC vetting delays, carrier spam filtering, or third-party platform API
+          modifications.
         </p>
       </LegalSection>
 

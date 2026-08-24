@@ -352,7 +352,7 @@ function ApplyCard({
         ? "Partnership starts after we talk. Tell us about the company."
         : path === "custom"
           ? "Tell us what you need. We write the scope before we build."
-          : "Stripe is not open on this path yet.";
+          : "Online checkout is not open on this path yet.";
 
   return (
     <div className={cn("mt-8 rounded-2xl border p-6 sm:p-8 text-center", theme.card)}>

@@ -67,35 +67,33 @@ export default function PrivacyPage() {
 
       <LegalSection title="4. Analytics and cookies">
         <p>
-          We use cookies and similar tools, including Google Analytics, to
-          understand site use. Google may process data as described in
-          Google&apos;s own privacy policy. You can control cookies in your
+          We use cookies and similar measurement tools to understand site use,
+          load times, and conversion flows. You can control cookies in your
           browser. Blocking cookies may limit some site features.
         </p>
       </LegalSection>
 
       <LegalSection title="5. Sharing and service providers">
-        <p>We share information only as needed to run our services and operations:</p>
+        <p>We share information only as needed to run our platform and services:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            Hosting, database, and infrastructure providers (such as Vercel,
-            Supabase, and cloud services)
+            Cloud infrastructure, database, and secure server hosting providers
           </li>
           <li>Email delivery services when you submit an inquiry</li>
           <li>
-            Stripe, when you start LeadNet, Launchpad, or related services.
-            Stripe processes payment details securely under its own privacy standards;
-            we receive transaction confirmation, not your full card number
+            PCI-compliant third-party payment processors when you start LeadNet,
+            Launchpad, or related services. Payment processors handle card details
+            securely under industry standards; we receive confirmation, not your full card number
           </li>
           <li>
-            DocuSign, to generate, route, and execute electronic onboarding
-            agreements following checkout
+            Electronic signature and document verification platforms to generate, route,
+            and execute electronic onboarding agreements following checkout
           </li>
           <li>
-            Telephony and SMS carriers (including Twilio) to deliver automated
-            alerts, text-backs, and client dispatches
+            Telecommunications carriers and messaging gateways to deliver automated
+            alerts, priority text-backs, and client dispatches
           </li>
-          <li>Analytics providers such as Google Analytics</li>
+          <li>Web performance and analytics measurement tools</li>
           <li>
             Professional advisors, regulators, or legal authorities when required
             by law or to protect legal rights and safety

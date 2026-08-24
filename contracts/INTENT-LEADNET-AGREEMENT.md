@@ -8,7 +8,7 @@ This is the agreement the site sends through DocuSign after LeadNet payment. You
 Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
 
 ## 2. Payment
-The Client pays the sprint amount on the envelope through Stripe before signing. That amount is:
+The Client pays the sprint amount on the envelope upon checkout before signing. That amount is:
 
 - Intent LeadNet base: $1,397
 - Custom application styling (optional): $350
@@ -30,7 +30,7 @@ After 30 days from the sprint payment, LeadNet is **$197 per month**. The monthl
 Voice on the tracking number can go live after the number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly.
 
 ## 4. Phone setup
-LeadNet uses a tracking number Intent provides. The Client chooses one of two setups at kickoff. Neither setup is sold as a Stripe add-on. Intent does not sell cell plans.
+LeadNet uses a tracking number Intent provides. The Client chooses one of two setups at kickoff. Neither setup is sold as an add-on. Intent does not sell cell plans.
 
 **Keep The Public Number.** That number forwards to LeadNet. The Phone app rings a private carrier line, about $8/month. The Client pays the carrier. Intent does not.
 
@@ -61,7 +61,7 @@ The Client represents and warrants that it has obtained all necessary prior expr
 To the maximum extent permitted by law, Intent's total aggregate liability arising out of or related to this agreement or the LeadNet service is limited to the fees actually paid by the Client to Intent in the three (3) months preceding the claim. In no event is Intent liable for lost profits, lost leads, indirect, special, or consequential damages. The Client agrees to indemnify, defend, and hold harmless Intent from and against any third-party claims, carrier fines, regulatory penalties, or legal expenses arising from the Client's customer lists, messaging practices, or business operations.
 
 ## 13. Third-Party Services & Carriers
-LeadNet connects with third-party telecommunications carriers and platforms (including Twilio, Apple, Google, and Angi). Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API changes.
+LeadNet connects with third-party telecommunications carriers, messaging gateways, and platforms. Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API modifications.
 
 ## 14. Corporate Authority
 The individual signing below affirms that they have the full legal power and corporate authority to bind the Client to this agreement.
