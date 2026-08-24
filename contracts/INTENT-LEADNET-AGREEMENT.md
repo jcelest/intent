@@ -10,13 +10,13 @@ Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet app
 ## 2. Payment
 The Client pays the sprint amount on the envelope through Stripe before signing. That amount is:
 
-- Intent LeadNet base: $999
-- Custom application styling (optional): $499
+- Intent LeadNet base: $1,397
+- Custom application styling (optional): $350
 - No watermark (optional): $250
 
 Add-ons are included only if they appear on the envelope.
 
-After 30 days from the sprint payment, LeadNet is **$49 per month**. The monthly covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume. Intent bills the monthly separately. It is not charged on the sprint card in this payment. The Client is an active client while the monthly is current (or during the included 30 days). If the monthly lapses, Intent may suspend the tracking number, texts, and app access.
+After 30 days from the sprint payment, LeadNet is **$197 per month**. The monthly covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume. Intent bills the monthly separately. It is not charged on the sprint card in this payment. The Client is an active client while the monthly is current (or during the included 30 days). If the monthly lapses, Intent may suspend the tracking number, texts, and app access.
 
 ## 3. What is included
 - Your Company's own LeadNet application

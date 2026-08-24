@@ -73,9 +73,9 @@ export default function TermsPage() {
       <LegalSection title="5. Intent LeadNet">
         <p>
           Intent LeadNet is a productized sprint sold on this site. The amount
-          due today is the sprint and any add-ons you select ($999 base,
+          due today is the sprint and any add-ons you select ($1,397 base,
           optional custom styling, optional no watermark). After 30 days,
-          LeadNet is $49 per month for the tracking number, voice on that
+          LeadNet is $197 per month for the tracking number, voice on that
           number, missed-call texts, owner alerts, and Google review SMS under
           ordinary trade volume. The monthly is billed separately. It is not
           charged on the sprint card at checkout.
@@ -159,7 +159,7 @@ export default function TermsPage() {
           If you start LeadNet, Launchpad, or partnership through this site,
           that confirmation is payment for the engagement described on that
           page, not a purchase of software ownership. LeadNet checkout is the
-          sprint and selected add-ons. The $49 monthly described on /leadnet
+          sprint and selected add-ons. The $197 monthly described on /leadnet
           and in the LeadNet agreement is billed separately after the included
           30 days. Refunds apply only if a signed contract says so. Card
           processing is handled by Stripe. Stripe&apos;s terms apply to the

@@ -13,7 +13,7 @@ export type Engagement = {
 };
 
 /** Recurring LeadNet after the included days. Customer-facing; not billed on the sprint card yet. */
-export const LEADNET_MONTHLY_CENTS = 4900;
+export const LEADNET_MONTHLY_CENTS = 19700;
 export const LEADNET_INCLUDED_DAYS = 30;
 
 export const LEADNET_PHONE_PATHS = [
@@ -41,7 +41,7 @@ export const CAPTURE_ADDONS: Array<{
     id: "styling",
     label: "Custom Application Styling",
     detail: "Brand colors, type, and layout matched to the company.",
-    amountCents: 49900,
+    amountCents: 35000,
   },
   {
     id: "nowatermark",
@@ -60,7 +60,7 @@ function amountFromEnv(key: string, fallback?: number): number | null {
   return fallback ?? null;
 }
 
-export const LEADNET_SPRINT_CENTS = 99900;
+export const LEADNET_SPRINT_CENTS = 139700;
 export const LEADNET_TEST_SPRINT_CENTS = 50;
 
 export function isLeadNetTestCheckout() {
