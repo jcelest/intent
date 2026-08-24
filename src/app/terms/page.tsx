@@ -76,7 +76,7 @@ export default function TermsPage() {
           due today is the sprint and any add-ons you select ($1,397 base,
           optional custom styling, optional no watermark). After 30 days,
           LeadNet is $197 per month for the tracking number, voice on that
-          number, missed-call texts, owner alerts, and Google review SMS under
+          number, speed-to-lead auto-replies, customer database reactivation, owner alerts, and Google review SMS under
           ordinary trade volume. The monthly is billed separately. It is not
           charged on the sprint card at checkout.
         </p>

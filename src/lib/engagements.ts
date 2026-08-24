@@ -141,12 +141,12 @@ export function getEngagement(id: EngagementId): Engagement {
     kicker: "Nothing slips through",
     title: "Intent LeadNet",
     summary:
-      "Missed-call text-back, lead intake, owner alerts, Google review SMS, and a company dashboard. Every ring stays in the system. Nothing slips through the cracks.",
+      "Instant speed-to-lead auto-replies, missed-call recovery, customer database reactivation, Google review SMS, and a live dispatch dashboard. Nothing slips through the cracks.",
     points: [
       "Your Company gets its own LeadNet app",
-      "Tracking number and missed-call recovery",
-      "Priority intake and owner SMS",
-      "Google review requests and a live dashboard",
+      "Instant 3-second speed-to-lead & missed-call capture",
+      "Dormant customer database reactivation engine",
+      "Google review booster and live revenue dashboard",
       `First ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are in the sprint. Then $${LEADNET_MONTHLY_CENTS / 100}/month.`,
     ],
     confirmLabel: "Pay and start LeadNet",

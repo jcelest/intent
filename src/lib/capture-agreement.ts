@@ -37,7 +37,7 @@ export function captureAgreementHtml(input: {
     <strong>Email:</strong> ${escapeHtml(input.email)}<br/>
     <strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
     <h2 style="font-size: 16px;">1. Service</h2>
-    <p>Intent will set up Intent LeadNet for the client: Your Company's own LeadNet application, a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a company dashboard so inbound jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
+    <p>Intent will set up Intent LeadNet for the client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
     <h2 style="font-size: 16px;">2. Payment</h2>
     <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> through Stripe before signing. That amount is the sprint due today:</p>
     <ul>

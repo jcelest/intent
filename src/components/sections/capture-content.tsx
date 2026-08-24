@@ -77,7 +77,7 @@ export function CaptureContent() {
             animate={{ opacity: 1, y: 0 }}
             className="font-mono text-xs uppercase tracking-[0.2em] text-accent"
           >
-            The call you missed still gets a text
+            Instant Speed-to-Lead &amp; Revenue Capture
           </motion.p>
           {testCheckout ? (
             <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
@@ -91,16 +91,16 @@ export function CaptureContent() {
           >
             Intent <span className="text-accent">LeadNet</span>
           </motion.h1>
-          <p className="mt-3 text-sm sm:text-base tracking-wide text-foreground/80">
-            Missed-Call Software
+          <p className="mt-3 text-sm sm:text-base tracking-wide text-foreground/80 font-medium">
+            Revenue Capture &amp; Reactivation Engine
           </p>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mt-5 text-lg sm:text-xl text-foreground/80 max-w-2xl mx-auto leading-relaxed"
           >
-            The missed-call and review system {BRAND_NAME} is rolling out to
-            trades. One tracking number. Leads stay in the system.
+            The speed-to-lead and database reactivation system {BRAND_NAME} is rolling out to
+            trades. Instant 3-second response. Dormant customer reactivation.
             Nothing slips through the cracks.
           </motion.p>
         </div>

@@ -299,8 +299,8 @@ export function OfferingContent() {
               Launching now: Intent LeadNet
             </h3>
             <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
-              Missed-call text-back, lead intake, owner alerts, Google review
-              SMS, and a company dashboard. $1,397 to start, then $197/month after
+              Speed-to-lead auto-replies, missed-call recovery, database reactivation
+              engine, Google review SMS, and a live dispatch dashboard. $1,397 to start, then $197/month after
               30 days. Every lead stays in. Your Company gets its own app.
               Custom styling is $350. No watermark is $250. Keep the public
               number with a private second line you pay the carrier for, or put

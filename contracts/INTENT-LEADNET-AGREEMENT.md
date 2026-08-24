@@ -5,7 +5,7 @@ This is the agreement the site sends through DocuSign after LeadNet payment. You
 **Parties:** Intent Revenue ("Intent") and the Client named on the envelope.
 
 ## 1. Service
-Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet application, a branded intake page, a tracking number with missed-call text-back, owner lead alerts, Google review SMS, and a company dashboard so inbound jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
+Intent will set up Intent LeadNet for the Client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint. It is not an assignment of software ownership unless a later signed contract says otherwise.
 
 ## 2. Payment
 The Client pays the sprint amount on the envelope through Stripe before signing. That amount is:
