@@ -38,7 +38,13 @@ The architecture consists of two interconnected applications:
 - **Simultaneous On-Call Alerts**: Pushes an immediate alert to the owner/technician with lead source badges (e.g., `[ANGI]`, `[GOOGLE LSA]`).
 - **Templatable & Secure**: Configurable via environment variables with secret token authentication.
 
-### B. Database Reactivation Engine ("Cash-In-A-Box")
+### A. LiveWire (Real-Time Inbound Capture & Speed-to-Lead)
+- **Sub-3-Second Missed Call Text-Back**: Instantly texts callers who abandon or miss a call with a branded priority intake link.
+- **Angi & Google LSA Speed-to-Lead Webhooks**: Directly ingests lead webhooks and fires instant personalized SMS responses to the homeowner within seconds.
+- **Owner & Tech Dispatch Alerts**: Real-time SMS alerts dispatched to the technician/owner with estimated ticket values, address, customer details, and direct intake links.
+- **Dynamic KPI Pipeline**: Interactive delta KPI metrics, revenue charting, and conversion tables.
+
+### B. RevSurge (Dormant Database Activation Engine)
 - **Dormant Customer Campaigns**: Allows contractors to generate immediate booked revenue by running SMS reactivation campaigns to past customer databases.
 - **Trade-Specific Presets**: Built-in, high-converting offer templates tailored to specific trades:
   - *HVAC*: AC Tune-Up specials, system replacement rebate audits, indoor air quality duct checks.
@@ -49,17 +55,18 @@ The architecture consists of two interconnected applications:
 - **CSV / Text Audience Parser**: Uploads customer phone lists, validates E.164 phone formats, deduplicates contacts, and flags errors.
 - **10DLC-Safe Drip Engine**: Throttles message delivery to comply with carrier throughput guidelines, preventing carrier spam blocking. Includes real-time pause/resume controls, progress tracking bars, and test SMS verification.
 
-### C. UI / UX Modernization & Trade Isolation
-- **Social Media-Style Bottom Navigation**: Mobile-optimized fixed bottom bar switching between *Live Dispatch*, *Reactivation Engine*, and *Templates & Automation*.
-- **Modern Vector UI**: Clean Lucide React vector icons replacing all emojis.
-- **PWA Fullscreen Optimizations**: Hidden scrollbars in standalone mode while preserving touch scrolling.
-- **Strict Trade Isolation**: Client instances dynamically filter presets, job catalogs, and terminology based on the client's trade configuration (`NEXT_PUBLIC_CLIENT_TRADE`), ensuring zero cross-trade leakage.
-
-### D. In-App Templates & Automation Customization
+### C. AutoSet (Automated Messaging & Variable Configuration)
 - **Self-Serve Auto-Reply Customization**: Dedicated in-app editor for Google Review SMS, Missed-Call Text-Back, Angi Auto-Replies, and Google LSA Auto-Replies.
+- **Destination Link Variables**: Self-serve management of `{{reviewUrl}}` and `{{intakeUrl}}` destination targets with live web preview testing.
 - **Live Visual Phone Mockup**: Real-time token substitution and preview with segment/character counters.
 - **1-Click Test SMS**: Instant preview SMS sent directly to the business owner's mobile device to test formatting and delivery.
 - **Persistent Saved Presets**: Custom reactivation campaigns can be saved as persistent presets and loaded on demand.
+
+### D. UI / UX Modernization & Trade Isolation
+- **Social Media-Style Bottom Navigation**: Mobile-optimized fixed bottom bar switching between *LiveWire*, *RevSurge*, and *AutoSet*.
+- **Modern Vector UI**: Clean Lucide React vector icons replacing all emojis.
+- **PWA Fullscreen Optimizations**: Hidden scrollbars in standalone mode while preserving touch scrolling.
+- **Strict Trade Isolation**: Client instances dynamically filter presets, job catalogs, and terminology based on the client's trade configuration (`NEXT_PUBLIC_CLIENT_TRADE`), ensuring zero cross-trade leakage.
 
 ---
 
