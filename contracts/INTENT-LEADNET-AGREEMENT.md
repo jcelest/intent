@@ -54,6 +54,18 @@ The LeadNet sprint fee is collected before this agreement is signed. The sprint 
 ## 10. Law
 Florida law governs this agreement.
 
+## 11. TCPA & Messaging Compliance
+The Client represents and warrants that it has obtained all necessary prior express consents, opt-ins, and legal authorizations required by applicable federal and state laws (including the Telephone Consumer Protection Act and CTIA carrier standards) for all customer lists, contacts, and phone numbers uploaded or messaged through LeadNet. The Client is the sole sender of record and remains fully responsible for its customer communications and consent records.
+
+## 12. Limitation of Liability & Indemnity
+To the maximum extent permitted by law, Intent's total aggregate liability arising out of or related to this agreement or the LeadNet service is limited to the fees actually paid by the Client to Intent in the three (3) months preceding the claim. In no event is Intent liable for lost profits, lost leads, indirect, special, or consequential damages. The Client agrees to indemnify, defend, and hold harmless Intent from and against any third-party claims, carrier fines, regulatory penalties, or legal expenses arising from the Client's customer lists, messaging practices, or business operations.
+
+## 13. Third-Party Services & Carriers
+LeadNet connects with third-party telecommunications carriers and platforms (including Twilio, Apple, Google, and Angi). Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API changes.
+
+## 14. Corporate Authority
+The individual signing below affirms that they have the full legal power and corporate authority to bind the Client to this agreement.
+
 ---
 
 ## DocuSign setup (once)
