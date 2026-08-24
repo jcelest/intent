@@ -50,10 +50,16 @@ The architecture consists of two interconnected applications:
 - **10DLC-Safe Drip Engine**: Throttles message delivery to comply with carrier throughput guidelines, preventing carrier spam blocking. Includes real-time pause/resume controls, progress tracking bars, and test SMS verification.
 
 ### C. UI / UX Modernization & Trade Isolation
-- **Social Media-Style Bottom Navigation**: Mobile-optimized fixed bottom bar switching between *Live Dispatch* and *Reactivation Engine*.
+- **Social Media-Style Bottom Navigation**: Mobile-optimized fixed bottom bar switching between *Live Dispatch*, *Reactivation Engine*, and *Templates & Automation*.
 - **Modern Vector UI**: Clean Lucide React vector icons replacing all emojis.
 - **PWA Fullscreen Optimizations**: Hidden scrollbars in standalone mode while preserving touch scrolling.
 - **Strict Trade Isolation**: Client instances dynamically filter presets, job catalogs, and terminology based on the client's trade configuration (`NEXT_PUBLIC_CLIENT_TRADE`), ensuring zero cross-trade leakage.
+
+### D. In-App Templates & Automation Customization
+- **Self-Serve Auto-Reply Customization**: Dedicated in-app editor for Google Review SMS, Missed-Call Text-Back, Angi Auto-Replies, and Google LSA Auto-Replies.
+- **Live Visual Phone Mockup**: Real-time token substitution and preview with segment/character counters.
+- **1-Click Test SMS**: Instant preview SMS sent directly to the business owner's mobile device to test formatting and delivery.
+- **Persistent Saved Presets**: Custom reactivation campaigns can be saved as persistent presets and loaded on demand.
 
 ---
 
