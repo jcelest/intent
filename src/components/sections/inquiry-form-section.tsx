@@ -62,7 +62,7 @@ const YEARS_IN_BUSINESS = [
 const selectClassName =
   "w-full rounded-lg border-2 border-border bg-card px-4 py-3 font-display text-foreground focus:outline-none focus:border-accent/50";
 
-export function InquiryFormSection() {
+export function InquiryFormSection({ id = "get-in-touch" }: { id?: string } = {}) {
   const [inquiryType, setInquiryType] = useState<InquiryType>("partnership");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -130,7 +130,7 @@ export function InquiryFormSection() {
 
   return (
     <section
-      id="get-in-touch"
+      id={id}
       className="relative py-24 px-4 sm:px-6 lg:px-8"
     >
       <motion.div
@@ -262,6 +262,9 @@ export function InquiryFormSection() {
                 required
                 className="w-full"
               />
+              <p className="mt-1.5 text-[11px] text-muted leading-relaxed">
+                By providing your phone number, you agree to receive text messages from Intent Revenue regarding your inquiry.
+              </p>
             </div>
             <div>
               <label htmlFor="inquiry-trade" className="block font-mono text-xs text-muted uppercase tracking-wider mb-2">
@@ -407,6 +410,23 @@ export function InquiryFormSection() {
             {errorMessage && (
               <p className="text-red-400 text-sm font-mono">{errorMessage}</p>
             )}
+
+            <div className="rounded-lg border border-border/80 bg-oled/60 p-3.5 space-y-1 text-xs text-muted leading-relaxed">
+              <p>
+                By providing your phone number, you agree to receive text messages from Intent Revenue regarding your inquiry. Message and data rates may apply. Reply STOP to opt out. Message frequency varies.
+              </p>
+              <p>
+                Subject to our{" "}
+                <Link href="/terms" className="text-accent hover:underline">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-accent hover:underline">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+            </div>
 
             <Button
               type="submit"

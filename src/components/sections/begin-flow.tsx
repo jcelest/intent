@@ -488,7 +488,7 @@ function StartForm({
         {loading ? "One moment…" : "Continue to payment"}
       </Button>
       <p className="text-center text-xs text-muted leading-relaxed">
-        By continuing you agree to the{" "}
+        By providing your phone number and continuing, you agree to receive text messages and automated updates from Intent Revenue regarding your inquiry and onboarding. Message and data rates may apply. Reply STOP to opt out. Message frequency varies. Subject to our{" "}
         <Link href="/terms" className="text-accent hover:underline">
           Terms of Service
         </Link>{" "}
