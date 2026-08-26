@@ -10,32 +10,32 @@ const COMPETITOR_STACK = [
     tools: "Hatch / CHIIRP",
     setupCost: "$1,000 – $3,000",
     monthlyCost: "$450 – $900/mo",
-    contract: "12-Month Annual Lock-in",
-    notes: "Requires sales calls, per-conversation usage overages, and annual lock-in.",
+    contract: "12-Month Lock-in",
+    notes: "Per-conversation overages & annual contract trap",
   },
   {
     category: "5-Star Review Collection",
     tools: "Podium / Birdeye",
     setupCost: "$500 – $1,500",
     monthlyCost: "$299 – $599/mo",
-    contract: "12-Month Annual Lock-in",
-    notes: "Mandatory annual commitments, seat fees, and annual innovation fee surcharges.",
+    contract: "12-Month Lock-in",
+    notes: "Mandatory annual lock-in & surprise renewal fees",
   },
   {
     category: "Database Reactivation & Campaigns",
     tools: "ServiceTitan Marketing Pro / Agency",
     setupCost: "$5,000 – $25,000",
     monthlyCost: "$500 – $2,000/mo",
-    contract: "Annual or Long Retainer",
-    notes: "Only available as expensive add-ons or costly external marketing agency retainers.",
+    contract: "Annual / Long Retainer",
+    notes: "Expensive enterprise add-on or agency markup",
   },
   {
     category: "Call Tracking & Routing",
     tools: "CallRail + Voice Assist",
     setupCost: "$0",
     monthlyCost: "$145 – $290/mo",
-    contract: "Month-to-Month",
-    notes: "Metered per minute ($0.05) and per text ($0.03) with escalating tiers.",
+    contract: "Metered Usage",
+    notes: "Billed per minute & per text with escalating tiers",
   },
 ];
 
@@ -43,7 +43,7 @@ const SALES_PILLARS = [
   {
     kicker: "NO CONTRACT TRAPS",
     title: "Zero 12-Month Lock-In",
-    body: "Enterprise software vendors lock contractors into rigid $6,000–$12,000 annual commitments before you even know if your techs will adopt the tool. Intent LeadNet is a flat $197/month after your sprint—cancel anytime with zero penalties.",
+    body: "No Sophisticated Contracts To Trap You In. Cancel Anytime",
     icon: (
       <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
@@ -53,7 +53,7 @@ const SALES_PILLARS = [
   {
     kicker: "RAPID DEPLOYMENT",
     title: "Speed & Zero Bloat",
-    body: "No 8-week onboarding hell, messy data migrations, or bloated menu trees your crew will ignore. We build, configure, test, and launch your dedicated LeadNet system in under 7 days on your real phone lines.",
+    body: "No 8-Week Onboarding Hell. Time is Money. We Implement ASAP.",
     icon: (
       <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -63,7 +63,7 @@ const SALES_PILLARS = [
   {
     kicker: "INSTANT CONVERSION",
     title: "Sub-3-Second Response",
-    body: "When an AC or water heater fails, homeowners call down the Google list until someone answers. LeadNet intercepts missed calls, Angi leads, and Google LSA inquiries in under 3 seconds with priority intake before competitors pick up.",
+    body: "Customer Auto-Reply Before They Can Make It To The Competition.",
     icon: (
       <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -161,27 +161,28 @@ export function LeadNetComparison() {
                       key={item.category}
                       className="rounded-xl border border-border/60 bg-card/40 p-4 transition-colors hover:border-border"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4">
                         <div>
-                          <p className="text-xs font-mono uppercase tracking-wider text-muted">
+                          <p className="text-xs sm:text-[13px] font-mono uppercase tracking-wider text-zinc-200 font-medium">
                             {item.category}
                           </p>
-                          <p className="font-semibold text-foreground text-sm sm:text-base">
+                          <p className="mt-0.5 text-lg sm:text-xl font-bold text-white tracking-tight">
                             {item.tools}
                           </p>
                         </div>
-                        <div className="text-left sm:text-right mt-1 sm:mt-0">
-                          <p className="text-sm font-semibold text-red-400">
+                        <div className="text-left sm:text-right shrink-0">
+                          <p className="text-base sm:text-lg font-bold text-red-400">
                             {item.monthlyCost}
                           </p>
-                          <p className="text-[11px] font-mono text-muted">
+                          <p className="text-xs font-mono text-zinc-300">
                             Setup: {item.setupCost}
                           </p>
                         </div>
                       </div>
-                      <p className="mt-2 text-xs text-foreground/60 border-t border-border/40 pt-2">
-                        {item.notes} · <span className="text-red-400/90 font-medium">{item.contract}</span>
-                      </p>
+                      <div className="mt-2 text-xs text-zinc-300/90 border-t border-border/40 pt-2 flex flex-wrap items-center justify-between gap-1">
+                        <span>{item.notes}</span>
+                        <span className="text-red-400 font-semibold">{item.contract}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
