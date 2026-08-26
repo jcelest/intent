@@ -15,7 +15,7 @@ import {
 } from "@/lib/engagements";
 import { formatCurrency } from "@/lib/utils";
 import { LeadNetDemoVideo } from "@/components/sections/leadnet-demo-video";
-import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
+import { LeadNetComparison } from "@/components/sections/leadnet-comparison";
 import { BRAND_NAME } from "@/lib/seo";
 
 const FEATURES = [
@@ -147,7 +147,7 @@ export function CaptureContent() {
         </div>
       </section>
 
-      <LeadNetPhonePaths />
+      <LeadNetComparison />
 
       <section id="start-leadnet" className="px-4 sm:px-6 lg:px-8 py-12 scroll-mt-24">
         <div className="max-w-xl mx-auto rounded-2xl border-2 border-accent/50 bg-card/90 p-6 sm:p-8">
