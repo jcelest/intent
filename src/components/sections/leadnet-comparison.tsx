@@ -133,7 +133,7 @@ export function LeadNetComparison() {
               Total Cost of Ownership Teardown
             </p>
             <h3 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-semibold">
-              The Fragmented Stack vs. Intent LeadNet
+              Them Vs Us
             </h3>
             <p className="mt-2 text-sm text-foreground/70">
               See what contractors actually pay to assemble this functionality across multiple vendors.
