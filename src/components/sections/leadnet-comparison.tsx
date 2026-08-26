@@ -92,11 +92,6 @@ export function LeadNetComparison() {
           <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-balance">
             Why Contractors Choose <span className="text-accent">LeadNet</span> Over Legacy Software
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-foreground/80 leading-relaxed">
-            Enterprise platforms force trade businesses into fragmented, 5-figure annual contracts
-            with months of painful onboarding. LeadNet consolidates your entire inbound capture and
-            database reactivation pipeline into one clean, high-speed engine.
-          </p>
         </div>
 
         {/* 3 Core Sales Pillars */}
