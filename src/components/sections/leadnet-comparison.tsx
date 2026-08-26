@@ -325,7 +325,7 @@ export function LeadNetComparison() {
           {/* Bottom Value Banner & Legal Trademark Disclaimer */}
           <div className="mt-8 rounded-xl border border-accent/30 bg-card/60 p-5 sm:p-6 text-center">
             <p className="text-base sm:text-lg font-medium text-foreground">
-              ⚡ <strong className="text-accent">Save over $1,200/month</strong> while eliminating tool
+              <strong className="text-accent">Save over $1,200/month</strong> while eliminating tool
               switching, technician confusion, and annual contract traps.
             </p>
             <p className="mt-3 text-[11px] text-muted leading-relaxed max-w-4xl mx-auto">
