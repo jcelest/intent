@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import {
   BRAND_NAME,
-  BUSINESS_PHONE_DISPLAY,
+  BUSINESS_PHONE_PLAIN,
   BUSINESS_PHONE_TEL,
 } from "@/lib/seo";
 
@@ -16,12 +16,6 @@ export function Footer() {
           <Link href="/" className="flex items-center shrink-0">
             <Logo variant="footer" />
           </Link>
-          <p className="text-sm font-mono text-muted text-center sm:text-right">
-            Call{" "}
-            <a href={BUSINESS_PHONE_TEL} className="text-accent hover:underline">
-              {BUSINESS_PHONE_DISPLAY}
-            </a>
-          </p>
         </div>
         <nav className="flex items-center gap-6 flex-wrap justify-center sm:justify-end">
           <Link
@@ -88,6 +82,12 @@ export function Footer() {
             {BRAND_NAME}. We Engineer Revenue. © {new Date().getFullYear()}
           </p>
         </nav>
+        <p className="text-sm font-mono text-muted text-center sm:text-right">
+          Call or Text{" "}
+          <a href={BUSINESS_PHONE_TEL} className="text-accent hover:underline">
+            {BUSINESS_PHONE_PLAIN}
+          </a>
+        </p>
       </div>
     </footer>
   );
