@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { InquiryType } from "@/lib/form-store";
+import { BRAND_NAME } from "@/lib/seo";
 
 const TRADES = [
   "HVAC",
@@ -62,7 +63,13 @@ const YEARS_IN_BUSINESS = [
 const selectClassName =
   "w-full rounded-lg border-2 border-border bg-card px-4 py-3 font-display text-foreground focus:outline-none focus:border-accent/50";
 
-export function InquiryFormSection({ id = "get-in-touch" }: { id?: string } = {}) {
+export function InquiryFormSection({
+  id = "get-in-touch",
+  mode = "default",
+}: {
+  id?: string;
+  mode?: "default" | "contact";
+} = {}) {
   const [inquiryType, setInquiryType] = useState<InquiryType>("partnership");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -140,7 +147,11 @@ export function InquiryFormSection({ id = "get-in-touch" }: { id?: string } = {}
         className="max-w-xl mx-auto"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-semibold text-center">
-          {inquiryType === "launchpad" ? (
+          {mode === "contact" ? (
+            <>
+              Contact <span className="text-accent">{BRAND_NAME}</span>
+            </>
+          ) : inquiryType === "launchpad" ? (
             <>
               Start <span className="text-accent">Launchpad</span>
             </>
@@ -151,9 +162,11 @@ export function InquiryFormSection({ id = "get-in-touch" }: { id?: string } = {}
           )}
         </h2>
         <p className="mt-4 text-muted text-center">
-          {inquiryType === "launchpad"
-            ? "Tell us where you are today. We'll build your review and intake foundation toward full partnership."
-            : "Tell us about your business. We'll assess fit and map how we grow your revenue."}
+          {mode === "contact"
+            ? "Send a message or call us directly. We typically respond within 24 hours."
+            : inquiryType === "launchpad"
+              ? "Tell us where you are today. We'll build your review and intake foundation toward full partnership."
+              : "Tell us about your business. We'll assess fit and map how we grow your revenue."}
         </p>
 
         {status === "success" ? (

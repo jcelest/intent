@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BRAND_NAME } from "@/lib/seo";
+import { BRAND_NAME, BUSINESS_PHONE_DISPLAY, BUSINESS_PHONE_TEL } from "@/lib/seo";
 
 /**
  * Visible long-form copy for SEO: word count, keyword consistency, readability.
@@ -53,6 +53,15 @@ export function SeoContentSection() {
           </p>
           <p>
             Tell us your trade and territory. {BRAND_NAME} will map how we grow your revenue.
+            Call{" "}
+            <a href={BUSINESS_PHONE_TEL} className="text-accent hover:underline">
+              {BUSINESS_PHONE_DISPLAY}
+            </a>{" "}
+            or{" "}
+            <a href="/contact" className="text-accent hover:underline">
+              contact us online
+            </a>
+            .
           </p>
         </div>
       </div>

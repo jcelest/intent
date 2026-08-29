@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import {
   SITE_URL,
   BRAND_NAME,
@@ -110,6 +110,7 @@ export default function RootLayout({
         <div className="cyan-bg-grid" aria-hidden />
         <div className="noise-bg" aria-hidden />
         <OrganizationJsonLd />
+        <WebSiteJsonLd />
         <div className="relative z-[10000] min-h-screen">
           {children}
         </div>

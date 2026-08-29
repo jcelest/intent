@@ -10,6 +10,27 @@ export const SITE_NAME = "Intent";
 export const BRAND_NAME = "Intent Revenue";
 export const SITE_TAGLINE = "We Grow Revenue. By A Lot.";
 
+/** Public business phone — consistent NAP sitewide for Google Search & schema.org */
+export const BUSINESS_PHONE_E164 = "+14075437480";
+export const BUSINESS_PHONE_DISPLAY = "(407) 543-7480";
+export const BUSINESS_PHONE_TEL = `tel:${BUSINESS_PHONE_E164}`;
+/** Alternate formats help phone-number queries match page content */
+export const BUSINESS_PHONE_PLAIN = "4075437480";
+export const BUSINESS_PHONE_HYPHEN = "407-543-7480";
+
+export const BUSINESS_ADDRESS = {
+  streetAddress: "1321 Madison Ivy Circle",
+  addressLocality: "Apopka",
+  addressRegion: "FL",
+  postalCode: "32712",
+  addressCountry: "US",
+} as const;
+
+export const BUSINESS_GEO = {
+  latitude: 28.6762,
+  longitude: -81.5115,
+} as const;
+
 /** Primary phrase for keyword consistency (title, H1, description, body) */
 export const PRIMARY_KEYWORD_PHRASE = "contractor lead generation";
 
@@ -54,4 +75,13 @@ export const CONTRACTOR_KEYWORDS = [
   "contractor leads",
   "home services lead generation",
   "marketing for contractors",
+];
+
+/** Helps site rank for direct phone lookups */
+export const SEO_PHONE_KEYWORDS = [
+  BUSINESS_PHONE_DISPLAY,
+  BUSINESS_PHONE_HYPHEN,
+  BUSINESS_PHONE_PLAIN,
+  "407 543 7480",
+  "Intent Revenue phone",
 ];

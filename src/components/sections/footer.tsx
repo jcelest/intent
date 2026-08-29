@@ -2,16 +2,34 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
-import { BRAND_NAME } from "@/lib/seo";
+import {
+  BRAND_NAME,
+  BUSINESS_PHONE_DISPLAY,
+  BUSINESS_PHONE_TEL,
+} from "@/lib/seo";
 
 export function Footer() {
   return (
     <footer className="border-t border-border py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <Link href="/" className="flex items-center shrink-0">
-          <Logo variant="footer" />
-        </Link>
+      <div className="max-w-7xl mx-auto flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <Link href="/" className="flex items-center shrink-0">
+            <Logo variant="footer" />
+          </Link>
+          <p className="text-sm font-mono text-muted text-center sm:text-right">
+            Call{" "}
+            <a href={BUSINESS_PHONE_TEL} className="text-accent hover:underline">
+              {BUSINESS_PHONE_DISPLAY}
+            </a>
+          </p>
+        </div>
         <nav className="flex items-center gap-6 flex-wrap justify-center sm:justify-end">
+          <Link
+            href="/contact"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Contact
+          </Link>
           <Link
             href="/leadnet"
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
@@ -66,7 +84,7 @@ export function Footer() {
           >
             Admin
           </Link>
-          <p className="text-muted text-sm font-mono">
+          <p className="text-muted text-sm font-mono w-full text-center sm:text-right">
             {BRAND_NAME}. We Engineer Revenue. © {new Date().getFullYear()}
           </p>
         </nav>
