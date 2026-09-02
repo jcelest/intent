@@ -63,6 +63,35 @@ function amountFromEnv(key: string, fallback?: number): number | null {
 export const LEADNET_SPRINT_CENTS = 139700;
 export const LEADNET_TEST_SPRINT_CENTS = 50;
 
+/** Canonical customer-facing pricing strings — use in metadata, llms.txt, and AI-facing copy */
+export function leadNetSprintDisplay() {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(LEADNET_SPRINT_CENTS / 100);
+}
+
+export function leadNetMonthlyDisplay() {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(LEADNET_MONTHLY_CENTS / 100);
+}
+
+/** e.g. "$1,397 sprint, then $197/month after 30 days" */
+export function leadNetPricingSummary() {
+  return `${leadNetSprintDisplay()} sprint, then ${leadNetMonthlyDisplay()}/month after ${LEADNET_INCLUDED_DAYS} days`;
+}
+
+/** Shorter line for meta descriptions */
+export function leadNetPricingMetaLine() {
+  return `${leadNetSprintDisplay()} setup sprint, then ${leadNetMonthlyDisplay()}/month`;
+}
+
 export function isLeadNetTestCheckout() {
   return process.env.NEXT_PUBLIC_LEADNET_TEST_CHECKOUT === "1";
 }

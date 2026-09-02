@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/sections/legal-shell";
 import { BRAND_NAME, SITE_URL } from "@/lib/seo";
+import {
+  LEADNET_INCLUDED_DAYS,
+  leadNetMonthlyDisplay,
+  leadNetSprintDisplay,
+} from "@/lib/engagements";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -73,9 +78,9 @@ export default function TermsPage() {
       <LegalSection title="5. Intent LeadNet">
         <p>
           Intent LeadNet is a productized sprint sold on this site. The amount
-          due today is the sprint and any add-ons you select ($1,397 base,
-          optional custom styling, optional no watermark). After 30 days,
-          LeadNet is $197 per month for the tracking number, voice on that
+          due today is the sprint and any add-ons you select ({leadNetSprintDisplay()} base,
+          optional custom styling, optional no watermark). After {LEADNET_INCLUDED_DAYS} days,
+          LeadNet is {leadNetMonthlyDisplay()} per month for the tracking number, voice on that
           number, speed-to-lead auto-replies, customer database reactivation, owner alerts, and Google review SMS under
           ordinary trade volume. The monthly is billed separately. It is not
           charged on the sprint card at checkout.
@@ -172,9 +177,9 @@ export default function TermsPage() {
           If you start LeadNet, Launchpad, or partnership through this site,
           that confirmation is payment for the engagement described on that
           page, not a purchase of software ownership. LeadNet checkout is the
-          sprint and selected add-ons. The $197 monthly described on /leadnet
+          sprint and selected add-ons. The {leadNetMonthlyDisplay()} monthly described on /leadnet
           and in the LeadNet agreement is billed separately after the included
-          30 days. Refunds apply only if a signed contract says so. Card
+          {LEADNET_INCLUDED_DAYS} days. Refunds apply only if a signed contract says so. Card
           processing is handled by secure third-party payment processors.
           Payment processor terms apply to the transaction itself.
         </p>

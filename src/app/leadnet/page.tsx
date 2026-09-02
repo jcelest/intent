@@ -2,17 +2,29 @@ import type { Metadata } from "next";
 import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { CaptureContent } from "@/components/sections/capture-content";
-import { SITE_URL } from "@/lib/seo";
+import { LeadNetOfferJsonLd } from "@/components/seo/json-ld";
+import { leadNetPricingMetaLine, leadNetPricingSummary } from "@/lib/engagements";
+import { SITE_URL, BRAND_NAME } from "@/lib/seo";
+
+const leadNetDescription = `Speed-to-lead auto-replies, missed-call recovery, customer database reactivation, and live dispatch. ${leadNetPricingMetaLine()} from ${BRAND_NAME}.`;
 
 export const metadata: Metadata = {
   title: "Intent LeadNet | Revenue Capture & Reactivation Engine",
-  description:
-    "Speed-to-lead auto-replies, missed-call recovery, customer database reactivation, and live dispatch. $1,397 sprint, then $197/month from Intent Revenue.",
+  description: leadNetDescription,
+  keywords: [
+    "Intent LeadNet",
+    "Intent Revenue",
+    "contractor lead capture",
+    "missed call text back",
+    "database reactivation",
+    leadNetPricingSummary(),
+    "$1,397 LeadNet",
+    "$197 LeadNet monthly",
+  ],
   alternates: { canonical: `${SITE_URL}/leadnet` },
   openGraph: {
     title: `Intent LeadNet | Revenue Capture & Reactivation Engine`,
-    description:
-      "Instant speed-to-lead, missed-call recovery, customer database reactivation, and 5-star review booster. Nothing slips through.",
+    description: leadNetDescription,
     url: `${SITE_URL}/leadnet`,
   },
 };
@@ -20,6 +32,7 @@ export const metadata: Metadata = {
 export default function LeadNetPage() {
   return (
     <div className="relative z-10 min-h-screen">
+      <LeadNetOfferJsonLd />
       <Header />
       <CaptureContent />
       <Footer />

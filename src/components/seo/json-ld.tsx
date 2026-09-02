@@ -7,6 +7,12 @@ import {
   BUSINESS_ADDRESS,
   BUSINESS_GEO,
 } from "@/lib/seo";
+import {
+  LEADNET_INCLUDED_DAYS,
+  LEADNET_MONTHLY_CENTS,
+  LEADNET_SPRINT_CENTS,
+  leadNetPricingMetaLine,
+} from "@/lib/engagements";
 
 const organizationAddress = {
   "@type": "PostalAddress",
@@ -153,6 +159,48 @@ export function ContactPageJsonLd() {
       address: organizationAddress,
       contactPoint: organizationContactPoint,
     },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
+
+export function LeadNetOfferJsonLd() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "Intent LeadNet",
+    description:
+      "Revenue capture and reactivation engine for contractors: speed-to-lead, missed-call recovery, RevSurge database reactivation, and live dispatch.",
+    brand: {
+      "@type": "Brand",
+      name: BRAND_NAME,
+    },
+    url: `${SITE_URL}/leadnet`,
+    offers: {
+      "@type": "Offer",
+      url: `${SITE_URL}/begin?path=leadnet`,
+      priceCurrency: "USD",
+      price: LEADNET_SPRINT_CENTS / 100,
+      description: `${leadNetPricingMetaLine()}. First ${LEADNET_INCLUDED_DAYS} days included in sprint.`,
+      availability: "https://schema.org/InStock",
+      seller: {
+        "@type": "Organization",
+        name: BRAND_NAME,
+        url: SITE_URL,
+      },
+    },
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "Monthly retainer after included period",
+        value: `$${LEADNET_MONTHLY_CENTS / 100}/month after ${LEADNET_INCLUDED_DAYS} days`,
+      },
+    ],
   };
 
   return (

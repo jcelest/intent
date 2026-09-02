@@ -4,6 +4,7 @@ import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { BeginOutcome } from "@/components/sections/begin-outcome";
 import { BeginProgress } from "@/components/sections/begin-progress";
+import { LEADNET_INCLUDED_DAYS, leadNetMonthlyDisplay } from "@/lib/engagements";
 
 export const metadata: Metadata = {
   title: "Ready to save leads",
@@ -11,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default function BeginSignedPage() {
+  const monthly = leadNetMonthlyDisplay();
+
   return (
     <div className="relative z-10 min-h-screen">
       <Header />
@@ -19,7 +22,7 @@ export default function BeginSignedPage() {
           stage="done"
           kicker="LeadNet is on"
           title="Ready to save leads."
-          body="The net is up. Payment and the agreement are done. Keep your phone close. We will pick a phone path and turn on the tracking number. First 30 days of the number and texts are in the sprint. Then $49/month. The next missed call stays in."
+          body={`The net is up. Payment and the agreement are done. Keep your phone close. We will pick a phone path and turn on the tracking number. First ${LEADNET_INCLUDED_DAYS} days of the number and texts are in the sprint. Then ${monthly}/month. The next missed call stays in.`}
         >
           <div className="flex flex-col items-center gap-8">
             <BeginProgress />

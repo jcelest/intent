@@ -6,6 +6,7 @@ import {
   getEngagement,
   isDocuSignConfigured,
   isStripeConfigured,
+  leadNetPricingMetaLine,
   parseAddons,
   parseEngagementId,
 } from "@/lib/engagements";
@@ -13,7 +14,7 @@ import { BRAND_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Begin",
-  description: `Start Intent LeadNet, Launchpad, partnership, or a custom package with ${BRAND_NAME}.`,
+  description: `Start Intent LeadNet (${leadNetPricingMetaLine()}), Launchpad, partnership, or a custom package with ${BRAND_NAME}.`,
   alternates: { canonical: `${SITE_URL}/begin` },
   robots: { index: false, follow: false },
 };

@@ -11,6 +11,11 @@ import {
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/seo";
 import {
+  CAPTURE_ADDONS,
+  leadNetPricingSummary,
+} from "@/lib/engagements";
+import { formatCurrency } from "@/lib/utils";
+import {
   CaptureFlowVisual,
   InclusionMark,
   OrganicSearchVisual,
@@ -300,9 +305,10 @@ export function OfferingContent() {
             </h3>
             <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
               Speed-to-lead auto-replies, missed-call recovery, database reactivation
-              engine, Google review SMS, and a live dispatch dashboard. $1,397 to start, then $197/month after
-              30 days. Every lead stays in. Your Company gets its own app.
-              Custom styling is $350. No watermark is $250. Keep the public
+              engine, Google review SMS, and a live dispatch dashboard. {leadNetPricingSummary()}.
+              Every lead stays in. Your Company gets its own app.
+              Custom styling is {formatCurrency(CAPTURE_ADDONS[0].amountCents)}. No watermark is{" "}
+              {formatCurrency(CAPTURE_ADDONS[1].amountCents)}. Keep the public
               number with a private second line you pay the carrier for, or put
               the tracking number on Google and keep the phone as it is.
             </p>
