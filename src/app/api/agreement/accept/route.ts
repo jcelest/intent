@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { captureAgreementHtml } from "@/lib/capture-agreement";
 import { getEngagement, addonAmount, parseEngagementId, parseAddons, LEADNET_MONTHLY_CENTS } from "@/lib/engagements";
-import { saveAgreementRecord, hashAgreementText } from "@/lib/agreements-db";
+import { getStripe } from "@/lib/stripe";
+import * as db from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -38,34 +39,60 @@ export async function POST(request: Request) {
     addons,
   });
 
-  const agreementHash = hashAgreementText(html);
-  const id = crypto.randomUUID();
+  const agreementHash = crypto.createHash("sha256").update(html).digest("hex");
+
+  const stripe = getStripe();
+  if (!stripe) {
+    return NextResponse.json({ error: "Billing not configured" }, { status: 503 });
+  }
 
   try {
-    await saveAgreementRecord({
-      id,
-      customerName: name,
-      companyName: company,
+    const customer = await stripe.customers.create({
       email,
+      name,
       phone,
-      packageId: engagement.id,
-      addons,
-      amountCents,
-      monthlyCents: LEADNET_MONTHLY_CENTS,
-      agreementVersion: "1.0",
-      agreementHash,
-      agreementHtml: html,
-      ipAddress,
-      userAgent,
-      acceptedAt: new Date().toISOString(),
-      status: "pending_payment",
+      metadata: {
+        companyName: company,
+        packageId: engagement.id,
+        addons: addons.join(","),
+        status: "pending_payment",
+      },
     });
 
-    return NextResponse.json({ acceptanceId: id });
+    const acceptanceId = crypto.randomUUID();
+    const publicDownloadToken = crypto.randomUUID();
+
+    await db.insertAgreement({
+      acceptance_id: acceptanceId,
+      public_download_token: publicDownloadToken,
+      stripe_customer_id: customer.id,
+      stripe_payment_intent_id: null,
+      stripe_subscription_id: null,
+      agreement_version: "1.0",
+      agreement_html: html,
+      agreement_hash: agreementHash,
+      customer_name: name,
+      customer_email: email,
+      customer_phone: phone,
+      company_name: company,
+      package_id: engagement.id,
+      addons: JSON.stringify(addons),
+      initial_amount_cents: amountCents,
+      recurring_amount_cents: LEADNET_MONTHLY_CENTS,
+      currency: "usd",
+      accepted_at: new Date().toISOString(),
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      payment_status: "pending_payment",
+      subscription_status: null
+    });
+
+    return NextResponse.json({ 
+      acceptanceId,
+      publicDownloadToken
+    });
   } catch (error: unknown) {
     console.error("Failed to save agreement:", error);
-    // If it's a read-only file system error or parsing error, we can still allow them to proceed 
-    // by returning the ID and letting Stripe store it in metadata.
-    return NextResponse.json({ acceptanceId: id, warning: "Could not persist to local DB, but proceeding." });
+    return NextResponse.json({ error: "Could not record agreement." }, { status: 500 });
   }
 }
