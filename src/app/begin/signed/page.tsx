@@ -4,6 +4,7 @@ import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { BeginOutcome } from "@/components/sections/begin-outcome";
 import { BeginProgress } from "@/components/sections/begin-progress";
+import { DownloadAgreementButton } from "@/components/sections/download-agreement-button";
 import { LEADNET_INCLUDED_DAYS, leadNetMonthlyDisplay } from "@/lib/engagements";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function BeginSignedPage() {
         >
           <div className="flex flex-col items-center gap-8">
             <BeginProgress />
+            <DownloadAgreementButton />
             <Link
               href="/"
               className="inline-flex font-semibold text-accent hover:underline"

@@ -1,14 +1,7 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -32,33 +25,7 @@ import {
 } from "@/components/visuals/package-visuals";
 import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
 
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
-const appearance = {
-  theme: "night" as const,
-  variables: {
-    colorPrimary: "#22d3ee",
-    colorBackground: "#020617",
-    colorText: "#f8fafc",
-    colorDanger: "#f87171",
-    fontFamily: "Space Grotesk, system-ui, sans-serif",
-    borderRadius: "8px",
-    spacingUnit: "4px",
-  },
-  rules: {
-    ".Label": {
-      color: "#64748b",
-      fontSize: "11px",
-      letterSpacing: "0.12em",
-      textTransform: "uppercase",
-    },
-    ".Input": {
-      backgroundColor: "#000000",
-      border: "1px solid #1e293b",
-    },
-  },
-};
 
 const THEMES: Record<
   EngagementId,
@@ -124,7 +91,6 @@ export function BeginFlow({
   initialPath,
   initialAddons,
   stripeReady,
-  docusignReady,
 }: {
   capture: Engagement;
   launchpad: Engagement;
@@ -133,7 +99,6 @@ export function BeginFlow({
   initialPath: EngagementId;
   initialAddons: CaptureAddonId[];
   stripeReady: boolean;
-  docusignReady: boolean;
 }) {
   const [path, setPath] = useState<EngagementId>(initialPath);
   const [addons, setAddons] = useState<CaptureAddonId[]>(initialAddons);
@@ -299,7 +264,6 @@ export function BeginFlow({
         <StartForm
           engagement={engagement}
           addons={addons}
-          docusignReady={docusignReady}
         />
       ) : (
         <ApplyCard path={path} theme={theme} label={engagement.confirmLabel} />
@@ -374,28 +338,16 @@ function ApplyCard({
 function StartForm({
   engagement,
   addons,
-  docusignReady,
 }: {
   engagement: Engagement;
   addons: CaptureAddonId[];
-  docusignReady: boolean;
 }) {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [returnUrl, setReturnUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const options = useMemo(
-    () =>
-      clientSecret
-        ? { clientSecret, appearance, loader: "auto" as const }
-        : undefined,
-    [clientSecret]
-  );
 
   async function onContinue(event: FormEvent) {
     event.preventDefault();
@@ -404,40 +356,7 @@ function StartForm({
     const details = { path: engagement.id, name, company, email, phone, addons };
     sessionStorage.setItem("intent-begin", JSON.stringify(details));
 
-    const response = await fetch("/api/stripe/intent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(details),
-    });
-    const payload = await response.json().catch(() => ({}));
-    setLoading(false);
-    if (!response.ok || !payload.clientSecret) {
-      setError(payload.error ?? "Could not continue. Try again.");
-      return;
-    }
-    setClientSecret(payload.clientSecret);
-    setReturnUrl(payload.returnUrl);
-  }
-
-  if (clientSecret && stripePromise && options) {
-    return (
-      <div className="mt-8 rounded-2xl border-2 border-accent/45 bg-gradient-to-br from-cyan-400/15 via-card to-oled p-6 sm:p-8">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
-          Payment
-        </p>
-        <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
-          {docusignReady
-            ? "Pay the sprint now. After that you will review and sign the onboarding agreement, including the monthly and phone setup."
-            : "Complete payment to begin your sprint. You will review and sign the onboarding agreement next."}
-        </p>
-        <Elements stripe={stripePromise} options={options}>
-          <ConfirmStep
-            confirmLabel={engagement.confirmLabel}
-            returnUrl={returnUrl}
-          />
-        </Elements>
-      </div>
-    );
+    window.location.href = "/begin/agreement";
   }
 
   return (
@@ -485,7 +404,7 @@ function StartForm({
       </Field>
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       <Button type="submit" className="w-full" size="lg" disabled={loading}>
-        {loading ? "One moment…" : "Continue to payment"}
+        {loading ? "One moment…" : "Review agreement"}
       </Button>
       <p className="text-center text-xs text-muted leading-relaxed">
         By providing your phone number and continuing, you agree to receive text messages and automated updates from Intent Revenue regarding your inquiry and onboarding. Message and data rates may apply. Reply STOP to opt out. Message frequency varies. Subject to our{" "}
@@ -502,48 +421,7 @@ function StartForm({
   );
 }
 
-function ConfirmStep({
-  confirmLabel,
-  returnUrl,
-}: {
-  confirmLabel: string;
-  returnUrl: string;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  async function onConfirm(event: FormEvent) {
-    event.preventDefault();
-    if (!stripe || !elements) return;
-    setBusy(true);
-    setError(null);
-    const result = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: returnUrl },
-    });
-    setBusy(false);
-    if (result.error) {
-      setError(result.error.message ?? "Could not confirm. Try again.");
-    }
-  }
-
-  return (
-    <form onSubmit={onConfirm} className="mt-6 space-y-5">
-      <PaymentElement options={{ layout: "tabs" }} />
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
-      <Button
-        type="submit"
-        className="w-full"
-        size="lg"
-        disabled={!stripe || busy}
-      >
-        {busy ? "Confirming…" : confirmLabel}
-      </Button>
-    </form>
-  );
-}
 
 function Field({
   label,

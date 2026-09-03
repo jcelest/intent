@@ -27,9 +27,7 @@ export function captureAgreementHtml(input: {
         .join("")
     : "<li>None</li>";
 
-  return `<!DOCTYPE html>
-<html>
-  <body style="font-family: Georgia, serif; color: #111; line-height: 1.5; max-width: 720px; margin: 0 auto; padding: 32px;">
+  return `<div style="font-family: Georgia, serif; color: #111; line-height: 1.5; max-width: 720px; margin: 0 auto; padding: 32px; background: white; border-radius: 8px;">
     <h1 style="font-size: 22px;">${BRAND_NAME} LeadNet Agreement</h1>
     <p>This agreement is between ${BRAND_NAME} ("Intent") and the client named below.</p>
     <p><strong>Client:</strong> ${escapeHtml(input.company)}<br/>
@@ -71,13 +69,7 @@ export function captureAgreementHtml(input: {
     <p>LeadNet connects with third-party telecommunications carriers, messaging gateways, and platforms. Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API modifications.</p>
     <h2 style="font-size: 16px;">14. Corporate Authority</h2>
     <p>The individual signing below affirms that they have the full legal power and corporate authority to bind the client to this agreement.</p>
-    <div style="margin-top: 56px; page-break-inside: avoid;">
-      <p>Client signature: ____________________________________________</p>
-      <p>Date signed: ______________</p>
-      <p>${BRAND_NAME}</p>
-    </div>
-  </body>
-</html>`;
+  </div>`;
 }
 
 function escapeHtml(value: string) {

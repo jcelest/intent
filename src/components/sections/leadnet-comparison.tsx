@@ -3,41 +3,19 @@
 import { motion } from "framer-motion";
 import { formatCurrency } from "@/lib/utils";
 import { LEADNET_MONTHLY_CENTS, leadNetSprintCents } from "@/lib/engagements";
+import { COMPETITOR_STACK as COMPETITOR_STACK_BASE } from "@/lib/leadnet-comparison-data";
 
-const COMPETITOR_STACK = [
-  {
-    category: "Speed-to-Lead & Missed Calls",
-    tools: "Hatch / CHIIRP",
-    setupCost: "$1,000 – $3,000",
-    monthlyCost: "$450 – $900/mo",
-    contract: "12-Month Lock-in",
-    notes: "Per-conversation overages & annual contract trap",
-  },
-  {
-    category: "5-Star Review Collection",
-    tools: "Podium / Birdeye",
-    setupCost: "$500 – $1,500",
-    monthlyCost: "$299 – $599/mo",
-    contract: "12-Month Lock-in",
-    notes: "Mandatory annual lock-in & surprise renewal fees",
-  },
-  {
-    category: "Database Reactivation & Campaigns",
-    tools: "ServiceTitan Marketing Pro / Agency",
-    setupCost: "$5,000 – $25,000",
-    monthlyCost: "$500 – $2,000/mo",
-    contract: "Annual / Long Retainer",
-    notes: "Expensive enterprise add-on or agency markup",
-  },
-  {
-    category: "Call Tracking & Routing",
-    tools: "CallRail + Voice Assist",
-    setupCost: "$0",
-    monthlyCost: "$145 – $290/mo",
-    contract: "Metered Usage",
-    notes: "Billed per minute & per text with escalating tiers",
-  },
-];
+const COMPETITOR_STACK = COMPETITOR_STACK_BASE.map((item) => ({
+  ...item,
+  notes:
+    item.tools === "Hatch / CHIIRP"
+      ? "Per-conversation overages & annual contract trap"
+      : item.tools === "Podium / Birdeye"
+        ? "Mandatory annual lock-in & surprise renewal fees"
+        : item.tools === "ServiceTitan Marketing Pro"
+          ? "Expensive enterprise add-on or agency markup"
+          : "Billed per minute & per text with escalating tiers",
+}));
 
 const SALES_PILLARS = [
   {

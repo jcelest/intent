@@ -4,7 +4,6 @@ import { Footer } from "@/components/sections/footer";
 import { BeginFlow } from "@/components/sections/begin-flow";
 import {
   getEngagement,
-  isDocuSignConfigured,
   isStripeConfigured,
   leadNetPricingMetaLine,
   parseAddons,
@@ -51,7 +50,6 @@ export default function BeginPage({
             initialPath={initialPath}
             initialAddons={initialAddons}
             stripeReady={isStripeConfigured()}
-            docusignReady={isDocuSignConfigured()}
           />
         </div>
       </main>

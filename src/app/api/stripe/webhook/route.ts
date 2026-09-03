@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { BRAND_NAME } from "@/lib/seo";
+import { updateAgreementStatus } from "@/lib/agreements-db";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object;
     const meta = intent.metadata ?? {};
+    
+    if (meta.acceptanceId) {
+      await updateAgreementStatus(meta.acceptanceId, "payment_completed");
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
     const notifyEmails = [
       process.env.INQUIRY_NOTIFY_EMAIL,

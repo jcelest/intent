@@ -51,14 +51,7 @@ export const CAPTURE_ADDONS: Array<{
   },
 ];
 
-function amountFromEnv(key: string, fallback?: number): number | null {
-  const raw = process.env[key];
-  if (raw) {
-    const cents = Number.parseInt(raw, 10);
-    if (Number.isFinite(cents) && cents >= 50) return cents;
-  }
-  return fallback ?? null;
-}
+
 
 export const LEADNET_SPRINT_CENTS = 139700;
 export const LEADNET_TEST_SPRINT_CENTS = 50;
@@ -98,7 +91,7 @@ export function isLeadNetTestCheckout() {
 
 export function leadNetSprintCents() {
   if (isLeadNetTestCheckout()) return LEADNET_TEST_SPRINT_CENTS;
-  return amountFromEnv("CAPTURE_AMOUNT_CENTS", LEADNET_SPRINT_CENTS) ?? LEADNET_SPRINT_CENTS;
+  return LEADNET_SPRINT_CENTS;
 }
 
 export function addonDisplayCents(amountCents: number) {

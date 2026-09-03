@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   addonAmount,
   getEngagement,
-  isDocuSignConfigured,
   isStripeConfigured,
   parseAddons,
   parseEngagementId,
@@ -78,6 +77,7 @@ export async function POST(request: Request) {
       phone,
       company,
       addons: addons.join(","),
+      acceptanceId: String(body?.acceptanceId ?? ""),
     },
   });
 
@@ -88,10 +88,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const afterPay =
-    engagement.id === "capture" && isDocuSignConfigured()
-      ? "/begin/sign"
-      : "/begin/confirmed";
+  const afterPay = "/begin/signed";
 
   return NextResponse.json({
     clientSecret: intent.client_secret,
