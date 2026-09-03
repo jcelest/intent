@@ -11,7 +11,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing agreement ID" }, { status: 400 });
   }
 
-  const record = await getAgreementRecord(id);
+  let record;
+  try {
+    record = await getAgreementRecord(id);
+  } catch (err) {
+    console.error("Failed to read agreement record", err);
+    record = undefined;
+  }
+  
   if (!record) {
     return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
   }

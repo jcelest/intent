@@ -31,7 +31,11 @@ export async function POST(request: Request) {
     const meta = intent.metadata ?? {};
     
     if (meta.acceptanceId) {
-      await updateAgreementStatus(meta.acceptanceId, "payment_completed");
+      try {
+        await updateAgreementStatus(meta.acceptanceId, "payment_completed");
+      } catch (err) {
+        console.error("Failed to update agreement status in webhook", err);
+      }
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;

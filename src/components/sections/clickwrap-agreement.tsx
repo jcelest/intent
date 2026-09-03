@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { captureAgreementHtml } from "@/lib/capture-agreement";
 import { getEngagement, addonAmount, LEADNET_MONTHLY_CENTS, CAPTURE_ADDONS, EngagementId, CaptureAddonId } from "@/lib/engagements";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 
 interface BeginDetails {
   path: EngagementId;
@@ -121,17 +121,41 @@ export function ClickwrapAgreement() {
       />
       
       <div className="flex flex-col gap-4">
-        <label className="flex items-start sm:items-center gap-3 cursor-pointer p-4 border border-white/10 rounded-xl bg-black/20 hover:bg-black/40 transition-colors">
-          <input 
-            type="checkbox" 
-            className="w-5 h-5 mt-1 sm:mt-0 rounded border-white/20 bg-background accent-accent shrink-0"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-          />
+        <button
+          type="button"
+          onClick={() => setAgreed(!agreed)}
+          className={cn(
+            "flex items-start sm:items-center gap-4 text-left cursor-pointer p-4 border rounded-xl transition-all duration-300",
+            agreed 
+              ? "border-accent bg-accent/10" 
+              : "border-white/10 bg-black/20 hover:border-accent/40 hover:bg-black/40"
+          )}
+        >
+          <div 
+            className={cn(
+              "flex w-6 h-6 shrink-0 items-center justify-center rounded mt-0.5 sm:mt-0 transition-colors border-2",
+              agreed ? "bg-accent border-accent" : "border-white/20"
+            )}
+          >
+            {agreed && (
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="black" 
+                strokeWidth="4" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            )}
+          </div>
           <span className="text-foreground/90 font-medium leading-relaxed">
             I have read and agree to the LeadNet Service Agreement and authorize the charges described in it.
           </span>
-        </label>
+        </button>
         
         <Button 
           size="lg" 

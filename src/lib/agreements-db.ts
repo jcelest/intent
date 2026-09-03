@@ -21,11 +21,11 @@ export type AgreementRecord = {
   status: "pending_payment" | "payment_completed" | "abandoned";
 };
 
-const DATA_FILE = path.join(process.cwd(), "data", "agreements.json");
+import os from "os";
+const DATA_FILE = path.join(os.tmpdir(), "agreements.json");
 
 async function ensureDataFile() {
   try {
-    await fs.mkdir(path.join(process.cwd(), "data"), { recursive: true });
     await fs.access(DATA_FILE);
   } catch {
     await fs.writeFile(DATA_FILE, JSON.stringify([]));

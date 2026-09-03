@@ -41,24 +41,31 @@ export async function POST(request: Request) {
   const agreementHash = hashAgreementText(html);
   const id = crypto.randomUUID();
 
-  await saveAgreementRecord({
-    id,
-    customerName: name,
-    companyName: company,
-    email,
-    phone,
-    packageId: engagement.id,
-    addons,
-    amountCents,
-    monthlyCents: LEADNET_MONTHLY_CENTS,
-    agreementVersion: "1.0",
-    agreementHash,
-    agreementHtml: html,
-    ipAddress,
-    userAgent,
-    acceptedAt: new Date().toISOString(),
-    status: "pending_payment",
-  });
+  try {
+    await saveAgreementRecord({
+      id,
+      customerName: name,
+      companyName: company,
+      email,
+      phone,
+      packageId: engagement.id,
+      addons,
+      amountCents,
+      monthlyCents: LEADNET_MONTHLY_CENTS,
+      agreementVersion: "1.0",
+      agreementHash,
+      agreementHtml: html,
+      ipAddress,
+      userAgent,
+      acceptedAt: new Date().toISOString(),
+      status: "pending_payment",
+    });
 
-  return NextResponse.json({ acceptanceId: id });
+    return NextResponse.json({ acceptanceId: id });
+  } catch (error: unknown) {
+    console.error("Failed to save agreement:", error);
+    // If it's a read-only file system error or parsing error, we can still allow them to proceed 
+    // by returning the ID and letting Stripe store it in metadata.
+    return NextResponse.json({ acceptanceId: id, warning: "Could not persist to local DB, but proceeding." });
+  }
 }
