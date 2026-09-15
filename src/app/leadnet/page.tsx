@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     "missed call text back",
     "database reactivation",
     leadNetPricingSummary(),
-    "$1,397 LeadNet",
-    "$197 LeadNet monthly",
+    "$497 LeadNet",
+    "$397 LeadNet monthly",
   ],
   alternates: { canonical: `${SITE_URL}/leadnet` },
   openGraph: {

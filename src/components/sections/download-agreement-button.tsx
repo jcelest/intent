@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function DownloadAgreementButton() {
-  const [acceptanceId, setAcceptanceId] = useState<string | null>(null);
+  const [downloadToken, setDownloadToken] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("intent-begin");
     if (raw) {
       try {
         const details = JSON.parse(raw);
-        if (details.acceptanceId) {
-          setAcceptanceId(details.acceptanceId);
+        if (details.publicDownloadToken) {
+          setDownloadToken(details.publicDownloadToken);
+        } else if (details.acceptanceId) { // Fallback for backwards compatibility if needed
+          setDownloadToken(details.acceptanceId);
         }
       } catch {
         // ignore
@@ -20,13 +22,13 @@ export function DownloadAgreementButton() {
     }
   }, []);
 
-  if (!acceptanceId) return null;
+  if (!downloadToken) return null;
 
   return (
     <Button
       variant="secondary"
       onClick={() => {
-        window.location.href = `/api/agreement/download?id=${acceptanceId}`;
+        window.location.href = `/api/agreement/download?token=${downloadToken}`;
       }}
     >
       Download Service Agreement

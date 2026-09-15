@@ -5,6 +5,8 @@ import {
   isStripeConfigured,
   parseAddons,
   parseEngagementId,
+  LEADNET_MONTHLY_CENTS,
+  LEADNET_INCLUDED_DAYS,
 } from "@/lib/engagements";
 import { getStripe, resolvePaymentIntentFromInvoice } from "@/lib/stripe";
 import { SITE_URL } from "@/lib/seo";
@@ -99,13 +101,13 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'usd',
           product: recurringProductId,
-          unit_amount: 19700,
+          unit_amount: LEADNET_MONTHLY_CENTS,
           recurring: {
             interval: 'month'
           }
         }
       }],
-      trial_period_days: 30,
+      trial_period_days: LEADNET_INCLUDED_DAYS,
       add_invoice_items: [{
         price_data: {
           currency: 'usd',

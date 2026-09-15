@@ -87,7 +87,7 @@ All customer-facing agreements must explicitly state that software setup is a **
 
 ## 6. Client Churn & Offboarding Protocol
 
-If a client cancels their monthly subscription ($197/mo) or fails to maintain payment:
+If a client cancels their monthly subscription ($397/mo) or fails to maintain payment:
 1. **Immediate Service Deactivation**: Release or suspend the Twilio tracking line after the contractual grace period.
 2. **Revoke Webhook Ingestion**: Disable Angi and Google LSA webhook secret tokens to stop processing new inbound leads.
 3. **Terminate Dashboard Access**: Revoke active session tokens and remove client instance hosting.

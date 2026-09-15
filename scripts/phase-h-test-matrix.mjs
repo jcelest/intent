@@ -33,12 +33,12 @@ async function runTestMatrix() {
   console.log("🚀 STARTING PHASE H: FINAL TEST MATRIX\n");
 
   const tests = [
-    { name: "1. Base", amount: 139700, card: "pm_card_visa" },
-    { name: "2. Styling", amount: 174700, card: "pm_card_visa" },
-    { name: "3. No Watermark", amount: 164700, card: "pm_card_visa" },
-    { name: "4. Both", amount: 199700, card: "pm_card_visa" },
-    { name: "5. Declined initial card", amount: 139700, card: "pm_card_chargeCustomerFail" },
-    { name: "6. 3DS/authentication case", amount: 139700, card: "pm_card_authenticationRequired" },
+    { name: "1. Base", amount: 49700, card: "pm_card_visa" },
+    { name: "2. Styling", amount: 84700, card: "pm_card_visa" },
+    { name: "3. No Watermark", amount: 74700, card: "pm_card_visa" },
+    { name: "4. Both", amount: 109700, card: "pm_card_visa" },
+    { name: "5. Declined initial card", amount: 49700, card: "pm_card_chargeCustomerFail" },
+    { name: "6. 3DS/authentication case", amount: 49700, card: "pm_card_authenticationRequired" },
   ];
 
   for (const test of tests) {
@@ -82,7 +82,7 @@ async function runTestMatrix() {
             price_data: {
               currency: 'usd',
               product: recurringProductId,
-              unit_amount: 19700,
+              unit_amount: 39700,
               recurring: { interval: 'month' }
             }
           }],
@@ -175,10 +175,10 @@ async function runTestMatrix() {
           subscription: subscription.id,
         });
 
-        if (upcoming.total === 19700) {
-          console.log(`✅ Recurring invoice correctly queued for exactly $197.00. No proration leakage.`);
+        if (upcoming.total === 39700) {
+          console.log(`✅ Recurring invoice correctly queued for exactly $397.00. No proration leakage.`);
         } else {
-          console.error(`❌ ERROR: Upcoming invoice is $${upcoming.total/100}! Expected $197.00.`);
+          console.error(`❌ ERROR: Upcoming invoice is $${upcoming.total/100}! Expected $397.00.`);
         }
 
       } else {

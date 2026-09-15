@@ -43,9 +43,9 @@ async function main() {
   const setupProd = await stripe.products.create({ name: "Verify Setup " + Date.now() });
   const sub = await stripe.subscriptions.create({
     customer: customer.id,
-    items: [{ price_data: { currency: "usd", product: prod.id, unit_amount: 19700, recurring: { interval: "month" } } }],
+    items: [{ price_data: { currency: "usd", product: prod.id, unit_amount: 39700, recurring: { interval: "month" } } }],
     trial_period_days: 30,
-    add_invoice_items: [{ price_data: { currency: "usd", product: setupProd.id, unit_amount: 139700 } }],
+    add_invoice_items: [{ price_data: { currency: "usd", product: setupProd.id, unit_amount: 49700 } }],
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.payments"],
@@ -75,7 +75,7 @@ async function main() {
 
     const upcoming = await stripe.invoices.createPreview({ customer: customer.id, subscription: sub.id });
     results.invoicePaidHandling = refreshed.status === "paid" || confirmed.status === "succeeded";
-    results.trialAnchoring = results.trialAnchoring && upcoming.total === 19700;
+    results.trialAnchoring = results.trialAnchoring && upcoming.total === 39700;
   }
 
   // 3. Webhook lifecycle coverage (static check of route source)
@@ -105,7 +105,7 @@ async function main() {
 
   // 5. CAPTURE_AMOUNT_CENTS
   const prodEnv = fs.readFileSync(".env.production", "utf8");
-  results.captureAmountCorrected = prodEnv.includes('CAPTURE_AMOUNT_CENTS="139700"');
+  results.captureAmountCorrected = prodEnv.includes('CAPTURE_AMOUNT_CENTS="49700"');
 
   console.log("\n=== VERIFICATION RESULTS ===");
   for (const [key, pass] of Object.entries(results)) {

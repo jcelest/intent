@@ -79,11 +79,10 @@ export default function TermsPage() {
         <p>
           Intent LeadNet is a productized sprint sold on this site. The amount
           due today is the sprint and any add-ons you select ({leadNetSprintDisplay()} base,
-          optional custom styling, optional no watermark). After {LEADNET_INCLUDED_DAYS} days,
-          LeadNet is {leadNetMonthlyDisplay()} per month for the tracking number, voice on that
+          optional custom styling, optional no watermark). Setup includes the first {LEADNET_INCLUDED_DAYS} days;
+          {leadNetMonthlyDisplay()}/month begins on day {LEADNET_INCLUDED_DAYS} for the tracking number, voice on that
           number, speed-to-lead auto-replies, customer database reactivation, owner alerts, and Google review SMS under
-          ordinary trade volume. The monthly is billed separately. It is not
-          charged on the sprint card at checkout.
+          ordinary trade volume.
         </p>
         <p>
           You choose one phone setup at kickoff: keep the public number and
@@ -177,9 +176,8 @@ export default function TermsPage() {
           If you start LeadNet, Launchpad, or partnership through this site,
           that confirmation is payment for the engagement described on that
           page, not a purchase of software ownership. LeadNet checkout is the
-          sprint and selected add-ons. The {leadNetMonthlyDisplay()} monthly described on /leadnet
-          and in the LeadNet agreement is billed separately after the included
-          {LEADNET_INCLUDED_DAYS} days. Refunds apply only if a signed contract says so. Card
+          sprint and selected add-ons. Setup includes the first {LEADNET_INCLUDED_DAYS} days; the {leadNetMonthlyDisplay()} monthly described on /leadnet
+          and in the LeadNet agreement begins on day {LEADNET_INCLUDED_DAYS}. Refunds apply only if a signed contract says so. Card
           processing is handled by secure third-party payment processors.
           Payment processor terms apply to the transaction itself.
         </p>

@@ -195,8 +195,9 @@ export function BeginFlow({
               sprint
             </p>
             <p className="mt-3 text-sm text-foreground/75 leading-relaxed">
-              Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
-              {LEADNET_INCLUDED_DAYS} days. Tracking number and texts are in
+              Setup includes the first {LEADNET_INCLUDED_DAYS} days; then{" "}
+              {formatCurrency(LEADNET_MONTHLY_CENTS)}/month begins on day{" "}
+              {LEADNET_INCLUDED_DAYS}. Tracking number and texts are in
               that monthly.
             </p>
             <LeadNetPhonePaths compact />
@@ -253,8 +254,8 @@ export function BeginFlow({
               {formatCurrency(total)}
             </p>
             <p className="text-sm text-foreground/65 leading-relaxed">
-              Due today. {formatCurrency(LEADNET_MONTHLY_CENTS)}/month is billed
-              after {LEADNET_INCLUDED_DAYS} days, not on this card.
+              Due today. Setup includes the first {LEADNET_INCLUDED_DAYS} days;{" "}
+              {formatCurrency(LEADNET_MONTHLY_CENTS)}/month begins on day {LEADNET_INCLUDED_DAYS}.
             </p>
           </div>
         ) : null}

@@ -37,12 +37,14 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">1. Service</h2>
     <p>Intent will set up Intent LeadNet for the client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
     <h2 style="font-size: 16px;">2. Payment</h2>
-    <p>The client pays <strong>${formatCurrency(input.amountCents)}</strong> upon checkout before signing. That amount is the sprint due today:</p>
+    <p>The client pays an initial implementation charge of <strong>${formatCurrency(input.amountCents)}</strong> upon checkout today. This initial payment covers:</p>
     <ul>
-      <li>Intent LeadNet base (${formatCurrency(leadNetSprintCents())})</li>
+      <li>Intent LeadNet base implementation (${formatCurrency(leadNetSprintCents())})</li>
       ${addonLines}
     </ul>
-    <p>After ${LEADNET_INCLUDED_DAYS} days from the sprint payment, LeadNet is <strong>${formatCurrency(LEADNET_MONTHLY_CENTS)} per month</strong>. The monthly covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume. Intent bills the monthly separately. It is not charged on the sprint card in this payment. The client is an active client while the monthly is current (or during the included ${LEADNET_INCLUDED_DAYS} days). If the monthly lapses, Intent may suspend the tracking number, texts, and app access.</p>
+    <p>Any selected add-ons affect only this initial implementation charge unless explicitly stated otherwise. The first 30 days of ongoing LeadNet service are included with this implementation payment.</p>
+    <p>Beginning 30 days after the initial implementation payment, the client will be charged <strong>${formatCurrency(LEADNET_MONTHLY_CENTS)} per month</strong> for ongoing LeadNet service. The monthly service covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume.</p>
+    <p>The client expressly authorizes Intent Revenue and its payment processor, Stripe, to securely store and use the payment method submitted during checkout for these recurring monthly charges. The subscription automatically continues month-to-month until canceled.</p>
     <h2 style="font-size: 16px;">3. What is included</h2>
     <p>Your Company's own LeadNet application, branded intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a company dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly. The first ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are included in the sprint.</p>
     <h2 style="font-size: 16px;">4. Phone setup</h2>
@@ -58,7 +60,7 @@ export function captureAgreementHtml(input: {
     <h2 style="font-size: 16px;">8. Add-ons</h2>
     <p>Custom application styling and no watermark are included only if listed in section 2. No watermark removes the Designed with Intent Revenue mark from the live LeadNet app.</p>
     <h2 style="font-size: 16px;">9. Refunds and cancel</h2>
-    <p>The LeadNet sprint fee is collected before this agreement is signed. The sprint is non-refundable once setup has started, except as required by law or a later signed writing. The client may cancel the monthly before a new month starts. Cancel stops new monthly charges. It does not refund the sprint. After cancel, Intent may release the tracking number.</p>
+    <p>The LeadNet initial implementation charge is collected before this agreement is signed. This implementation payment is non-refundable once setup has started, except as required by law or a later signed writing. The client may cancel the ongoing month-to-month subscription at any time by contacting Intent Revenue. Cancellation stops all future recurring charges but does not retroactively refund the initial implementation payment or any completed monthly billing periods. After cancellation, Intent may release the tracking number.</p>
     <h2 style="font-size: 16px;">10. Law</h2>
     <p>Florida law governs this agreement.</p>
     <h2 style="font-size: 16px;">11. TCPA &amp; Messaging Compliance</h2>

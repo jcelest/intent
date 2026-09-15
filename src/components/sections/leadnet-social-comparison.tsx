@@ -157,7 +157,7 @@ export function LeadNetSocialComparison() {
         <div className="mt-8 text-center">
           <p className="text-[28px] font-semibold leading-snug">
             Save over{" "}
-            <span className="text-accent">$1,200/month</span>
+            <span className="text-accent">$1,000/month</span>
             {" "}vs. the fragmented stack
           </p>
           <p className="mt-3 font-mono text-[26px] font-semibold text-accent">

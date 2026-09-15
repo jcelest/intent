@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { captureAgreementHtml } from "@/lib/capture-agreement";
-import { getEngagement, addonAmount, LEADNET_MONTHLY_CENTS, CAPTURE_ADDONS, EngagementId, CaptureAddonId } from "@/lib/engagements";
+import { getEngagement, addonAmount, LEADNET_MONTHLY_CENTS, LEADNET_INCLUDED_DAYS, CAPTURE_ADDONS, EngagementId, CaptureAddonId } from "@/lib/engagements";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface BeginDetails {
@@ -62,7 +62,11 @@ export function ClickwrapAgreement() {
         throw new Error(data.error || "Could not accept agreement.");
       }
       
-      const newDetails = { ...details, acceptanceId: data.acceptanceId };
+      const newDetails = { 
+        ...details, 
+        acceptanceId: data.acceptanceId,
+        publicDownloadToken: data.publicDownloadToken
+      };
       sessionStorage.setItem("intent-begin", JSON.stringify(newDetails));
       router.push("/begin/pay");
     } catch (err: unknown) {
@@ -104,7 +108,7 @@ export function ClickwrapAgreement() {
           </div>
           <div>
             <span className="block text-muted text-xs uppercase tracking-wider mb-1">Recurring Subscription</span>
-            {formatCurrency(LEADNET_MONTHLY_CENTS)} / month (starts after 30 days)
+            {formatCurrency(LEADNET_MONTHLY_CENTS)} / month (setup includes first {LEADNET_INCLUDED_DAYS} days; begins on day {LEADNET_INCLUDED_DAYS})
           </div>
           {addonsSelected.length > 0 && (
             <div className="col-span-1 sm:col-span-2">

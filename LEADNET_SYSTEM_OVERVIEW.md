@@ -72,9 +72,9 @@ The architecture consists of two interconnected applications:
 
 ## 4. Commercial & Pricing Model
 
-- **One-Time Sprint Setup**: **$1,397**
+- **One-Time Sprint Setup**: **$497**
   - Includes dedicated tracking number provisioning, A2P 10DLC carrier registration, Angi/LSA webhook configuration, intake setup, initial database reactivation setup, and first 30 days of service.
-- **Monthly Retainer**: **$197 / month**
+- **Monthly Retainer**: **$397 / month**
   - Covers tracking line maintenance, carrier voice/SMS throughput, real-time dispatch dashboard, and continuous database reactivation engine access.
 - **Add-Ons**:
   - **Custom Application Styling (Branding)**: **$350** (Matches client brand colors, logos, and typography).

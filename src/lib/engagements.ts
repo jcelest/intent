@@ -12,8 +12,8 @@ export type Engagement = {
   amountCents: number | null;
 };
 
-/** Recurring LeadNet after the included days. Customer-facing; not billed on the sprint card yet. */
-export const LEADNET_MONTHLY_CENTS = 19700;
+/** Recurring LeadNet after the included days. Setup includes the first 30 days; begins on day 30. */
+export const LEADNET_MONTHLY_CENTS = 39700;
 export const LEADNET_INCLUDED_DAYS = 30;
 
 export const LEADNET_PHONE_PATHS = [
@@ -53,7 +53,7 @@ export const CAPTURE_ADDONS: Array<{
 
 
 
-export const LEADNET_SPRINT_CENTS = 139700;
+export const LEADNET_SPRINT_CENTS = 49700;
 export const LEADNET_TEST_SPRINT_CENTS = 50;
 
 /** Canonical customer-facing pricing strings — use in metadata, llms.txt, and AI-facing copy */
@@ -75,7 +75,7 @@ export function leadNetMonthlyDisplay() {
   }).format(LEADNET_MONTHLY_CENTS / 100);
 }
 
-/** e.g. "$1,397 sprint, then $197/month after 30 days" */
+/** e.g. "$497 sprint, then $397/month after 30 days" */
 export function leadNetPricingSummary() {
   return `${leadNetSprintDisplay()} sprint, then ${leadNetMonthlyDisplay()}/month after ${LEADNET_INCLUDED_DAYS} days`;
 }
@@ -86,7 +86,10 @@ export function leadNetPricingMetaLine() {
 }
 
 export function isLeadNetTestCheckout() {
-  return process.env.NEXT_PUBLIC_LEADNET_TEST_CHECKOUT === "1";
+  if (process.env.VERCEL_ENV === "production") {
+    return false;
+  }
+  return process.env.ENABLE_TEST_PRICING === "1" || process.env.NEXT_PUBLIC_LEADNET_TEST_CHECKOUT === "1";
 }
 
 export function leadNetSprintCents() {
