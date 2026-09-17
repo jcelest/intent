@@ -29,6 +29,8 @@ async function main() {
   const checkoutSource = fs.readFileSync("src/app/api/stripe/intent/route.ts", "utf8");
   results.livePriceMutationAvoided =
     !checkoutSource.includes('startsWith("sk_test_")') &&
+    checkoutSource.includes("missingStripePriceEnvNames") &&
+    checkoutSource.includes("validatedPriceAmount") &&
     checkoutSource.includes("paymentMode === \"monthly\"") &&
     checkoutSource.includes("paymentIntents.create") &&
     checkoutSource.includes("subscriptions.create");

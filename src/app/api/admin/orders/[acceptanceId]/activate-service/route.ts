@@ -5,6 +5,11 @@ import {
   WEBSITE_CARE,
   type LeadNetOrderSnapshot,
 } from "@/lib/leadnet-offer";
+import {
+  getLeadNetStripePriceIds,
+  getStripePriceEnvName,
+  isStripeLiveMode,
+} from "@/lib/stripe-price-ids";
 import * as db from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -36,6 +41,18 @@ async function getOrCreateProduct(
   if (search.data[0]) return search.data[0].id;
   const product = await stripe.products.create({ name, metadata });
   return product.id;
+}
+
+async function validatedPriceAmount(
+  stripe: NonNullable<ReturnType<typeof getStripe>>,
+  priceId: string,
+  expectedAmountCents: number
+) {
+  const price = await stripe.prices.retrieve(priceId);
+  if (!price.active || price.unit_amount !== expectedAmountCents || price.currency !== "usd") {
+    throw new Error("Configured Stripe price does not match Website Care.");
+  }
+  return price;
 }
 
 export async function POST(
@@ -111,24 +128,37 @@ export async function POST(
     );
   }
 
-  const productId = await getOrCreateProduct(stripe, WEBSITE_CARE.name, {
-    offerVersion: order.offerVersion,
-    kind: "website_care",
-  });
+  const carePriceId = getLeadNetStripePriceIds().websiteCareMonthly;
+  if (isStripeLiveMode() && !carePriceId) {
+    return NextResponse.json(
+      { error: `Live Stripe price ID is not configured: ${getStripePriceEnvName("websiteCareMonthly")}` },
+      { status: 503 }
+    );
+  }
+
+  let subscriptionItem;
+  if (carePriceId) {
+    await validatedPriceAmount(stripe, carePriceId, WEBSITE_CARE.monthlyCents);
+    subscriptionItem = { price: carePriceId };
+  } else {
+    const productId = await getOrCreateProduct(stripe, WEBSITE_CARE.name, {
+      offerVersion: order.offerVersion,
+      kind: "website_care",
+    });
+    subscriptionItem = {
+      price_data: {
+        currency: order.currency,
+        product: productId,
+        unit_amount: WEBSITE_CARE.monthlyCents,
+        recurring: { interval: "month" as const },
+      },
+    };
+  }
 
   const subscription = await stripe.subscriptions.create(
     {
       customer: record.stripe_customer_id,
-      items: [
-        {
-          price_data: {
-            currency: order.currency,
-            product: productId,
-            unit_amount: WEBSITE_CARE.monthlyCents,
-            recurring: { interval: "month" },
-          },
-        },
-      ],
+      items: [subscriptionItem],
       metadata: {
         acceptanceId,
         offerVersion: order.offerVersion,

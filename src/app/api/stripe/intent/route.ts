@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getStripe, resolvePaymentIntentFromInvoice } from "@/lib/stripe";
 import { SITE_URL } from "@/lib/seo";
 import type { LeadNetOrderSnapshot } from "@/lib/leadnet-offer";
+import {
+  getWebsiteMonthlyPriceId,
+  getWebsiteSetupPriceId,
+  getWebsiteUpfrontPriceId,
+  isStripeLiveMode,
+  missingStripePriceEnvNames,
+} from "@/lib/stripe-price-ids";
 import * as db from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -29,6 +36,18 @@ async function getOrCreateProduct(
   return product.id;
 }
 
+async function validatedPriceAmount(
+  stripe: NonNullable<ReturnType<typeof getStripe>>,
+  priceId: string,
+  expectedAmountCents: number
+) {
+  const price = await stripe.prices.retrieve(priceId);
+  if (!price.active || price.unit_amount !== expectedAmountCents || price.currency !== "usd") {
+    throw new Error("Configured Stripe price does not match the accepted order.");
+  }
+  return price;
+}
+
 export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
@@ -50,6 +69,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This order is already paid." }, { status: 409 });
   }
 
+  const missingPriceEnvNames = missingStripePriceEnvNames(order);
+  if (isStripeLiveMode() && missingPriceEnvNames.length) {
+    return NextResponse.json(
+      { error: `Live Stripe price IDs are not configured: ${missingPriceEnvNames.join(", ")}` },
+      { status: 503 }
+    );
+  }
+
   const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || SITE_URL;
   const returnUrl = `${origin.replace(/\/$/, "")}/begin/signed`;
 
@@ -62,16 +89,6 @@ export async function POST(request: Request) {
     }
 
     if (order.selection.paymentMode === "monthly") {
-      const websiteProductId = await getOrCreateProduct(stripe, `${order.package.name} Managed Website`, {
-        offerVersion: order.offerVersion,
-        websitePackageId: order.package.id,
-        kind: "managed_website",
-      });
-      const setupProductId = await getOrCreateProduct(stripe, `${order.package.name} Setup`, {
-        offerVersion: order.offerVersion,
-        websitePackageId: order.package.id,
-        kind: "website_setup",
-      });
       const websiteRecurring = order.recurringWebsiteCharges[0];
       const setupLine = order.oneTimeCharges.find((charge) => charge.id === "website-setup");
 
@@ -79,28 +96,51 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid monthly order." }, { status: 400 });
       }
 
+      const monthlyPriceId = getWebsiteMonthlyPriceId(order);
+      const setupPriceId = getWebsiteSetupPriceId(order);
+      let subscriptionItems;
+      let setupInvoiceItem;
+
+      if (monthlyPriceId && setupPriceId) {
+        await validatedPriceAmount(stripe, monthlyPriceId, websiteRecurring.amountCents);
+        await validatedPriceAmount(stripe, setupPriceId, setupLine.amountCents);
+        subscriptionItems = [{ price: monthlyPriceId }];
+        setupInvoiceItem = { price: setupPriceId };
+      } else {
+        const websiteProductId = await getOrCreateProduct(stripe, `${order.package.name} Managed Website`, {
+          offerVersion: order.offerVersion,
+          websitePackageId: order.package.id,
+          kind: "managed_website",
+        });
+        const setupProductId = await getOrCreateProduct(stripe, `${order.package.name} Setup`, {
+          offerVersion: order.offerVersion,
+          websitePackageId: order.package.id,
+          kind: "website_setup",
+        });
+        subscriptionItems = [
+          {
+            price_data: {
+              currency: order.currency,
+              product: websiteProductId,
+              unit_amount: websiteRecurring.amountCents,
+              recurring: { interval: "month" as const },
+            },
+          },
+        ];
+        setupInvoiceItem = {
+          price_data: {
+            currency: order.currency,
+            product: setupProductId,
+            unit_amount: setupLine.amountCents,
+          },
+        };
+      }
+
       const subscription = await stripe.subscriptions.create(
         {
           customer: record.stripe_customer_id,
-          items: [
-            {
-              price_data: {
-                currency: order.currency,
-                product: websiteProductId,
-                unit_amount: websiteRecurring.amountCents,
-                recurring: { interval: "month" },
-              },
-            },
-          ],
-          add_invoice_items: [
-            {
-              price_data: {
-                currency: order.currency,
-                product: setupProductId,
-                unit_amount: setupLine.amountCents,
-              },
-            },
-          ],
+          items: subscriptionItems,
+          add_invoice_items: [setupInvoiceItem],
           payment_behavior: "default_incomplete",
           payment_settings: { save_default_payment_method: "on_subscription" },
           metadata: {
@@ -134,6 +174,10 @@ export async function POST(request: Request) {
 
     const setupFutureUsage =
       order.selection.leadNetSelected || order.selection.careSelected ? "off_session" : undefined;
+    const upfrontPriceId = getWebsiteUpfrontPriceId(order);
+    if (upfrontPriceId) {
+      await validatedPriceAmount(stripe, upfrontPriceId, order.dueTodayCents);
+    }
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount: order.dueTodayCents,
