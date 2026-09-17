@@ -167,21 +167,29 @@ export function CaptureContent() {
               </Link>
             </div>
             <div className="rounded-xl border border-white/10 bg-card p-4">
-              <div className="aspect-[16/9] rounded-lg border border-white/10 bg-gradient-to-br from-slate-950 via-cyan-950/40 to-black p-6">
-                <div className="h-full rounded-lg border border-white/15 bg-white/[0.04] p-5">
-                  <p className="font-mono text-xs uppercase tracking-[0.16em] text-cyan-200">
-                    Novation HVAC
-                  </p>
-                  <p className="mt-4 max-w-lg text-4xl font-semibold">
-                    Heating and cooling services presented for real customers.
-                  </p>
-                  <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                    {["Services", "Service areas", "Contact"].map((item) => (
-                      <div key={item} className="rounded-md bg-black/35 p-4 text-sm text-foreground/75">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
+              <div className="overflow-hidden rounded-lg border border-white/10 bg-oled shadow-[0_0_36px_rgba(34,211,238,0.1)]">
+                <div className="flex items-center gap-2 border-b border-white/10 bg-slate-950 px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="ml-3 truncate font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+                    novationhvac.com
+                  </span>
+                </div>
+                <div className="relative aspect-[16/10] overflow-hidden bg-white sm:aspect-[16/9]">
+                  <iframe
+                    title="Novation HVAC website preview"
+                    src="https://novationhvac.com"
+                    loading="lazy"
+                    scrolling="no"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    sandbox="allow-scripts allow-same-origin allow-popups"
+                    className="pointer-events-none h-full w-full border-0"
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-oled/35 to-transparent"
+                    aria-hidden
+                  />
                 </div>
               </div>
               <p className="mt-3 text-xs leading-relaxed text-muted">
