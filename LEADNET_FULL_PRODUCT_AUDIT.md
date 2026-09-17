@@ -7,7 +7,7 @@ Current implementation notes:
 - Pricing and terms are centralized in `src/lib/leadnet-offer.ts`.
 - Agreement HTML is generated from the accepted order snapshot in `src/lib/capture-agreement.ts`.
 - Accepted agreement content, hash, order snapshot, Stripe ids, and service states are persisted in the database.
-- Checkout uses Stripe test mode only in this implementation.
+- Checkout uses the configured Stripe key mode; production must use matching `sk_live_` and `pk_live_` keys.
 - Monthly website orders create a managed website subscription with a one-time setup invoice item.
 - Upfront website orders create a one-time payment and only save the payment method for future use when optional future subscriptions are selected.
 - Website Care and LeadNet Speed To Lead are activation-time subscriptions and are not silently created during website checkout.

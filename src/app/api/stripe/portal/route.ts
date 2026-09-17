@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const stripe = getStripe();
-  if (!stripe || !process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")) {
-    return NextResponse.json({ error: "Stripe test billing is not configured." }, { status: 503 });
+  if (!stripe) {
+    return NextResponse.json({ error: "Stripe billing is not configured." }, { status: 503 });
   }
 
   const body = await request.json().catch(() => null);
@@ -30,4 +30,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ url: session.url });
 }
-
