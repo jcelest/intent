@@ -6,7 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const cases = [
   { name: "Business monthly", dueToday: 49400, websiteRecurring: 19700 },
   { name: "Expanded monthly", dueToday: 79400, websiteRecurring: 29700 },
-  { name: "Business upfront + care + LeadNet", dueToday: 149700, futureRecurring: 19800 },
+  { name: "Business upfront + care + LeadNet", dueToday: 149700, futureRecurring: 24600 },
   { name: "Expanded upfront without add-ons", dueToday: 249700, futureRecurring: 0 },
 ];
 
@@ -15,7 +15,7 @@ function staticChecks() {
   const checkoutSource = fs.readFileSync("src/app/api/stripe/intent/route.ts", "utf8");
   const agreementSource = fs.readFileSync("src/lib/capture-agreement.ts", "utf8");
 
-  const expectedAmounts = [29700, 19700, 149700, 49700, 29700, 249700, 4900, 14900];
+  const expectedAmounts = [29700, 19700, 149700, 49700, 29700, 249700, 4900];
   const amountsPresent = expectedAmounts.every((amount) => offerSource.includes(String(amount)));
   const noRetiredTrial = !checkoutSource.includes("trial_period_days");
   const futureActivationDisclosed =

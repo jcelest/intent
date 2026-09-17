@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import {
   calculateLeadNetOrder,
   normalizeLeadNetSelection,
@@ -127,8 +127,8 @@ export function BeginFlow({
           <CheckRow
             checked={leadNetSelected}
             onChange={setLeadNetSelected}
-            title="LeadNet Follow-Up"
-            detail="$149/month beginning at LeadNet activation. No separate setup fee in this website bundle."
+            title="LeadNet Speed To Lead"
+            detail="$197/month beginning at LeadNet activation. No separate setup fee in this website bundle."
           />
           {paymentMode === "upfront" ? (
             <CheckRow
@@ -261,13 +261,42 @@ function CheckRow({
   detail: string;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 rounded-lg border border-white/10 bg-black/20 p-4">
+    <label
+      className={cn(
+        "group flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors",
+        checked
+          ? "border-accent bg-accent/12 shadow-[0_0_24px_rgba(34,211,238,0.12)]"
+          : "border-white/10 bg-black/20 hover:border-accent/45 hover:bg-black/30"
+      )}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 accent-cyan-300"
+        className="sr-only"
       />
+      <span
+        className={cn(
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+          checked
+            ? "border-accent bg-accent text-oled"
+            : "border-white/25 bg-oled/70 group-hover:border-accent/60"
+        )}
+        aria-hidden
+      >
+        {checked ? (
+          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5">
+            <path
+              d="M3.2 8.3 6.4 11.3 12.8 4.7"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.4"
+            />
+          </svg>
+        ) : null}
+      </span>
       <span>
         <span className="block font-semibold">{title}</span>
         <span className="mt-1 block text-sm leading-relaxed text-foreground/65">{detail}</span>

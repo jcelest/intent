@@ -90,7 +90,7 @@ export default function TermsPage() {
         <p>
           Upfront website buyers can optionally add Website Care at{" "}
           {formatCurrency(WEBSITE_CARE.monthlyCents)}/month beginning when hosting
-          service is activated. LeadNet Follow-Up is optional software at{" "}
+          service is activated. LeadNet Speed To Lead is optional software at{" "}
           {formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month beginning when
           LeadNet is activated. These future activation subscriptions are not
           charged at website checkout.
@@ -177,7 +177,7 @@ export default function TermsPage() {
         <p>
           If you start a website order through this site, that confirmation is
           payment for the engagement described on that page and in the accepted
-          checkout agreement. Optional Website Care and LeadNet Follow-Up begin
+          checkout agreement. Optional Website Care and LeadNet Speed To Lead begin
           billing only when activated. Refunds apply only if a signed contract,
           accepted checkout agreement, existing approved refund terms, or
           applicable law says so. Card processing is handled by secure

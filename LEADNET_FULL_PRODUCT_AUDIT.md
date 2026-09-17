@@ -10,5 +10,5 @@ Current implementation notes:
 - Checkout uses Stripe test mode only in this implementation.
 - Monthly website orders create a managed website subscription with a one-time setup invoice item.
 - Upfront website orders create a one-time payment and only save the payment method for future use when optional future subscriptions are selected.
-- Website Care and LeadNet Follow-Up are activation-time subscriptions and are not silently created during website checkout.
+- Website Care and LeadNet Speed To Lead are activation-time subscriptions and are not silently created during website checkout.
 - Automatic SMS overage billing is disabled until the companion LeadNet application provides trustworthy usage enforcement and reconciliation.

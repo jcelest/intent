@@ -54,7 +54,7 @@ export function LeadNetSocialComparison() {
               Optional add-ons
             </p>
             <p className="mt-4 text-[34px] font-bold">
-              LeadNet Follow-Up: {formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/mo at activation
+              LeadNet Speed To Lead: {formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/mo at activation
             </p>
             <p className="mt-3 text-[27px] text-zinc-300">
               Website Care for upfront buyers: {formatCurrency(WEBSITE_CARE.monthlyCents)}/mo at hosting activation

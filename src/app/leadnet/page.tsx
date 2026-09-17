@@ -9,7 +9,7 @@ import {
 } from "@/lib/leadnet-offer";
 import { SITE_URL, BRAND_NAME } from "@/lib/seo";
 
-const leadNetDescription = `Professionally built business websites with optional LeadNet Follow-Up. ${leadNetWebsitePricingMetaLine()} from ${BRAND_NAME}.`;
+const leadNetDescription = `Professionally built business websites with optional LeadNet Speed To Lead. ${leadNetWebsitePricingMetaLine()} from ${BRAND_NAME}.`;
 
 export const metadata: Metadata = {
   title: "LeadNet Websites | Business Websites & Optional Follow-Up",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "business website",
     "contractor website",
     "website care",
-    "LeadNet Follow-Up",
+    "LeadNet Speed To Lead",
     leadNetWebsitePricingSummary(),
   ],
   alternates: { canonical: `${SITE_URL}/leadnet` },

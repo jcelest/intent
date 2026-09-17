@@ -301,7 +301,7 @@ export function OfferingContent() {
             </h3>
             <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
               Business websites with a search-ready foundation and optional
-              LeadNet Follow-Up for texting, intake, owner replies, review-request
+              LeadNet Speed To Lead for texting, intake, owner replies, review-request
               tools, and reactivation access where operational. {leadNetWebsitePricingSummary()}.
               Website Care is optional for upfront buyers only.
             </p>

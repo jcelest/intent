@@ -7,7 +7,7 @@ Current checkout scope:
 - Business Website: $297 setup + $197/month, or $1,497 upfront.
 - Expanded Website: $497 setup + $297/month, or $2,497 upfront.
 - Website Care: optional for upfront buyers only, $49/month beginning when hosting service is activated.
-- LeadNet Follow-Up: optional, $149/month beginning when LeadNet is activated.
+- LeadNet Speed To Lead: optional, $197/month beginning when LeadNet is activated.
 - No 12-payment website plans, no minimum subscription term, no automatic ownership transfer after a payment count, and no automatic price reduction after a year.
 - LeadNet includes 1,000 SMS segments per billing month once active. Additional segments are $0.03 each only inside an expressly approved overage budget. Default approved overage budget is $0.
 

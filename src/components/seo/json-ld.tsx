@@ -174,7 +174,7 @@ export function LeadNetOfferJsonLd() {
     "@type": "Product",
     name: "LeadNet Websites",
     description:
-      "Professionally built business websites with a search-ready foundation and optional LeadNet Follow-Up software.",
+      "Professionally built business websites with a search-ready foundation and optional LeadNet Speed To Lead software.",
     brand: {
       "@type": "Brand",
       name: BRAND_NAME,
@@ -206,7 +206,7 @@ export function LeadNetOfferJsonLd() {
       },
       {
         "@type": "PropertyValue",
-        name: "Optional LeadNet Follow-Up",
+        name: "Optional LeadNet Speed To Lead",
         value: `$${LEADNET_FOLLOW_UP.monthlyCents / 100}/month beginning at activation`,
       },
     ],

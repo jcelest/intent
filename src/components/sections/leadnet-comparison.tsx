@@ -277,7 +277,7 @@ export function LeadNetComparison() {
                 </div>
                 <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-accent/20">
                   <span className="text-xs text-foreground/80">
-                    LeadNet Follow-Up (Starts at activation)
+                    LeadNet Speed To Lead (Starts at activation)
                   </span>
                   <span className="text-xl font-bold text-foreground">
                     {formatCurrency(LEADNET_MONTHLY_CENTS)}/mo

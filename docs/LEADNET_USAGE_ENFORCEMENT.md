@@ -1,6 +1,6 @@
 # LeadNet Usage Enforcement Requirements
 
-LeadNet Follow-Up activation is intentionally blocked in this website checkout until the companion LeadNet application supplies trustworthy SMS usage controls.
+LeadNet Speed To Lead activation is intentionally blocked in this website checkout until the companion LeadNet application supplies trustworthy SMS usage controls.
 
 Required companion-app capabilities:
 
@@ -18,4 +18,3 @@ Required companion-app capabilities:
 - Audit trail tying usage records to the activated Stripe subscription and customer order.
 
 MMS and voice are outside the current SMS allowance. Do not publish or bill MMS or voice rates until the business approves those terms.
-

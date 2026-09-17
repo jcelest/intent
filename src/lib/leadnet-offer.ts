@@ -1,5 +1,5 @@
-export const LEADNET_OFFER_VERSION = "leadnet-website-first-2026-09";
-export const LEADNET_AGREEMENT_VERSION = "leadnet-website-first-2026-09-v1";
+export const LEADNET_OFFER_VERSION = "leadnet-website-first-2026-09-speed-to-lead";
+export const LEADNET_AGREEMENT_VERSION = "leadnet-website-first-2026-09-speed-to-lead-v1";
 export const OFFER_CURRENCY = "usd";
 
 export type WebsitePackageId = "business" | "expanded";
@@ -100,13 +100,13 @@ export const WEBSITE_CARE = {
 } as const;
 
 export const LEADNET_FOLLOW_UP = {
-  id: "leadnet-follow-up",
-  name: "LeadNet Follow-Up",
-  monthlyCents: 14900,
+  id: "leadnet-speed-to-lead",
+  name: "LeadNet Speed To Lead",
+  monthlyCents: 19700,
   includedSmsSegments: 1000,
   overageCentsPerSegment: 3,
   defaultApprovedOverageBudgetCents: 0,
-  starts: "Begins when LeadNet Follow-Up is activated.",
+  starts: "Begins when LeadNet Speed To Lead is activated.",
 } as const;
 
 export const WEBSITE_INCLUDED = [
@@ -225,12 +225,12 @@ export function calculateLeadNetOrder(input: Partial<LeadNetOrderSelection>): Le
         ? [
             "Setup and the first managed-website month are collected at checkout.",
             "Later managed-website billing renews monthly on the subscription billing anniversary.",
-            "LeadNet Follow-Up, if selected, begins billing only when that service is activated.",
+            "LeadNet Speed To Lead, if selected, begins billing only when that service is activated.",
           ]
         : [
             "The website purchase price is collected at checkout.",
             "Website Care, if selected, begins billing only when hosting service is activated.",
-            "LeadNet Follow-Up, if selected, begins billing only when that service is activated.",
+            "LeadNet Speed To Lead, if selected, begins billing only when that service is activated.",
           ],
     ownershipSummary:
       selection.paymentMode === "monthly"
@@ -249,10 +249,9 @@ export function calculateLeadNetOrder(input: Partial<LeadNetOrderSelection>): Le
 }
 
 export function leadNetWebsitePricingSummary() {
-  return "Business Website: $297 setup + $197/month or $1,497 upfront. Expanded Website: $497 setup + $297/month or $2,497 upfront. Optional LeadNet Follow-Up: $149/month at activation.";
+  return "Business Website: $297 setup + $197/month or $1,497 upfront. Expanded Website: $497 setup + $297/month or $2,497 upfront. Optional LeadNet Speed To Lead: $197/month at activation.";
 }
 
 export function leadNetWebsitePricingMetaLine() {
   return "Business websites from $297 setup + $197/month or $1,497 upfront";
 }
-

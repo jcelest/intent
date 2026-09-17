@@ -60,8 +60,8 @@ export function leadNetWebsiteAgreementHtml(input: {
     <h2 style="font-size: 16px;">6. Website Care</h2>
     <p>Website Care is available only to upfront website buyers. It is $49/month and includes hosting, technical maintenance, and up to 30 minutes of content edits per billing month. Unused edit time does not roll over. New pages, redesigns, and additional functionality require a separate quote. Monthly website customers do not receive a second Website Care charge.</p>
 
-    <h2 style="font-size: 16px;">7. LeadNet Follow-Up</h2>
-    <p>LeadNet Follow-Up is optional software billed at <strong>${formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month</strong> beginning only when LeadNet is activated. Standard setup is included for website customers. LeadNet cancellation is independent of any website or care subscription.</p>
+    <h2 style="font-size: 16px;">7. LeadNet Speed To Lead</h2>
+    <p>LeadNet Speed To Lead is optional software billed at <strong>${formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month</strong> beginning only when LeadNet is activated. Standard setup is included for website customers. LeadNet cancellation is independent of any website or care subscription.</p>
     <p>Verified included capabilities are one business texting number, SMS inbox and owner replies, configured text-back and intake, review-request tools, self-service reactivation access where operational, and ${LEADNET_FOLLOW_UP.includedSmsSegments.toLocaleString()} SMS segments per billing month, inbound and outbound combined. Included segments do not roll over. Long messages may use multiple segments. Additional SMS segments are $0.03 each only within an expressly approved overage budget. The default approved overage budget is $0, so no unapproved SMS overage billing is authorized.</p>
 
     <h2 style="font-size: 16px;">8. Ownership and cancellation</h2>

@@ -19,7 +19,7 @@ export type Engagement = {
   amountCents: number | null;
 };
 
-/** Compatibility export. New LeadNet Follow-Up billing begins only when activated. */
+/** Compatibility export. New LeadNet Speed To Lead billing begins only when activated. */
 export const LEADNET_MONTHLY_CENTS = LEADNET_FOLLOW_UP.monthlyCents;
 export const LEADNET_INCLUDED_DAYS = 0;
 
@@ -160,12 +160,12 @@ export function getEngagement(id: EngagementId): Engagement {
     kicker: "Website first",
     title: "LeadNet Websites",
     summary:
-      "Business websites with a search-ready foundation and optional LeadNet Follow-Up software.",
+      "Business websites with a search-ready foundation and optional LeadNet Speed To Lead software.",
     points: [
       "Business Website or Expanded Website",
       "Monthly or upfront payment mode",
       "Optional Website Care for upfront buyers",
-      "Optional LeadNet Follow-Up at activation",
+      "Optional LeadNet Speed To Lead at activation",
       leadNetWebsitePricingSummary(),
     ],
     confirmLabel: "Configure website",

@@ -11,7 +11,7 @@ import {
   type WebsitePackageId,
   type WebsitePaymentMode,
 } from "@/lib/leadnet-offer";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { LeadNetDemoVideo } from "@/components/sections/leadnet-demo-video";
 import { BRAND_NAME } from "@/lib/seo";
 
@@ -26,7 +26,7 @@ const FAQS = [
   {
     question: "Is LeadNet included in the website price?",
     answer:
-      "No. LeadNet Follow-Up is optional software at $149/month. Standard setup is included for website customers, and billing begins only when LeadNet is activated.",
+      "No. LeadNet Speed To Lead is optional software at $197/month. Standard setup is included for website customers, and billing begins only when LeadNet is activated.",
   },
   {
     question: "Do monthly website plans have a minimum term?",
@@ -87,7 +87,7 @@ export function CaptureContent() {
             </motion.h1>
             <p className="mt-5 max-w-2xl text-lg leading-relaxed text-foreground/80">
               {BRAND_NAME} builds professional business websites with a search-ready
-              foundation. Add LeadNet Follow-Up only if you want texting, intake,
+              foundation. Add LeadNet Speed To Lead only if you want texting, intake,
               replies, and review-request tools after the website order.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -247,7 +247,7 @@ export function CaptureContent() {
               <CheckRow
                 checked={leadNetSelected}
                 onChange={setLeadNetSelected}
-                title="Add LeadNet Follow-Up"
+                title="Add LeadNet Speed To Lead"
                 detail={`${formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month beginning at activation. Includes one business texting number, inbox, owner replies, configured text-back and intake, review-request tools, and ${LEADNET_FOLLOW_UP.includedSmsSegments.toLocaleString()} SMS segments per billing month.`}
               />
               {paymentMode === "upfront" ? (
@@ -318,7 +318,7 @@ export function CaptureContent() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-semibold">Optional LeadNet demonstration</h2>
           <p className="mt-3 text-foreground/75">
-            LeadNet Follow-Up is separate from the base website. It helps handle
+            LeadNet Speed To Lead is separate from the base website. It helps handle
             text-back, intake, replies, review requests, and self-service reactivation
             access where operational.
           </p>
@@ -404,13 +404,42 @@ function CheckRow({
   detail: string;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 rounded-lg border border-white/10 bg-black/20 p-4">
+    <label
+      className={cn(
+        "group flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors",
+        checked
+          ? "border-accent bg-accent/12 shadow-[0_0_24px_rgba(34,211,238,0.12)]"
+          : "border-white/10 bg-black/20 hover:border-accent/45 hover:bg-black/30"
+      )}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 accent-cyan-300"
+        className="sr-only"
       />
+      <span
+        className={cn(
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+          checked
+            ? "border-accent bg-accent text-oled"
+            : "border-white/25 bg-oled/70 group-hover:border-accent/60"
+        )}
+        aria-hidden
+      >
+        {checked ? (
+          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5">
+            <path
+              d="M3.2 8.3 6.4 11.3 12.8 4.7"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.4"
+            />
+          </svg>
+        ) : null}
+      </span>
       <span>
         <span className="block font-semibold">{title}</span>
         <span className="mt-1 block text-sm leading-relaxed text-foreground/65">{detail}</span>

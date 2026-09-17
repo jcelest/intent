@@ -9,7 +9,7 @@ const EXPECTED = {
   expandedMonthlyDueToday: 79400,
   businessUpfront: 149700,
   expandedUpfront: 249700,
-  leadNetMonthly: 14900,
+  leadNetMonthly: 19700,
   careMonthly: 4900,
 };
 

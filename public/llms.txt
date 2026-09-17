@@ -4,7 +4,7 @@
 
 ## Summary
 
-Intent Revenue builds professional business websites with a search-ready foundation and offers optional LeadNet Follow-Up software for texting, intake, owner replies, review-request tools, and reactivation access where operational.
+Intent Revenue builds professional business websites with a search-ready foundation and offers optional LeadNet Speed To Lead software for texting, intake, owner replies, review-request tools, and reactivation access where operational.
 
 ## LeadNet Websites current pricing
 
@@ -13,7 +13,7 @@ Intent Revenue builds professional business websites with a search-ready foundat
 - **Expanded Website monthly:** $497 setup + $297/month. Setup and first month are collected at checkout. No minimum term.
 - **Expanded Website upfront:** $2,497.
 - **Website Care:** Optional for upfront buyers only, $49/month beginning when hosting service is activated.
-- **LeadNet Follow-Up:** Optional, $149/month beginning when LeadNet is activated. Standard setup is included for website customers.
+- **LeadNet Speed To Lead:** Optional, $197/month beginning when LeadNet is activated. Standard setup is included for website customers.
 - **SMS allowance:** 1,000 SMS segments per billing month, inbound and outbound combined. Additional SMS segments are $0.03 each only within an expressly approved overage budget. Default approved overage budget is $0.
 - **Product page:** https://intentrev.net/leadnet
 - **Start checkout:** https://intentrev.net/begin
