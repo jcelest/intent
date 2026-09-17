@@ -21,7 +21,7 @@ export default function BeginSignedPage() {
           stage="done"
           kicker="Order submitted"
           title="We have the signed order."
-          body="Stripe will confirm the payment through the secure webhook before we mark the order paid. We will review the onboarding details, confirm any missing access through secure handoff, and schedule the website build. Optional Care and LeadNet billing begin only when those services are activated."
+          body="Your payment is being securely confirmed. We will review the onboarding details, confirm any missing access through secure handoff, and schedule the website build. Optional Care and LeadNet billing begin only when those services are activated."
         >
           <div className="flex flex-col items-center gap-8">
             <BeginProgress />
