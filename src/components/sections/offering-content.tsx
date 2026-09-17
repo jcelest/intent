@@ -10,11 +10,7 @@ import {
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/seo";
-import {
-  CAPTURE_ADDONS,
-  leadNetPricingSummary,
-} from "@/lib/engagements";
-import { formatCurrency } from "@/lib/utils";
+import { leadNetWebsitePricingSummary } from "@/lib/leadnet-offer";
 import {
   CaptureFlowVisual,
   InclusionMark,
@@ -304,13 +300,10 @@ export function OfferingContent() {
               Launching now: Intent LeadNet
             </h3>
             <p className="mt-3 text-sm sm:text-base text-foreground/80 leading-relaxed">
-              Speed-to-lead auto-replies, missed-call recovery, database reactivation
-              engine, Google review SMS, and a live dispatch dashboard. {leadNetPricingSummary()}.
-              Every lead stays in. Your Company gets its own app.
-              Custom styling is {formatCurrency(CAPTURE_ADDONS[0].amountCents)}. No watermark is{" "}
-              {formatCurrency(CAPTURE_ADDONS[1].amountCents)}. Keep the public
-              number with a private second line you pay the carrier for, or put
-              the tracking number on Google and keep the phone as it is.
+              Business websites with a search-ready foundation and optional
+              LeadNet Follow-Up for texting, intake, owner replies, review-request
+              tools, and reactivation access where operational. {leadNetWebsitePricingSummary()}.
+              Website Care is optional for upfront buyers only.
             </p>
             <div className="mt-5 opacity-90">
               <CaptureFlowVisual />

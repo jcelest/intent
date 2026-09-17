@@ -1,76 +1,89 @@
 import { BRAND_NAME } from "@/lib/seo";
 import {
-  CAPTURE_ADDONS,
-  LEADNET_INCLUDED_DAYS,
-  LEADNET_MONTHLY_CENTS,
-  LEADNET_PHONE_PATHS,
-  addonDisplayCents,
-  leadNetSprintCents,
-  type CaptureAddonId,
-} from "@/lib/engagements";
+  LEADNET_AGREEMENT_VERSION,
+  LEADNET_FOLLOW_UP,
+  OFFER_EXCLUSIONS,
+  WEBSITE_INCLUDED,
+  type LeadNetCustomerDetails,
+  type LeadNetOrderSnapshot,
+} from "@/lib/leadnet-offer";
 import { formatCurrency } from "@/lib/utils";
 
-export function captureAgreementHtml(input: {
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  amountCents: number;
-  addons: CaptureAddonId[];
+export function leadNetWebsiteAgreementHtml(input: {
+  details: LeadNetCustomerDetails;
+  order: LeadNetOrderSnapshot;
 }) {
-  const addonLines = input.addons.length
-    ? CAPTURE_ADDONS.filter((addon) => input.addons.includes(addon.id))
-        .map(
-          (addon) =>
-            `<li>${addon.label} (${formatCurrency(addonDisplayCents(addon.amountCents))})</li>`
-        )
+  const { details, order } = input;
+  const todayLines = order.oneTimeCharges
+    .map((charge) => `<li>${escapeHtml(charge.label)}: <strong>${formatCurrency(charge.amountCents)}</strong></li>`)
+    .join("");
+  const recurringLines = order.recurringWebsiteCharges.length
+    ? order.recurringWebsiteCharges
+        .map((charge) => `<li>${escapeHtml(charge.label)}: <strong>${formatCurrency(charge.amountCents)}/month</strong></li>`)
         .join("")
-    : "<li>None</li>";
+    : "<li>No recurring website subscription from this order.</li>";
+  const activationLines = order.activationCharges.length
+    ? order.activationCharges
+        .map((charge) => `<li>${escapeHtml(charge.label)}: <strong>${formatCurrency(charge.amountCents)}/month</strong>, beginning only when that service is activated.</li>`)
+        .join("")
+    : "<li>No optional future activation subscriptions selected.</li>";
 
-  return `<div style="font-family: Georgia, serif; color: #111; line-height: 1.5; max-width: 720px; margin: 0 auto; padding: 32px; background: white; border-radius: 8px;">
-    <h1 style="font-size: 22px;">${BRAND_NAME} LeadNet Agreement</h1>
-    <p>This agreement is between ${BRAND_NAME} ("Intent") and the client named below.</p>
-    <p><strong>Client:</strong> ${escapeHtml(input.company)}<br/>
-    <strong>Signer:</strong> ${escapeHtml(input.name)}<br/>
-    <strong>Email:</strong> ${escapeHtml(input.email)}<br/>
-    <strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
-    <h2 style="font-size: 16px;">1. Service</h2>
-    <p>Intent will set up Intent LeadNet for the client: Your Company's own LeadNet application, a branded intake page, speed-to-lead auto-replies, a tracking number with missed-call text-back, a dormant customer database reactivation engine, owner lead alerts, Google review SMS, and a company dashboard so inbound and reactivated jobs stay in the system. This is a productized sprint, not an assignment of software ownership unless a later signed contract says otherwise.</p>
-    <h2 style="font-size: 16px;">2. Payment</h2>
-    <p>The client pays an initial implementation charge of <strong>${formatCurrency(input.amountCents)}</strong> upon checkout today. This initial payment covers:</p>
-    <ul>
-      <li>Intent LeadNet base implementation (${formatCurrency(leadNetSprintCents())})</li>
-      ${addonLines}
-    </ul>
-    <p>Any selected add-ons affect only this initial implementation charge unless explicitly stated otherwise. The first 30 days of ongoing LeadNet service are included with this implementation payment.</p>
-    <p>Beginning 30 days after the initial implementation payment, the client will be charged <strong>${formatCurrency(LEADNET_MONTHLY_CENTS)} per month</strong> for ongoing LeadNet service. The monthly service covers the tracking number, voice on that number, missed-call text-back, owner alerts, and Google review SMS under ordinary trade volume.</p>
-    <p>The client expressly authorizes Intent Revenue and its payment processor, Stripe, to securely store and use the payment method submitted during checkout for these recurring monthly charges. The subscription automatically continues month-to-month until canceled.</p>
-    <h2 style="font-size: 16px;">3. What is included</h2>
-    <p>Your Company's own LeadNet application, branded intake, tracking number and missed-call text-back, owner SMS on new leads, Google review SMS after the job, and a company dashboard with open estimated job value. Voice can go live after the tracking number is active. Public SMS may wait on carrier registration (10DLC or toll-free verification). Intent will start that registration promptly. The first ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are included in the sprint.</p>
-    <h2 style="font-size: 16px;">4. Phone setup</h2>
-    <p>LeadNet uses a tracking number Intent provides. The client chooses one of two setups at kickoff. Neither setup is sold as an add-on. Intent does not sell cell plans.</p>
-    <p><strong>${LEADNET_PHONE_PATHS[0].title}.</strong> ${LEADNET_PHONE_PATHS[0].body}</p>
-    <p><strong>${LEADNET_PHONE_PATHS[1].title}.</strong> ${LEADNET_PHONE_PATHS[1].body}</p>
-    <h2 style="font-size: 16px;">5. What is not included</h2>
-    <p>Intent does not guarantee a number of leads, reviews, booked jobs, or revenue. Paid ads, websites, and ongoing partnership work are separate unless a later signed writing says otherwise. A second cell line, eSIM, or carrier add-a-line is paid by the client to their carrier, not to Intent. Unusual voice or SMS volume may be billed extra or moved to a higher plan. Intent will contact the client before extra usage charges.</p>
-    <h2 style="font-size: 16px;">6. Software ownership</h2>
-    <p>Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Payment of the sprint does not transfer ownership.</p>
-    <h2 style="font-size: 16px;">7. Client materials</h2>
-    <p>The client's name, logo, job data, and customer lists remain the client's. Intent may use them to perform the work.</p>
-    <h2 style="font-size: 16px;">8. Add-ons</h2>
-    <p>Custom application styling and no watermark are included only if listed in section 2. No watermark removes the Designed with Intent Revenue mark from the live LeadNet app.</p>
-    <h2 style="font-size: 16px;">9. Refunds and cancel</h2>
-    <p>The LeadNet initial implementation charge is collected before this agreement is signed. This implementation payment is non-refundable once setup has started, except as required by law or a later signed writing. The client may cancel the ongoing month-to-month subscription at any time by contacting Intent Revenue. Cancellation stops all future recurring charges but does not retroactively refund the initial implementation payment or any completed monthly billing periods. After cancellation, Intent may release the tracking number.</p>
-    <h2 style="font-size: 16px;">10. Law</h2>
-    <p>Florida law governs this agreement.</p>
-    <h2 style="font-size: 16px;">11. TCPA &amp; Messaging Compliance</h2>
-    <p>The client represents and warrants that it has obtained all necessary prior express consents, opt-ins, and legal authorizations required by applicable federal and state laws (including the Telephone Consumer Protection Act and CTIA carrier standards) for all customer lists, contacts, and phone numbers uploaded or messaged through LeadNet. The client is the sole sender of record and remains fully responsible for its customer communications and consent records.</p>
-    <h2 style="font-size: 16px;">12. Limitation of Liability &amp; Indemnity</h2>
-    <p>To the maximum extent permitted by law, Intent&apos;s total aggregate liability arising out of or related to this agreement or the LeadNet service is limited to the fees actually paid by the client to Intent in the three (3) months preceding the claim. In no event is Intent liable for lost profits, lost leads, indirect, special, or consequential damages. The client agrees to indemnify, defend, and hold harmless Intent from and against any third-party claims, carrier fines, regulatory penalties, or legal expenses arising from the client&apos;s customer lists, messaging practices, or business operations.</p>
-    <h2 style="font-size: 16px;">13. Third-Party Services &amp; Carriers</h2>
-    <p>LeadNet connects with third-party telecommunications carriers, messaging gateways, and platforms. Intent is not liable for carrier network outages, third-party spam filtering, carrier 10DLC vetting timelines, or third-party platform API modifications.</p>
-    <h2 style="font-size: 16px;">14. Corporate Authority</h2>
-    <p>The individual signing below affirms that they have the full legal power and corporate authority to bind the client to this agreement.</p>
+  return `<div style="font-family: Georgia, serif; color: #111; line-height: 1.55; max-width: 760px; margin: 0 auto; padding: 32px; background: white; border-radius: 8px;">
+    <h1 style="font-size: 22px;">${BRAND_NAME} Website and LeadNet Agreement</h1>
+    <p><strong>Agreement version:</strong> ${LEADNET_AGREEMENT_VERSION}</p>
+    <p>This agreement is between ${BRAND_NAME} ("Intent") and the client named below. It reflects the order accepted at checkout and is not legal-review language.</p>
+    <p><strong>Client:</strong> ${escapeHtml(details.company)}<br/>
+    <strong>Signer:</strong> ${escapeHtml(details.name)}<br/>
+    <strong>Email:</strong> ${escapeHtml(details.email)}<br/>
+    <strong>Phone:</strong> ${escapeHtml(details.phone)}</p>
+
+    <h2 style="font-size: 16px;">1. Selected website package</h2>
+    <p>The client selected <strong>${escapeHtml(order.package.name)}</strong> in <strong>${order.selection.paymentMode}</strong> mode. The package supports up to <strong>${order.package.pageLimit}</strong> agreed public content pages. The exact page list will be agreed before production.</p>
+    <p><strong>Business context:</strong> ${escapeHtml(details.industry)}. <strong>Services:</strong> ${escapeHtml(details.services)}. <strong>Service areas:</strong> ${escapeHtml(details.serviceAreas)}. <strong>Domain status:</strong> ${escapeHtml(details.domainStatus)}.</p>
+
+    <h2 style="font-size: 16px;">2. Included website work</h2>
+    <ul>${WEBSITE_INCLUDED.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    <p>${escapeHtml(order.revisionScope)}</p>
+
+    <h2 style="font-size: 16px;">3. Charges due today</h2>
+    <p>The client authorizes Intent and Stripe to charge <strong>${formatCurrency(order.dueTodayCents)}</strong> at checkout before applicable taxes.</p>
+    <ul>${todayLines}</ul>
+
+    <h2 style="font-size: 16px;">4. Recurring website charges</h2>
+    <ul>${recurringLines}</ul>
+    <p>For monthly website orders, setup and the first month are collected at checkout. Later website billing renews monthly on the subscription billing anniversary. Monthly website subscriptions have no minimum term or minimum payment count. Setup fees do not recur.</p>
+
+    <h2 style="font-size: 16px;">5. Optional services that start later</h2>
+    <ul>${activationLines}</ul>
+    <p>Future activation subscriptions are not charged today. If selected, the client authorizes Intent and Stripe to securely store and use the payment method submitted during checkout for the selected future recurring charges once the applicable service is activated.</p>
+
+    <h2 style="font-size: 16px;">6. Website Care</h2>
+    <p>Website Care is available only to upfront website buyers. It is $49/month and includes hosting, technical maintenance, and up to 30 minutes of content edits per billing month. Unused edit time does not roll over. New pages, redesigns, and additional functionality require a separate quote. Monthly website customers do not receive a second Website Care charge.</p>
+
+    <h2 style="font-size: 16px;">7. LeadNet Follow-Up</h2>
+    <p>LeadNet Follow-Up is optional software billed at <strong>${formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month</strong> beginning only when LeadNet is activated. Standard setup is included for website customers. LeadNet cancellation is independent of any website or care subscription.</p>
+    <p>Verified included capabilities are one business texting number, SMS inbox and owner replies, configured text-back and intake, review-request tools, self-service reactivation access where operational, and ${LEADNET_FOLLOW_UP.includedSmsSegments.toLocaleString()} SMS segments per billing month, inbound and outbound combined. Included segments do not roll over. Long messages may use multiple segments. Additional SMS segments are $0.03 each only within an expressly approved overage budget. The default approved overage budget is $0, so no unapproved SMS overage billing is authorized.</p>
+
+    <h2 style="font-size: 16px;">8. Ownership and cancellation</h2>
+    <p>${escapeHtml(order.ownershipSummary)}</p>
+    <p>${escapeHtml(order.cancellationSummary)}</p>
+    <p>The customer owns their domain and supplied business content from the beginning. Intent will not withhold the customer domain or original supplied content. Cancellation does not automatically mean refund, and any refund request is handled under existing approved refund terms or applicable law.</p>
+
+    <h2 style="font-size: 16px;">9. Client responsibilities</h2>
+    <p>The client will provide accurate business information, approvals, content, branding assets, and account access needed to perform the work. Passwords must not be submitted through ordinary forms; secure access handoff happens during onboarding.</p>
+
+    <h2 style="font-size: 16px;">10. Exclusions and no guarantees</h2>
+    <ul>${OFFER_EXCLUSIONS.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    <p>Intent does not guarantee rankings, indexing, traffic, leads, booked jobs, reviews, or revenue. Third-party platforms, search engines, carriers, analytics products, hosting providers, and payment processors may affect timing or functionality.</p>
+
+    <h2 style="font-size: 16px;">11. Messaging compliance</h2>
+    <p>The client represents that it has the necessary consent, authorization, and records for any customer messaging it initiates through LeadNet. The client remains responsible for its customer lists, message content, and compliance with applicable messaging laws and carrier standards.</p>
+
+    <h2 style="font-size: 16px;">12. Third-party licensing</h2>
+    <p>Transferred upfront website deliverables are subject to third-party licensing limits for fonts, plugins, frameworks, stock assets, hosting platforms, analytics tools, and other outside services.</p>
+
+    <h2 style="font-size: 16px;">13. Authority</h2>
+    <p>The signer affirms they have authority to bind the client to this agreement.</p>
   </div>`;
 }
 

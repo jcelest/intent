@@ -3,27 +3,29 @@ import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { CaptureContent } from "@/components/sections/capture-content";
 import { LeadNetOfferJsonLd } from "@/components/seo/json-ld";
-import { leadNetPricingMetaLine, leadNetPricingSummary } from "@/lib/engagements";
+import {
+  leadNetWebsitePricingMetaLine,
+  leadNetWebsitePricingSummary,
+} from "@/lib/leadnet-offer";
 import { SITE_URL, BRAND_NAME } from "@/lib/seo";
 
-const leadNetDescription = `Speed-to-lead auto-replies, missed-call recovery, customer database reactivation, and live dispatch. ${leadNetPricingMetaLine()} from ${BRAND_NAME}.`;
+const leadNetDescription = `Professionally built business websites with optional LeadNet Follow-Up. ${leadNetWebsitePricingMetaLine()} from ${BRAND_NAME}.`;
 
 export const metadata: Metadata = {
-  title: "Intent LeadNet | Revenue Capture & Reactivation Engine",
+  title: "LeadNet Websites | Business Websites & Optional Follow-Up",
   description: leadNetDescription,
   keywords: [
-    "Intent LeadNet",
+    "LeadNet websites",
     "Intent Revenue",
-    "contractor lead capture",
-    "missed call text back",
-    "database reactivation",
-    leadNetPricingSummary(),
-    "$497 LeadNet",
-    "$397 LeadNet monthly",
+    "business website",
+    "contractor website",
+    "website care",
+    "LeadNet Follow-Up",
+    leadNetWebsitePricingSummary(),
   ],
   alternates: { canonical: `${SITE_URL}/leadnet` },
   openGraph: {
-    title: `Intent LeadNet | Revenue Capture & Reactivation Engine`,
+    title: "LeadNet Websites | Business Websites & Optional Follow-Up",
     description: leadNetDescription,
     url: `${SITE_URL}/leadnet`,
   },

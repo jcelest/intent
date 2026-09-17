@@ -4,219 +4,426 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  CAPTURE_ADDONS,
-  LEADNET_INCLUDED_DAYS,
-  LEADNET_MONTHLY_CENTS,
-  addonAmount,
-  addonDisplayCents,
-  isLeadNetTestCheckout,
-  leadNetSprintCents,
-  type CaptureAddonId,
-} from "@/lib/engagements";
+  LEADNET_FOLLOW_UP,
+  WEBSITE_INCLUDED,
+  WEBSITE_PACKAGES,
+  calculateLeadNetOrder,
+  type WebsitePackageId,
+  type WebsitePaymentMode,
+} from "@/lib/leadnet-offer";
 import { formatCurrency } from "@/lib/utils";
 import { LeadNetDemoVideo } from "@/components/sections/leadnet-demo-video";
-import { LeadNetComparison } from "@/components/sections/leadnet-comparison";
 import { BRAND_NAME } from "@/lib/seo";
 
-const FEATURES = [
+const PROCESS = [
+  "Confirm the page list, services, service areas, and access needed.",
+  "Build the site around verified business information and a repeatable design system.",
+  "Review two consolidated prelaunch revision rounds.",
+  "Launch after approval, with hosting handled by the selected plan or by the customer.",
+];
+
+const FAQS = [
   {
-    title: "Your Company",
-    body: "Your Company gets its own LeadNet app. Intake, missed-call text-back, owner alerts, and the dashboard run as their system.",
+    question: "Is LeadNet included in the website price?",
+    answer:
+      "No. LeadNet Follow-Up is optional software at $149/month. Standard setup is included for website customers, and billing begins only when LeadNet is activated.",
   },
   {
-    title: "Missed-Call Text-Back",
-    body: "If they miss the ring, the homeowner gets a text from the tracking number. The lead stays in.",
+    question: "Do monthly website plans have a minimum term?",
+    answer:
+      "No. Monthly website customers can cancel future renewals anytime. Service continues through the paid billing period and hosting ends afterward unless a separate transition is arranged.",
   },
   {
-    title: "Database Reactivation Engine",
-    body: "Turn dormant past customer lists into booked jobs with 1-click seasonal campaigns and intelligent, carrier-safe automated delivery.",
+    question: "Do upfront buyers have to keep paying for hosting?",
+    answer:
+      "No. Upfront buyers can arrange their own hosting. Optional Website Care is $49/month and starts only when hosting service is activated.",
   },
   {
-    title: "Angi & Google LSA Auto-Replies",
-    body: "Instant 3-second automated text replies for Angi (HomeAdvisor) and Google Local Services Ads message leads so you engage homeowners before competitors.",
-  },
-  {
-    title: "Priority Intake",
-    body: "A mobile form for the job, system age, and a job value estimate. The tech does not type dollars.",
-  },
-  {
-    title: "Owner Alerts",
-    body: "New leads hit the owner’s phone. The dashboard shows open est. value as jobs move.",
-  },
-  {
-    title: "Google Review SMS",
-    body: "After the job, send the 5 star request from the same system. Follow-up is automatic.",
+    question: "Is this ongoing SEO management?",
+    answer:
+      "No. The website includes an initial search-ready foundation, titles, descriptions, crawlable content, sitemap, and appropriate structured data. Ongoing SEO management and ranking campaigns are separate work.",
   },
 ];
 
 export function CaptureContent() {
-  const sprintCents = leadNetSprintCents();
-  const testCheckout = isLeadNetTestCheckout();
-  const [addons, setAddons] = useState<CaptureAddonId[]>([]);
-  const total = useMemo(
-    () => sprintCents + addonAmount(addons),
-    [addons, sprintCents]
+  const [packageId, setPackageId] = useState<WebsitePackageId>("business");
+  const [paymentMode, setPaymentMode] = useState<WebsitePaymentMode>("monthly");
+  const [leadNetSelected, setLeadNetSelected] = useState(false);
+  const [careSelected, setCareSelected] = useState(false);
+
+  const order = useMemo(
+    () =>
+      calculateLeadNetOrder({
+        packageId,
+        paymentMode,
+        leadNetSelected,
+        careSelected,
+      }),
+    [careSelected, leadNetSelected, packageId, paymentMode]
   );
 
-  function toggle(id: CaptureAddonId) {
-    setAddons((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    );
-  }
-
-  const beginHref = `/begin?path=leadnet${addons
-    .map((id) => `&${id}=1`)
-    .join("")}`;
+  const beginHref = `/begin?package=${packageId}&mode=${paymentMode}&leadnet=${
+    leadNetSelected ? "1" : "0"
+  }&care=${paymentMode === "upfront" && careSelected ? "1" : "0"}`;
 
   return (
     <main className="pt-24 pb-16">
-      <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="font-mono text-xs uppercase tracking-[0.2em] text-accent"
-          >
-            Instant Speed-to-Lead &amp; Revenue Capture
-          </motion.p>
-          {testCheckout ? (
-            <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
-              Test checkout {formatCurrency(sprintCents)}. Not the live sprint.
-            </p>
-          ) : null}
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight"
-          >
-            Intent <span className="text-accent">LeadNet</span>
-          </motion.h1>
-          <p className="mt-3 text-sm sm:text-base tracking-wide text-foreground/80 font-medium">
-            Revenue Capture &amp; Reactivation Engine
-          </p>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-5 text-lg sm:text-xl text-foreground/80 max-w-2xl mx-auto leading-relaxed"
-          >
-            The speed-to-lead and database reactivation system {BRAND_NAME} is rolling out to
-            trades. Instant 3-second response. Dormant customer reactivation.
-            Nothing slips through the cracks.
-          </motion.p>
-        </div>
-        <div className="mt-10 max-w-4xl mx-auto">
-          <LeadNetDemoVideo />
-        </div>
-        <div className="mt-10 max-w-xl mx-auto text-center">
-          <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-accent">
-            {formatCurrency(sprintCents)}
-          </p>
-          <p className="mt-2 font-mono text-sm uppercase tracking-[0.2em] text-muted">
-            sprint
-          </p>
-          <p className="mt-3 text-base sm:text-lg text-foreground/80">
-            Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month after{" "}
-            {LEADNET_INCLUDED_DAYS} days.
-          </p>
-          <p className="mt-2 mx-auto max-w-md text-sm text-foreground/65 leading-relaxed">
-            Tracking number and texts are in the monthly. A second cell line,
-            if you use one, is paid to your carrier.
-          </p>
-          <a
-            href="#start-leadnet"
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
-          >
-            See pricing
-          </a>
-        </div>
-      </section>
-
-      <section className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-5xl mx-auto grid gap-4 sm:grid-cols-2">
-          {FEATURES.map((feature) => (
-            <article
-              key={feature.title}
-              className="rounded-xl border-2 border-accent/45 bg-card/80 p-6"
+      <section className="px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="font-mono text-xs uppercase tracking-[0.2em] text-accent"
             >
-              <h2 className="text-lg font-semibold">{feature.title}</h2>
-              <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
-                {feature.body}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <LeadNetComparison />
-
-      <section id="start-leadnet" className="px-4 sm:px-6 lg:px-8 py-12 scroll-mt-24">
-        <div className="max-w-xl mx-auto rounded-2xl border-2 border-accent/50 bg-card/90 p-6 sm:p-8">
-          <h2 className="text-2xl font-semibold">Start LeadNet</h2>
-          <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
-            {formatCurrency(sprintCents)}
-          </p>
-          <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-            base sprint
-          </p>
-          <p className="mt-4 text-sm text-foreground/75 leading-relaxed">
-            Complete setup of your company&apos;s dedicated LeadNet revenue capture
-            engine, tracking line, speed-to-lead auto-replies, and reactivation
-            system. First {LEADNET_INCLUDED_DAYS} days included.
-          </p>
-          <div className="mt-6 space-y-3">
-            {CAPTURE_ADDONS.map((addon) => {
-              const on = addons.includes(addon.id);
-              return (
-                <button
-                  key={addon.id}
-                  type="button"
-                  onClick={() => toggle(addon.id)}
-                  className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                    on
-                      ? "border-accent bg-accent/10"
-                      : "border-white/25 hover:border-accent/50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{addon.label}</p>
-                      <p className="mt-1 text-sm text-muted">{addon.detail}</p>
-                    </div>
-                    <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-accent shrink-0">
-                      {formatCurrency(addonDisplayCents(addon.amountCents))}
+              Websites first. Follow-up when you want it.
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl"
+            >
+              A better website. A simpler way to turn inquiries into customers.
+            </motion.h1>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-foreground/80">
+              {BRAND_NAME} builds professional business websites with a search-ready
+              foundation. Add LeadNet Follow-Up only if you want texting, intake,
+              replies, and review-request tools after the website order.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="#pricing"
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-6 py-3 font-semibold text-oled hover:bg-cyan-300"
+              >
+                Configure pricing
+              </a>
+              <a
+                href="#portfolio"
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 px-6 py-3 font-semibold text-foreground hover:border-accent/60"
+              >
+                See example
+              </a>
+            </div>
+          </div>
+          <div className="rounded-xl border border-accent/35 bg-card/85 p-5 shadow-[0_0_48px_rgba(34,211,238,0.12)]">
+            <div className="aspect-[16/10] overflow-hidden rounded-lg border border-white/10 bg-oled">
+              <div className="grid h-full grid-rows-[auto_1fr]">
+                <div className="flex items-center gap-2 border-b border-white/10 bg-slate-950 px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+                    Business website preview
+                  </span>
+                </div>
+                <div className="grid content-between bg-[linear-gradient(135deg,#020617,#062f3a_52%,#0f172a)] p-6">
+                  <div>
+                    <p className="font-mono text-xs uppercase tracking-[0.16em] text-cyan-200">
+                      Search-ready foundation
+                    </p>
+                    <p className="mt-3 max-w-sm text-3xl font-semibold leading-tight">
+                      Clear services. Easy contact. Built to be found.
                     </p>
                   </div>
-                </button>
-              );
-            })}
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Inquiry form", "Click-to-call", "Sitemap"].map((item) => (
+                      <div key={item} className="rounded-md border border-white/15 bg-white/8 p-3 text-xs text-foreground/80">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-foreground/70">
+              Managed monthly plans include hosting, maintenance, and up to 30
+              minutes of content edits per month. Upfront buyers can add care or
+              host elsewhere.
+            </p>
           </div>
-          <p className="mt-8 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-            Due to start
-          </p>
-          <p className="mt-1 text-6xl sm:text-7xl font-semibold tracking-tight text-accent">
-            {formatCurrency(total)}
-          </p>
-          <p className="mt-2 text-sm text-foreground/70 leading-relaxed">
-            Due today. Includes setup sprint and first {LEADNET_INCLUDED_DAYS} days.
-            Then {formatCurrency(LEADNET_MONTHLY_CENTS)}/month for continuous tracking
-            line, SMS auto-replies, and dashboard access. Cancel anytime.
-          </p>
-          <Link
-            href={beginHref}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
-          >
-            Pay and start LeadNet
-          </Link>
-          <p className="mt-4 text-center text-xs text-muted leading-relaxed">
-            Secure checkout. You will review and sign the standard
-            onboarding agreement immediately following payment. Subject to{" "}
-            <Link href="/terms" className="text-accent hover:underline">
-              Terms of Service
-            </Link>
-            .
-          </p>
         </div>
       </section>
+
+      <section id="portfolio" className="px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
+                Portfolio example
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold">Novation HVAC</h2>
+              <p className="mt-4 leading-relaxed text-foreground/75">
+                A real local-business website example focused on clear service
+                presentation, accessible contact paths, mobile-friendly layout,
+                and a crawlable content foundation.
+              </p>
+              <Link
+                href="https://novationhvac.com"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex font-semibold text-accent hover:underline"
+              >
+                Visit live website
+              </Link>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-card p-4">
+              <div className="aspect-[16/9] rounded-lg border border-white/10 bg-gradient-to-br from-slate-950 via-cyan-950/40 to-black p-6">
+                <div className="h-full rounded-lg border border-white/15 bg-white/[0.04] p-5">
+                  <p className="font-mono text-xs uppercase tracking-[0.16em] text-cyan-200">
+                    Novation HVAC
+                  </p>
+                  <p className="mt-4 max-w-lg text-4xl font-semibold">
+                    Heating and cooling services presented for real customers.
+                  </p>
+                  <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                    {["Services", "Service areas", "Contact"].map((item) => (
+                      <div key={item} className="rounded-md bg-black/35 p-4 text-sm text-foreground/75">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted">
+                Shown as a portfolio reference. No testimonials, revenue figures,
+                or sustained SEO-growth claims are made here.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-3xl font-semibold">What the website includes</h2>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {WEBSITE_INCLUDED.map((item) => (
+              <div key={item} className="rounded-lg border border-white/10 bg-card p-4 text-sm leading-relaxed text-foreground/78">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="px-4 py-12 sm:px-6 lg:px-8 scroll-mt-24">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_0.85fr]">
+          <div className="rounded-xl border-2 border-accent/40 bg-card/90 p-5 sm:p-7">
+            <h2 className="text-3xl font-semibold">Configure your website</h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <ToggleButton active={paymentMode === "monthly"} onClick={() => setPaymentMode("monthly")}>
+                Monthly
+              </ToggleButton>
+              <ToggleButton active={paymentMode === "upfront"} onClick={() => setPaymentMode("upfront")}>
+                Upfront
+              </ToggleButton>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {(Object.keys(WEBSITE_PACKAGES) as WebsitePackageId[]).map((id) => {
+                const item = WEBSITE_PACKAGES[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setPackageId(id)}
+                    className={`rounded-lg border p-5 text-left transition-colors ${
+                      packageId === id
+                        ? "border-accent bg-accent/12"
+                        : "border-white/15 hover:border-accent/50"
+                    }`}
+                  >
+                    <p className="text-lg font-semibold">{item.name}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/70">{item.summary}</p>
+                    <p className="mt-4 text-2xl font-semibold text-accent">
+                      {paymentMode === "monthly"
+                        ? `${formatCurrency(item.monthly.setupCents)} + ${formatCurrency(item.monthly.recurringCents)}/mo`
+                        : formatCurrency(item.upfrontCents)}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-6 space-y-3">
+              <CheckRow
+                checked={leadNetSelected}
+                onChange={setLeadNetSelected}
+                title="Add LeadNet Follow-Up"
+                detail={`${formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month beginning at activation. Includes one business texting number, inbox, owner replies, configured text-back and intake, review-request tools, and ${LEADNET_FOLLOW_UP.includedSmsSegments.toLocaleString()} SMS segments per billing month.`}
+              />
+              {paymentMode === "upfront" ? (
+                <CheckRow
+                  checked={careSelected}
+                  onChange={setCareSelected}
+                  title="Add Website Care"
+                  detail="$49/month beginning when hosting service is activated. Includes hosting, technical maintenance, and up to 30 minutes of content edits per billing month."
+                />
+              ) : (
+                <p className="rounded-lg border border-white/10 bg-black/20 p-4 text-sm leading-relaxed text-foreground/65">
+                  Website Care is already part of monthly managed websites, so it is not
+                  added as a second charge.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <aside className="rounded-xl border border-white/15 bg-oled p-5 sm:p-7">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
+              Order summary
+            </p>
+            <p className="mt-4 text-sm uppercase tracking-[0.12em] text-muted">Due today</p>
+            <p className="mt-1 text-5xl font-semibold text-accent">{formatCurrency(order.dueTodayCents)}</p>
+            <div className="mt-5 space-y-3">
+              {order.oneTimeCharges.map((charge) => (
+                <Line key={charge.id} label={charge.label} amount={formatCurrency(charge.amountCents)} />
+              ))}
+            </div>
+            {order.recurringWebsiteCharges.length ? (
+              <div className="mt-6 border-t border-white/10 pt-5">
+                <p className="font-semibold">Website recurring</p>
+                {order.recurringWebsiteCharges.map((charge) => (
+                  <Line key={charge.id} label={charge.label} amount={`${formatCurrency(charge.amountCents)}/mo`} />
+                ))}
+              </div>
+            ) : null}
+            {order.activationCharges.length ? (
+              <div className="mt-6 border-t border-white/10 pt-5">
+                <p className="font-semibold">Begins at activation</p>
+                {order.activationCharges.map((charge) => (
+                  <Line key={charge.id} label={charge.label} amount={`${formatCurrency(charge.amountCents)}/mo`} />
+                ))}
+                <p className="mt-3 text-xs leading-relaxed text-muted">
+                  Future activation charges are not charged today. Billing dates may differ.
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-6 border-t border-white/10 pt-5 text-sm leading-relaxed text-foreground/70">
+              <p>{order.ownershipSummary}</p>
+              <p className="mt-3">{order.cancellationSummary}</p>
+              <p className="mt-3">
+                SMS overages are disabled by default. Additional SMS segments are
+                $0.03 only within an expressly approved overage budget.
+              </p>
+            </div>
+            <Link
+              href={beginHref}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-accent px-6 py-4 text-lg font-semibold text-oled hover:bg-cyan-300"
+            >
+              Review agreement
+            </Link>
+          </aside>
+        </div>
+      </section>
+
+      <section className="px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-3xl font-semibold">Optional LeadNet demonstration</h2>
+          <p className="mt-3 text-foreground/75">
+            LeadNet Follow-Up is separate from the base website. It helps handle
+            text-back, intake, replies, review requests, and self-service reactivation
+            access where operational.
+          </p>
+          <div className="mt-6">
+            <LeadNetDemoVideo />
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2">
+          <div>
+            <h2 className="text-3xl font-semibold">Build process</h2>
+            <ol className="mt-6 space-y-3">
+              {PROCESS.map((step, index) => (
+                <li key={step} className="flex gap-3 text-sm leading-relaxed text-foreground/75">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/60 font-mono text-xs text-accent">
+                    {index + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h2 className="text-3xl font-semibold">FAQs</h2>
+            <div className="mt-6 space-y-3">
+              {FAQS.map((faq) => (
+                <details key={faq.question} className="rounded-lg border border-white/10 bg-card p-4">
+                  <summary className="cursor-pointer font-semibold">{faq.question}</summary>
+                  <p className="mt-3 text-sm leading-relaxed text-foreground/70">{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 py-12 text-center sm:px-6 lg:px-8">
+        <h2 className="text-3xl font-semibold">Start with the website. Add follow-up when it fits.</h2>
+        <a
+          href="#pricing"
+          className="mt-6 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled hover:bg-cyan-300"
+        >
+          Configure order
+        </a>
+      </section>
     </main>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-4 py-3 font-semibold transition-colors ${
+        active ? "border-accent bg-accent/15 text-accent" : "border-white/15 text-foreground/75"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CheckRow({
+  checked,
+  onChange,
+  title,
+  detail,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <label className="flex cursor-pointer gap-3 rounded-lg border border-white/10 bg-black/20 p-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-4 w-4 accent-cyan-300"
+      />
+      <span>
+        <span className="block font-semibold">{title}</span>
+        <span className="mt-1 block text-sm leading-relaxed text-foreground/65">{detail}</span>
+      </span>
+    </label>
+  );
+}
+
+function Line({ label, amount }: { label: string; amount: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="text-foreground/70">{label}</span>
+      <span className="shrink-0 font-semibold text-foreground">{amount}</span>
+    </div>
   );
 }

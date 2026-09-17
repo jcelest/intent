@@ -3,17 +3,18 @@ import { Header } from "@/components/sections/header";
 import { Footer } from "@/components/sections/footer";
 import { BeginFlow } from "@/components/sections/begin-flow";
 import {
-  getEngagement,
   isStripeConfigured,
-  leadNetPricingMetaLine,
-  parseAddons,
-  parseEngagementId,
 } from "@/lib/engagements";
+import {
+  leadNetWebsitePricingMetaLine,
+  parseWebsitePackageId,
+  parseWebsitePaymentMode,
+} from "@/lib/leadnet-offer";
 import { BRAND_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Begin",
-  description: `Start Intent LeadNet (${leadNetPricingMetaLine()}), Launchpad, partnership, or a custom package with ${BRAND_NAME}.`,
+  description: `Start a business website order with ${BRAND_NAME}. ${leadNetWebsitePricingMetaLine()}.`,
   alternates: { canonical: `${SITE_URL}/begin` },
   robots: { index: false, follow: false },
 };
@@ -21,13 +22,10 @@ export const metadata: Metadata = {
 export default function BeginPage({
   searchParams,
 }: {
-  searchParams: { path?: string; styling?: string; nowatermark?: string };
+  searchParams: { package?: string; mode?: string; leadnet?: string; care?: string };
 }) {
-  const initialPath = parseEngagementId(searchParams.path);
-  const initialAddons = parseAddons([
-    searchParams.styling === "1" ? "styling" : "",
-    searchParams.nowatermark === "1" ? "nowatermark" : "",
-  ]);
+  const initialPackageId = parseWebsitePackageId(searchParams.package);
+  const initialPaymentMode = parseWebsitePaymentMode(searchParams.mode);
 
   return (
     <div className="relative z-10 min-h-screen">
@@ -43,12 +41,10 @@ export default function BeginPage({
         </div>
         <div className="mt-10">
           <BeginFlow
-            capture={getEngagement("capture")}
-            launchpad={getEngagement("launchpad")}
-            partnership={getEngagement("partnership")}
-            custom={getEngagement("custom")}
-            initialPath={initialPath}
-            initialAddons={initialAddons}
+            initialPackageId={initialPackageId}
+            initialPaymentMode={initialPaymentMode}
+            initialLeadNetSelected={searchParams.leadnet === "1"}
+            initialCareSelected={searchParams.care === "1"}
             stripeReady={isStripeConfigured()}
           />
         </div>

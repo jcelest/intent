@@ -1,41 +1,73 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
-import { BRAND_NAME } from "@/lib/seo";
+import type { LeadNetOrderSnapshot } from "@/lib/leadnet-offer";
 import * as db from "@/lib/db";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
+function parseSnapshot(value: unknown): LeadNetOrderSnapshot | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as LeadNetOrderSnapshot;
+    } catch {
+      return null;
+    }
+  }
+  return value as LeadNetOrderSnapshot;
+}
+
 async function resolveAcceptanceId(
   stripe: Stripe,
   eventType: string,
-  obj: Record<string, unknown>,
-  db: {
-    getAgreementByPaymentIntentId: (id: string) => Promise<{ acceptance_id?: string } | undefined>;
-  }
+  obj: Record<string, unknown>
 ): Promise<string | undefined> {
-  const direct = obj.metadata as { acceptanceId?: string } | undefined;
-  if (direct?.acceptanceId) return direct.acceptanceId;
+  const metadata = obj.metadata as { acceptanceId?: string } | undefined;
+  if (metadata?.acceptanceId) return metadata.acceptanceId;
 
   const subscriptionRef = obj.subscription;
-  if (subscriptionRef) {
-    const subscriptionId =
-      typeof subscriptionRef === "string" ? subscriptionRef : (subscriptionRef as { id?: string }).id;
-    if (subscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      if (subscription.metadata?.acceptanceId) {
-        return subscription.metadata.acceptanceId;
-      }
-    }
+  const subscriptionId =
+    typeof subscriptionRef === "string"
+      ? subscriptionRef
+      : (subscriptionRef as { id?: string } | undefined)?.id;
+  if (subscriptionId) {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    return subscription.metadata?.acceptanceId;
+  }
+
+  const parent = obj.parent as
+    | { subscription_details?: { subscription?: string; metadata?: { acceptanceId?: string } } }
+    | undefined;
+  if (parent?.subscription_details?.metadata?.acceptanceId) {
+    return parent.subscription_details.metadata.acceptanceId;
+  }
+  if (parent?.subscription_details?.subscription) {
+    const subscription = await stripe.subscriptions.retrieve(parent.subscription_details.subscription);
+    return subscription.metadata?.acceptanceId;
   }
 
   if (eventType.startsWith("payment_intent.") && typeof obj.id === "string") {
     const agreement = await db.getAgreementByPaymentIntentId(obj.id);
-    if (agreement?.acceptance_id) return agreement.acceptance_id;
+    return agreement?.acceptance_id;
   }
 
   return undefined;
+}
+
+async function saveReusablePaymentMethodIfNeeded(
+  stripe: Stripe,
+  agreement: Record<string, unknown>,
+  order: LeadNetOrderSnapshot | null,
+  paymentMethod: unknown
+) {
+  if (!order?.selection.leadNetSelected && !order?.selection.careSelected) return;
+  if (typeof paymentMethod !== "string") return;
+  if (typeof agreement.stripe_customer_id !== "string") return;
+  await stripe.customers.update(agreement.stripe_customer_id, {
+    invoice_settings: { default_payment_method: paymentMethod },
+  });
 }
 
 export async function POST(request: Request) {
@@ -59,143 +91,168 @@ export async function POST(request: Request) {
   }
 
   const obj = event.data.object as unknown as Record<string, unknown>;
-  const acceptanceId = await resolveAcceptanceId(stripe, event.type, obj, db);
+  const acceptanceId = await resolveAcceptanceId(stripe, event.type, obj);
   const agreement = acceptanceId ? await db.getAgreementByAcceptanceId(acceptanceId) : null;
+  const order = agreement ? parseSnapshot(agreement.order_snapshot) : null;
 
   const isNew = await db.processStripeEvent(event.id, event.type, acceptanceId);
   if (!isNew) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
-  switch (event.type) {
-    case "invoice.paid": {
-      if (obj.billing_reason === "subscription_create") {
+  try {
+    switch (event.type) {
+      case "invoice.paid": {
+        if (!acceptanceId || !agreement || !order) break;
         const subscriptionId =
-          typeof obj.subscription === "string" ? obj.subscription : undefined;
+          typeof obj.subscription === "string"
+            ? obj.subscription
+            : (obj.parent as { subscription_details?: { subscription?: string } } | undefined)
+                ?.subscription_details?.subscription;
 
         if (
-          !agreement ||
-          !acceptanceId ||
+          order.selection.paymentMode !== "monthly" ||
+          !subscriptionId ||
           subscriptionId !== agreement.stripe_subscription_id ||
           obj.customer !== agreement.stripe_customer_id
         ) {
-          console.error("Stripe invoice validation failed against database agreement.", {
-            invoice_id: obj.id,
-            acceptanceId,
-          });
           await db.markEventFailed(event.id);
           return NextResponse.json({ error: "Validation failed" }, { status: 400 });
         }
 
-        const paidAt = (obj.status_transitions as { paid_at?: number } | undefined)?.paid_at;
-        if (!paidAt) {
-          console.error("Stripe invoice missing paid_at timestamp.", { invoice_id: obj.id });
+        const paidAtSeconds =
+          (obj.status_transitions as { paid_at?: number } | undefined)?.paid_at || event.created;
+        const invoice = obj as unknown as Stripe.Invoice;
+        const paymentIntentId =
+          typeof invoice.payments?.data?.[0]?.payment?.payment_intent === "string"
+            ? invoice.payments.data[0].payment.payment_intent
+            : undefined;
+        const paymentIntent = paymentIntentId
+          ? await stripe.paymentIntents.retrieve(paymentIntentId)
+          : null;
+
+        await saveReusablePaymentMethodIfNeeded(stripe, agreement, order, paymentIntent?.payment_method);
+
+        await db.sql`
+          UPDATE agreements
+          SET payment_status = 'payment_completed',
+              subscription_status = 'active',
+              website_subscription_status = 'active',
+              initial_payment_paid_at = ${new Date(paidAtSeconds * 1000)},
+              payment_completed_at = CURRENT_TIMESTAMP,
+              onboarding_status = 'payment_confirmed',
+              service_states = jsonb_set(
+                COALESCE(service_states, '{}'::jsonb),
+                '{payment}',
+                '"paid"'::jsonb,
+                true
+              ),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE acceptance_id = ${acceptanceId}
+        `;
+        break;
+      }
+      case "invoice.payment_failed": {
+        if (!acceptanceId) break;
+        await db.sql`
+          UPDATE agreements
+          SET payment_status = CASE WHEN payment_status = 'payment_completed' THEN payment_status ELSE 'payment_failed' END,
+              subscription_status = 'past_due',
+              website_subscription_status = CASE WHEN website_subscription_status IS NULL THEN website_subscription_status ELSE 'past_due' END,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE acceptance_id = ${acceptanceId}
+        `;
+        break;
+      }
+      case "payment_intent.succeeded": {
+        if (!acceptanceId || !agreement || !order) break;
+        if (order.selection.paymentMode === "monthly") break;
+        if (obj.customer !== agreement.stripe_customer_id) {
           await db.markEventFailed(event.id);
-          return NextResponse.json({ error: "Missing paid_at timestamp" }, { status: 500 });
+          return NextResponse.json({ error: "Validation failed" }, { status: 400 });
         }
-
-        const trialEndTimestamp = paidAt + 30 * 24 * 60 * 60;
-
-        if (agreement.recurring_billing_start_at) {
-          const existingStart = Math.floor(
-            new Date(agreement.recurring_billing_start_at).getTime() / 1000
-          );
-          if (existingStart !== trialEndTimestamp) {
-            console.error("recurring_billing_start_at mismatch.", { existingStart, trialEndTimestamp });
-            await db.markEventFailed(event.id);
-            return NextResponse.json({ error: "Timestamp mismatch" }, { status: 500 });
-          }
+        await saveReusablePaymentMethodIfNeeded(stripe, agreement, order, obj.payment_method);
+        await db.sql`
+          UPDATE agreements
+          SET payment_status = 'payment_completed',
+              initial_payment_paid_at = ${new Date(event.created * 1000)},
+              payment_completed_at = CURRENT_TIMESTAMP,
+              onboarding_status = 'payment_confirmed',
+              service_states = jsonb_set(
+                COALESCE(service_states, '{}'::jsonb),
+                '{payment}',
+                '"paid"'::jsonb,
+                true
+              ),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE acceptance_id = ${acceptanceId}
+        `;
+        break;
+      }
+      case "payment_intent.payment_failed": {
+        if (!acceptanceId) break;
+        await db.sql`
+          UPDATE agreements
+          SET payment_status = 'payment_failed',
+              updated_at = CURRENT_TIMESTAMP
+          WHERE acceptance_id = ${acceptanceId}
+            AND payment_status <> 'payment_completed'
+        `;
+        break;
+      }
+      case "customer.subscription.updated": {
+        if (!acceptanceId || typeof obj.status !== "string") break;
+        const service = (obj.metadata as { service?: string } | undefined)?.service;
+        if (service === "care") {
+          await db.sql`
+            UPDATE agreements
+            SET care_subscription_status = ${obj.status},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE acceptance_id = ${acceptanceId}
+          `;
+        } else if (service === "leadnet") {
+          await db.sql`
+            UPDATE agreements
+            SET leadnet_subscription_status = ${obj.status},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE acceptance_id = ${acceptanceId}
+          `;
         } else {
-          try {
-            await stripe.subscriptions.update(subscriptionId!, {
-              trial_end: trialEndTimestamp,
-              proration_behavior: "none",
-            });
-          } catch (err) {
-            console.error("Failed to sync deterministic 30-day trial clock:", err);
-            await db.markEventFailed(event.id);
-            return NextResponse.json({ error: "Failed to update subscription trial_end" }, { status: 500 });
-          }
-
-          await db.updateAgreementStatus(
-            acceptanceId,
-            "payment_completed",
-            "active",
-            new Date(paidAt * 1000),
-            new Date(trialEndTimestamp * 1000)
-          );
-
-          const resendApiKey = process.env.RESEND_API_KEY;
-          const notifyEmails = [
-            process.env.INQUIRY_NOTIFY_EMAIL,
-            process.env.INQUIRY_NOTIFY_EMAIL_2,
-          ].filter((email): email is string => !!email?.trim());
-
-          const metadata = obj.metadata as { name?: string; company?: string; email?: string } | undefined;
-
-          if (resendApiKey && notifyEmails.length > 0) {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${resendApiKey}`,
-              },
-              body: JSON.stringify({
-                from: process.env.RESEND_FROM_EMAIL || "Intent <onboarding@resend.dev>",
-                to: notifyEmails,
-                subject: `New LeadNet start | ${BRAND_NAME}`,
-                html: `
-                  <h2>Someone started LeadNet</h2>
-                  <p><strong>Name:</strong> ${metadata?.name || agreement.customer_name || ""}</p>
-                  <p><strong>Company:</strong> ${metadata?.company || agreement.company_name || ""}</p>
-                  <p><strong>Email:</strong> ${(obj.customer_email as string) || metadata?.email || agreement.customer_email || ""}</p>
-                  <p><strong>Amount Paid:</strong> ${((obj.amount_paid as number) / 100).toFixed(0)} ${String(obj.currency || "usd").toUpperCase()}</p>
-                  <p><strong>Stripe Invoice:</strong> ${obj.id}</p>
-                `,
-              }),
-            });
-          }
+          await db.updateSubscriptionStatus(acceptanceId, obj.status);
         }
-      } else if (acceptanceId) {
-        await db.updateSubscriptionStatus(acceptanceId, "active");
+        break;
       }
-      break;
+      case "customer.subscription.deleted": {
+        if (!acceptanceId) break;
+        const service = (obj.metadata as { service?: string } | undefined)?.service;
+        if (service === "care") {
+          await db.sql`
+            UPDATE agreements
+            SET care_subscription_status = 'canceled',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE acceptance_id = ${acceptanceId}
+          `;
+        } else if (service === "leadnet") {
+          await db.sql`
+            UPDATE agreements
+            SET leadnet_subscription_status = 'canceled',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE acceptance_id = ${acceptanceId}
+          `;
+        } else {
+          await db.updateSubscriptionStatus(acceptanceId, "canceled");
+        }
+        break;
+      }
+      default:
+        break;
     }
-    case "invoice.payment_failed": {
-      if (!acceptanceId) break;
-      if (obj.billing_reason === "subscription_create") {
-        await db.updateAgreementStatus(acceptanceId, "payment_failed", "past_due");
-      } else {
-        await db.updateSubscriptionStatus(acceptanceId, "past_due");
-      }
-      break;
-    }
-    case "payment_intent.succeeded":
-      // Canonical setup completion is invoice.paid (subscription_create).
-      break;
-    case "payment_intent.payment_failed":
-      // Canonical initial failure is invoice.payment_failed (subscription_create).
-      if (acceptanceId && agreement?.payment_status === "pending_payment") {
-        await db.updateAgreementStatus(acceptanceId, "payment_failed");
-      }
-      break;
-    case "customer.subscription.created":
-    case "customer.subscription.updated": {
-      if (acceptanceId && typeof obj.status === "string") {
-        await db.updateSubscriptionStatus(acceptanceId, obj.status);
-      }
-      break;
-    }
-    case "customer.subscription.deleted": {
-      if (acceptanceId) {
-        await db.updateSubscriptionStatus(acceptanceId, "canceled");
-      }
-      break;
-    }
-    default:
-      break;
-  }
 
-  await db.completeStripeEvent(event.id);
-  return NextResponse.json({ received: true });
+    await db.completeStripeEvent(event.id);
+    return NextResponse.json({ received: true });
+  } catch {
+    await db.markEventFailed(event.id);
+    console.error("Stripe webhook processing failed.");
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
 }

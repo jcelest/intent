@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { id: "captured", label: "Payment captured" },
-  { id: "planning", label: "Planning" },
-  { id: "design", label: "Design and Setup" },
-  { id: "production", label: "Production" },
+  { id: "captured", label: "Agreement accepted" },
+  { id: "planning", label: "Payment confirming" },
+  { id: "design", label: "Onboarding review" },
+  { id: "production", label: "Website build" },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];

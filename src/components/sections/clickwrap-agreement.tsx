@@ -1,73 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { captureAgreementHtml } from "@/lib/capture-agreement";
-import { getEngagement, addonAmount, LEADNET_MONTHLY_CENTS, LEADNET_INCLUDED_DAYS, CAPTURE_ADDONS, EngagementId, CaptureAddonId } from "@/lib/engagements";
+import { leadNetWebsiteAgreementHtml } from "@/lib/capture-agreement";
+import {
+  calculateLeadNetOrder,
+  type LeadNetCustomerDetails,
+  type LeadNetOrderSelection,
+} from "@/lib/leadnet-offer";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface BeginDetails {
-  path: EngagementId;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  addons: CaptureAddonId[];
+  selection: LeadNetOrderSelection;
+  details: LeadNetCustomerDetails;
   acceptanceId?: string;
+  publicDownloadToken?: string;
 }
 
 export function ClickwrapAgreement() {
   const router = useRouter();
-  const [details, setDetails] = useState<BeginDetails | null>(null);
-  const [html, setHtml] = useState<string | null>(null);
+  const [payload, setPayload] = useState<BeginDetails | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   useEffect(() => {
     const raw = sessionStorage.getItem("intent-begin");
     if (!raw) {
-      setError("We could not find your details. Please go back and try again.");
+      setError("We could not find your order. Please go back and configure it again.");
       return;
     }
-    
     try {
-      const parsedDetails = JSON.parse(raw);
-      setDetails(parsedDetails);
-      const engagement = getEngagement(parsedDetails.path);
-      const amount = (engagement.amountCents ?? 0) + addonAmount(parsedDetails.addons);
-      const htmlContent = captureAgreementHtml({
-        ...parsedDetails,
-        amountCents: amount,
-      });
-      setHtml(htmlContent);
+      setPayload(JSON.parse(raw));
     } catch {
       setError("Failed to load agreement.");
     }
   }, []);
 
+  const order = useMemo(
+    () => (payload ? calculateLeadNetOrder(payload.selection) : null),
+    [payload]
+  );
+  const html = useMemo(
+    () => (payload && order ? leadNetWebsiteAgreementHtml({ details: payload.details, order }) : null),
+    [order, payload]
+  );
+
   async function onAccept() {
-    if (!agreed) return;
+    if (!agreed || !payload) return;
     setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/agreement/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(details),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok || !data.acceptanceId) {
         throw new Error(data.error || "Could not accept agreement.");
       }
-      
-      const newDetails = { 
-        ...details, 
+      const nextPayload = {
+        ...payload,
         acceptanceId: data.acceptanceId,
-        publicDownloadToken: data.publicDownloadToken
+        publicDownloadToken: data.publicDownloadToken,
       };
-      sessionStorage.setItem("intent-begin", JSON.stringify(newDetails));
+      sessionStorage.setItem("intent-begin", JSON.stringify(nextPayload));
       router.push("/begin/pay");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -76,100 +75,74 @@ export function ClickwrapAgreement() {
   }
 
   if (error) {
-    return <p className="text-sm text-red-300 text-center">{error}</p>;
+    return <p className="text-center text-sm text-red-300">{error}</p>;
   }
 
-  if (!html || !details) {
+  if (!payload || !order || !html) {
     return <p className="text-center text-foreground/80">Loading agreement...</p>;
   }
 
-  const engagement = getEngagement(details.path);
-  const sprintAmount = (engagement.amountCents ?? 0);
-  const addonsSelected = CAPTURE_ADDONS.filter(a => details.addons.includes(a.id));
-  const totalAmount = sprintAmount + addonAmount(details.addons);
-
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col gap-6">
-      
-      <div className="rounded-xl border border-white/10 bg-card p-6 space-y-4 text-sm">
-        <h3 className="font-semibold text-lg text-foreground">Agreement Summary</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-foreground/80">
-          <div>
-            <span className="block text-muted text-xs uppercase tracking-wider mb-1">Customer</span>
-            {details.company} ({details.name})
-          </div>
-          <div>
-            <span className="block text-muted text-xs uppercase tracking-wider mb-1">Package</span>
-            {engagement.title}
-          </div>
-          <div>
-            <span className="block text-muted text-xs uppercase tracking-wider mb-1">Implementation Fee</span>
-            {formatCurrency(totalAmount)} due today
-          </div>
-          <div>
-            <span className="block text-muted text-xs uppercase tracking-wider mb-1">Recurring Subscription</span>
-            {formatCurrency(LEADNET_MONTHLY_CENTS)} / month (setup includes first {LEADNET_INCLUDED_DAYS} days; begins on day {LEADNET_INCLUDED_DAYS})
-          </div>
-          {addonsSelected.length > 0 && (
-            <div className="col-span-1 sm:col-span-2">
-              <span className="block text-muted text-xs uppercase tracking-wider mb-1">Selected Add-ons</span>
-              {addonsSelected.map(a => a.label).join(", ")}
-            </div>
-          )}
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="space-y-4 rounded-xl border border-white/10 bg-card p-6 text-sm">
+        <h3 className="text-lg font-semibold text-foreground">Agreement Summary</h3>
+        <div className="grid gap-4 text-foreground/80 sm:grid-cols-2">
+          <Summary label="Customer" value={`${payload.details.company} (${payload.details.name})`} />
+          <Summary label="Package" value={`${order.package.name} - ${order.selection.paymentMode}`} />
+          <Summary label="Due today" value={formatCurrency(order.dueTodayCents)} />
+          <Summary
+            label="Future recurring"
+            value={
+              order.recurringAfterActivationCents
+                ? `${formatCurrency(order.recurringAfterActivationCents)}/month after all selected services are active`
+                : "No recurring charge from this order"
+            }
+          />
         </div>
       </div>
 
-      <div 
-        className="rounded-xl border border-white/10 bg-card p-6 h-[50vh] overflow-y-auto custom-scrollbar text-black"
+      <div
+        className="h-[50vh] overflow-y-auto rounded-xl border border-white/10 bg-card p-6 text-black"
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      
+
       <div className="flex flex-col gap-4">
         <button
           type="button"
           onClick={() => setAgreed(!agreed)}
           className={cn(
-            "flex items-start sm:items-center gap-4 text-left cursor-pointer p-4 border rounded-xl transition-all duration-300",
-            agreed 
-              ? "border-accent bg-accent/10" 
-              : "border-white/10 bg-black/20 hover:border-accent/40 hover:bg-black/40"
+            "flex cursor-pointer items-start gap-4 rounded-xl border p-4 text-left transition-colors",
+            agreed ? "border-accent bg-accent/10" : "border-white/10 bg-black/20 hover:border-accent/40"
           )}
         >
-          <div 
+          <span
             className={cn(
-              "flex w-6 h-6 shrink-0 items-center justify-center rounded mt-0.5 sm:mt-0 transition-colors border-2",
-              agreed ? "bg-accent border-accent" : "border-white/20"
+              "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded border-2",
+              agreed ? "border-accent bg-accent" : "border-white/20"
             )}
+            aria-hidden
           >
-            {agreed && (
-              <svg 
-                width="14" 
-                height="14" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="black" 
-                strokeWidth="4" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            )}
-          </div>
-          <span className="text-foreground/90 font-medium leading-relaxed">
-            I have read and agree to the LeadNet Service Agreement and authorize the charges described in it.
+            {agreed ? <span className="text-sm font-bold text-oled">✓</span> : null}
+          </span>
+          <span className="font-medium leading-relaxed text-foreground/90">
+            I have read and agree to this website and LeadNet agreement, including
+            the charges due today and any selected future activation subscriptions.
           </span>
         </button>
-        
-        <Button 
-          size="lg" 
-          disabled={!agreed || loading} 
-          onClick={onAccept}
-          className="w-full sm:w-auto self-end"
-        >
+
+        <Button size="lg" disabled={!agreed || loading} onClick={onAccept} className="w-full sm:w-auto sm:self-end">
           {loading ? "Saving..." : "Continue to Payment"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function Summary({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="mb-1 block text-xs uppercase tracking-wider text-muted">{label}</span>
+      {value}
     </div>
   );
 }

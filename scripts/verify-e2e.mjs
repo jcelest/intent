@@ -15,6 +15,17 @@ async function verifyNeon() {
   const publicToken = crypto.randomUUID();
   const html = `<html><body><p>Test Agreement Snapshot</p></body></html>`;
   const hash = crypto.createHash("sha256").update(html).digest("hex");
+  const orderSnapshot = {
+    offerVersion: "leadnet-website-first-2026-09",
+    agreementVersion: "leadnet-website-first-2026-09-v1",
+    selection: {
+      packageId: "business",
+      paymentMode: "monthly",
+      leadNetSelected: false,
+      careSelected: false,
+    },
+    dueTodayCents: 49400,
+  };
 
   try {
     // 1. Insert snapshot
@@ -22,12 +33,14 @@ async function verifyNeon() {
       INSERT INTO agreements (
         acceptance_id, public_download_token, stripe_customer_id, stripe_payment_intent_id, stripe_subscription_id,
         agreement_version, agreement_html, agreement_hash, customer_name, customer_email, customer_phone,
-        company_name, package_id, addons, initial_amount_cents, recurring_amount_cents, currency,
+        company_name, package_id, addons, order_snapshot, customer_details, offer_version, website_package_id,
+        payment_mode, leadnet_selected, care_selected, initial_amount_cents, recurring_amount_cents, currency,
         accepted_at, ip_address, user_agent, payment_status, subscription_status
       ) VALUES (
         ${acceptanceId}, ${publicToken}, 'cus_test123', null, null,
-        '1.0', ${html}, ${hash}, 'John Doe', 'john@example.com', '1234567890',
-        'Test Corp', 'capture', '[]', 49700, 39700, 'usd',
+        'leadnet-website-first-2026-09-v1', ${html}, ${hash}, 'John Doe', 'john@example.com', '1234567890',
+        'Test Corp', 'business', '{"leadnet":false,"care":false}', ${JSON.stringify(orderSnapshot)}, '{"industry":"HVAC"}',
+        'leadnet-website-first-2026-09', 'business', 'monthly', false, false, 49400, 19700, 'usd',
         CURRENT_TIMESTAMP, '127.0.0.1', 'test-agent', 'pending_payment', null
       )
     `;

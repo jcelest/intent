@@ -1,442 +1,295 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import {
-  CAPTURE_ADDONS,
-  LEADNET_INCLUDED_DAYS,
-  LEADNET_MONTHLY_CENTS,
-  addonAmount,
-  addonDisplayCents,
-  isLeadNetTestCheckout,
-  leadNetSprintCents,
-  type CaptureAddonId,
-  type Engagement,
-  type EngagementId,
-} from "@/lib/engagements";
-import {
-  CaptureFlowVisual,
-  PartnershipVisual,
-  RevenueStreamsVisual,
-  SoftwareStackVisual,
-} from "@/components/visuals/package-visuals";
-import { LeadNetPhonePaths } from "@/components/sections/leadnet-phone-paths";
-
-
-
-const THEMES: Record<
-  EngagementId,
-  {
-    card: string;
-    kicker: string;
-    mark: string;
-    btnActive: string;
-    btnIdle: string;
-    apply: string;
-    applyHover: string;
-  }
-> = {
-  capture: {
-    card: "border-2 border-accent/45 bg-gradient-to-br from-cyan-400/20 via-card to-oled shadow-[0_0_48px_rgba(34,211,238,0.18)]",
-    kicker: "text-accent",
-    mark: "text-accent",
-    btnActive:
-      "border-accent bg-accent/15 text-accent shadow-[0_0_24px_rgba(34,211,238,0.2)]",
-    btnIdle: "border-border text-muted hover:border-accent/40 hover:text-foreground",
-    apply: "bg-accent text-oled",
-    applyHover: "hover:bg-cyan-300",
-  },
-  launchpad: {
-    card: "border-2 border-amber-500/45 bg-gradient-to-br from-amber-600/40 via-amber-900/88 to-amber-950/95 shadow-[0_0_48px_rgba(217,169,65,0.2)]",
-    kicker: "text-amber-200/90",
-    mark: "text-amber-300",
-    btnActive: "border-amber-400/70 bg-amber-500/15 text-amber-100",
-    btnIdle:
-      "border-border text-muted hover:border-amber-400/40 hover:text-foreground",
-    apply: "bg-amber-400 text-oled",
-    applyHover: "hover:bg-amber-300",
-  },
-  partnership: {
-    card: "border-2 border-white/70 bg-gradient-to-br from-white/20 via-slate-950 to-cyan-950/70 shadow-[0_0_56px_rgba(255,255,255,0.22),0_0_80px_rgba(34,211,238,0.14)] ring-1 ring-white/25",
-    kicker: "text-white",
-    mark: "text-white",
-    btnActive:
-      "border-white/90 bg-white/15 text-white shadow-[0_0_28px_rgba(255,255,255,0.3)]",
-    btnIdle:
-      "border-border text-muted hover:border-white/50 hover:text-white",
-    apply: "bg-white text-oled shadow-[0_0_24px_rgba(255,255,255,0.28)]",
-    applyHover: "hover:bg-cyan-50",
-  },
-  custom: {
-    card: "border-2 border-slate-400/40 bg-gradient-to-br from-slate-300/15 via-card to-oled shadow-[0_0_40px_rgba(148,163,184,0.14)]",
-    kicker: "text-slate-200",
-    mark: "text-slate-200",
-    btnActive:
-      "border-slate-300/70 bg-slate-400/15 text-slate-100 shadow-[0_0_20px_rgba(148,163,184,0.16)]",
-    btnIdle:
-      "border-border text-muted hover:border-slate-400/40 hover:text-foreground",
-    apply: "bg-slate-200 text-oled",
-    applyHover: "hover:bg-white",
-  },
-};
+  calculateLeadNetOrder,
+  normalizeLeadNetSelection,
+  WEBSITE_PACKAGES,
+  type LeadNetCustomerDetails,
+  type WebsitePackageId,
+  type WebsitePaymentMode,
+} from "@/lib/leadnet-offer";
+import type { Engagement, EngagementId } from "@/lib/engagements";
 
 export function BeginFlow({
-  capture,
-  launchpad,
-  partnership,
-  custom,
-  initialPath,
-  initialAddons,
+  initialPackageId = "business",
+  initialPaymentMode = "monthly",
+  initialLeadNetSelected = false,
+  initialCareSelected = false,
   stripeReady,
 }: {
-  capture: Engagement;
-  launchpad: Engagement;
-  partnership: Engagement;
-  custom: Engagement;
-  initialPath: EngagementId;
-  initialAddons: CaptureAddonId[];
+  capture?: Engagement;
+  launchpad?: Engagement;
+  partnership?: Engagement;
+  custom?: Engagement;
+  initialPath?: EngagementId;
+  initialAddons?: unknown[];
+  initialPackageId?: WebsitePackageId;
+  initialPaymentMode?: WebsitePaymentMode;
+  initialLeadNetSelected?: boolean;
+  initialCareSelected?: boolean;
   stripeReady: boolean;
 }) {
-  const [path, setPath] = useState<EngagementId>(initialPath);
-  const [addons, setAddons] = useState<CaptureAddonId[]>(initialAddons);
-  const engagement =
-    path === "partnership"
-      ? partnership
-      : path === "launchpad"
-        ? launchpad
-        : path === "custom"
-          ? custom
-          : capture;
-  const theme = THEMES[path];
-  const checkoutOpen = stripeReady && path === "capture" && capture.amountCents !== null;
-  const sprintCents = capture.amountCents ?? leadNetSprintCents();
-  const total = sprintCents + addonAmount(addons);
+  const normalizedInitial = normalizeLeadNetSelection({
+    packageId: initialPackageId,
+    paymentMode: initialPaymentMode,
+    leadNetSelected: initialLeadNetSelected,
+    careSelected: initialCareSelected,
+  });
+  const [packageId, setPackageId] = useState<WebsitePackageId>(normalizedInitial.packageId);
+  const [paymentMode, setPaymentMode] = useState<WebsitePaymentMode>(normalizedInitial.paymentMode);
+  const [leadNetSelected, setLeadNetSelected] = useState(normalizedInitial.leadNetSelected);
+  const [careSelected, setCareSelected] = useState(normalizedInitial.careSelected);
+  const [details, setDetails] = useState<LeadNetCustomerDetails>({
+    name: "",
+    company: "",
+    email: "",
+    phone: "",
+    industry: "",
+    domainStatus: "",
+    services: "",
+    serviceAreas: "",
+    brandingAssets: "",
+    notes: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  const order = useMemo(
+    () =>
+      calculateLeadNetOrder({
+        packageId,
+        paymentMode,
+        leadNetSelected,
+        careSelected,
+      }),
+    [careSelected, leadNetSelected, packageId, paymentMode]
+  );
+
+  function setDetail<K extends keyof LeadNetCustomerDetails>(
+    key: K,
+    value: LeadNetCustomerDetails[K]
+  ) {
+    setDetails((current) => ({ ...current, [key]: value }));
+  }
+
+  function onContinue(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    sessionStorage.setItem(
+      "intent-begin",
+      JSON.stringify({
+        selection: order.selection,
+        details,
+      })
+    );
+    window.location.href = "/begin/agreement";
+  }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <PathButton
-          active={path === "capture"}
-          className={path === "capture" ? THEMES.capture.btnActive : THEMES.capture.btnIdle}
-          label="LeadNet"
-          onClick={() => setPath("capture")}
-        />
-        <PathButton
-          active={path === "launchpad"}
-          className={
-            path === "launchpad" ? THEMES.launchpad.btnActive : THEMES.launchpad.btnIdle
-          }
-          label="Launchpad"
-          onClick={() => setPath("launchpad")}
-        />
-        <PathButton
-          active={path === "partnership"}
-          className={
-            path === "partnership"
-              ? THEMES.partnership.btnActive
-              : THEMES.partnership.btnIdle
-          }
-          label="Partnership"
-          onClick={() => setPath("partnership")}
-        />
-        <PathButton
-          active={path === "custom"}
-          className={path === "custom" ? THEMES.custom.btnActive : THEMES.custom.btnIdle}
-          label="Custom"
-          onClick={() => setPath("custom")}
-        />
-      </div>
-
-      <div className={cn("mt-8 rounded-2xl border p-6 sm:p-8", theme.card)}>
-        <p className={cn("font-mono text-xs uppercase tracking-[0.2em]", theme.kicker)}>
-          {engagement.kicker}
+    <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_0.82fr]">
+      <form onSubmit={onContinue} className="rounded-xl border border-accent/35 bg-card/90 p-5 sm:p-7">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
+          Website order
         </p>
-        <h2
-          className={cn(
-            "mt-3 text-2xl sm:text-3xl font-semibold",
-            path === "partnership"
-              ? "bg-gradient-to-r from-white via-cyan-100 to-white bg-clip-text text-transparent"
-              : "text-foreground"
-          )}
-        >
-          {engagement.title}
-        </h2>
-        {path === "capture" ? (
-          <p className="mt-2 text-sm tracking-wide text-foreground/80 font-medium">
-            Revenue Capture &amp; Reactivation Engine
-          </p>
-        ) : null}
-        <p className="mt-3 text-foreground/85 leading-relaxed">{engagement.summary}</p>
-        <div className="mt-6 opacity-90">
-          {path === "capture" ? (
-            <CaptureFlowVisual />
-          ) : path === "launchpad" ? (
-            <RevenueStreamsVisual />
-          ) : path === "partnership" ? (
-            <PartnershipVisual tone="diamond" />
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <ModeButton active={paymentMode === "monthly"} onClick={() => setPaymentMode("monthly")}>
+            Monthly
+          </ModeButton>
+          <ModeButton active={paymentMode === "upfront"} onClick={() => setPaymentMode("upfront")}>
+            Upfront
+          </ModeButton>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {(Object.keys(WEBSITE_PACKAGES) as WebsitePackageId[]).map((id) => {
+            const item = WEBSITE_PACKAGES[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPackageId(id)}
+                className={`rounded-lg border p-4 text-left ${
+                  packageId === id ? "border-accent bg-accent/12" : "border-white/15"
+                }`}
+              >
+                <span className="block font-semibold">{item.name}</span>
+                <span className="mt-1 block text-sm text-foreground/65">
+                  Up to {item.pageLimit} agreed public content pages
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-5 space-y-3">
+          <CheckRow
+            checked={leadNetSelected}
+            onChange={setLeadNetSelected}
+            title="LeadNet Follow-Up"
+            detail="$149/month beginning at LeadNet activation. No separate setup fee in this website bundle."
+          />
+          {paymentMode === "upfront" ? (
+            <CheckRow
+              checked={careSelected}
+              onChange={setCareSelected}
+              title="Website Care"
+              detail="$49/month beginning when hosting service is activated."
+            />
           ) : (
-            <SoftwareStackVisual tone="cyan" />
+            <p className="rounded-lg border border-white/10 bg-black/20 p-4 text-sm text-foreground/65">
+              Monthly managed websites already include hosting, maintenance, and up
+              to 30 minutes of content edits per month.
+            </p>
           )}
         </div>
-        {path === "capture" ? (
-          <div className="mt-6">
-            <p className="text-5xl sm:text-6xl font-semibold tracking-tight text-accent">
-              {formatCurrency(sprintCents)}
-            </p>
-            {isLeadNetTestCheckout() ? (
-              <p className="mt-2 font-mono text-xs uppercase tracking-[0.16em] text-amber-200">
-                Test checkout. Not the live sprint.
-              </p>
-            ) : null}
-            <p className="mt-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-              sprint
-            </p>
-            <p className="mt-3 text-sm text-foreground/75 leading-relaxed">
-              Setup includes the first {LEADNET_INCLUDED_DAYS} days; then{" "}
-              {formatCurrency(LEADNET_MONTHLY_CENTS)}/month begins on day{" "}
-              {LEADNET_INCLUDED_DAYS}. Tracking number and texts are in
-              that monthly.
-            </p>
-            <LeadNetPhonePaths compact />
-          </div>
-        ) : null}
-        <ul className="mt-6 space-y-3 text-sm text-foreground/80">
-          {engagement.points.map((point) => (
-            <li key={point} className="flex gap-3">
-              <span className={cn("mt-0.5 font-semibold", theme.mark)} aria-hidden>
-                ▸
-              </span>
-              {point}
-            </li>
-          ))}
-        </ul>
-        {path === "capture" ? (
-          <div className="mt-6 space-y-2">
-            {CAPTURE_ADDONS.map((addon) => {
-              const on = addons.includes(addon.id);
-              return (
-                <button
-                  key={addon.id}
-                  type="button"
-                  onClick={() =>
-                    setAddons((current) =>
-                      on
-                        ? current.filter((id) => id !== addon.id)
-                        : [...current, addon.id]
-                    )
-                  }
-                  className={cn(
-                    "w-full rounded-xl border px-4 py-3 text-left transition-colors",
-                    on
-                      ? "border-accent bg-accent/15"
-                      : "border-white/10 hover:border-accent/40"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{addon.label}</p>
-                      <p className="mt-1 text-sm text-foreground/65">{addon.detail}</p>
-                    </div>
-                    <p className="text-xl font-semibold tracking-tight text-accent shrink-0">
-                      {formatCurrency(addonDisplayCents(addon.amountCents))}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-            <p className="pt-3 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-              Due to start
-            </p>
-            <p className="text-4xl font-semibold tracking-tight text-accent">
-              {formatCurrency(total)}
-            </p>
-            <p className="text-sm text-foreground/65 leading-relaxed">
-              Due today. Setup includes the first {LEADNET_INCLUDED_DAYS} days;{" "}
-              {formatCurrency(LEADNET_MONTHLY_CENTS)}/month begins on day {LEADNET_INCLUDED_DAYS}.
-            </p>
-          </div>
-        ) : null}
-      </div>
 
-      {checkoutOpen ? (
-        <StartForm
-          engagement={engagement}
-          addons={addons}
-        />
-      ) : (
-        <ApplyCard path={path} theme={theme} label={engagement.confirmLabel} />
-      )}
+        <div className="mt-7 grid gap-4 sm:grid-cols-2">
+          <Field label="Your name">
+            <Input required autoComplete="name" value={details.name} onChange={(event) => setDetail("name", event.target.value)} />
+          </Field>
+          <Field label="Company name">
+            <Input required autoComplete="organization" value={details.company} onChange={(event) => setDetail("company", event.target.value)} />
+          </Field>
+          <Field label="Email">
+            <Input required type="email" autoComplete="email" value={details.email} onChange={(event) => setDetail("email", event.target.value)} />
+          </Field>
+          <Field label="Phone">
+            <Input required type="tel" inputMode="tel" autoComplete="tel" value={details.phone} onChange={(event) => setDetail("phone", event.target.value)} />
+          </Field>
+          <Field label="Industry">
+            <Input required value={details.industry} onChange={(event) => setDetail("industry", event.target.value)} />
+          </Field>
+          <Field label="Domain status">
+            <Input required placeholder="Have one / need one / not sure" value={details.domainStatus} onChange={(event) => setDetail("domainStatus", event.target.value)} />
+          </Field>
+          <Field label="Services">
+            <Input required value={details.services} onChange={(event) => setDetail("services", event.target.value)} />
+          </Field>
+          <Field label="Service areas">
+            <Input required value={details.serviceAreas} onChange={(event) => setDetail("serviceAreas", event.target.value)} />
+          </Field>
+          <Field label="Branding/assets">
+            <Input placeholder="Logo, colors, photos, or none yet" value={details.brandingAssets} onChange={(event) => setDetail("brandingAssets", event.target.value)} />
+          </Field>
+          <Field label="Notes">
+            <Input placeholder="No passwords here" value={details.notes} onChange={(event) => setDetail("notes", event.target.value)} />
+          </Field>
+        </div>
+
+        <Button type="submit" className="mt-6 w-full" size="lg" disabled={!stripeReady || loading}>
+          {!stripeReady ? "Checkout not configured" : loading ? "One moment..." : "Review agreement"}
+        </Button>
+        <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+          Do not enter passwords here. We collect account access through secure
+          handoff during onboarding. Subject to{" "}
+          <Link href="/terms" className="text-accent hover:underline">Terms</Link>
+          {" "}and{" "}
+          <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>.
+        </p>
+      </form>
+
+      <aside className="rounded-xl border border-white/15 bg-oled p-5 sm:p-7">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
+          Exact summary
+        </p>
+        <p className="mt-4 text-sm uppercase tracking-[0.12em] text-muted">Due today</p>
+        <p className="mt-1 text-5xl font-semibold text-accent">{formatCurrency(order.dueTodayCents)}</p>
+        <div className="mt-5 space-y-3">
+          {order.oneTimeCharges.map((charge) => (
+            <Line key={charge.id} label={charge.label} amount={formatCurrency(charge.amountCents)} />
+          ))}
+        </div>
+        {order.recurringWebsiteCharges.length ? (
+          <div className="mt-6 border-t border-white/10 pt-5">
+            <p className="font-semibold">Website renews</p>
+            {order.recurringWebsiteCharges.map((charge) => (
+              <Line key={charge.id} label={charge.label} amount={`${formatCurrency(charge.amountCents)}/mo`} />
+            ))}
+          </div>
+        ) : null}
+        {order.activationCharges.length ? (
+          <div className="mt-6 border-t border-white/10 pt-5">
+            <p className="font-semibold">Billing starts later</p>
+            {order.activationCharges.map((charge) => (
+              <Line key={charge.id} label={charge.label} amount={`${formatCurrency(charge.amountCents)}/mo`} />
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm leading-relaxed text-foreground/70">
+          <p>{order.ownershipSummary}</p>
+          <p>{order.cancellationSummary}</p>
+          <p>No minimum subscription term. No 12-payment plan. No automatic price drop or automatic website ownership transfer.</p>
+        </div>
+      </aside>
     </div>
   );
 }
 
-function PathButton({
+function ModeButton({
   active,
-  className,
-  label,
   onClick,
+  children,
 }: {
   active: boolean;
-  className: string;
-  label: string;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-semibold transition-colors",
-        className
-      )}
+      className={`rounded-lg border px-4 py-3 font-semibold ${
+        active ? "border-accent bg-accent/15 text-accent" : "border-white/15 text-foreground/75"
+      }`}
     >
-      {label}
+      {children}
     </button>
   );
 }
 
-function ApplyCard({
-  path,
-  theme,
-  label,
+function CheckRow({
+  checked,
+  onChange,
+  title,
+  detail,
 }: {
-  path: EngagementId;
-  theme: (typeof THEMES)[EngagementId];
-  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  title: string;
+  detail: string;
 }) {
-  const href =
-    path === "launchpad" ? "/qualification#intent-launchpad" : "/#get-in-touch";
-  const copy =
-    path === "launchpad"
-      ? "Launchpad opens after we see the company. Start with qualification."
-      : path === "partnership"
-        ? "Partnership starts after we talk. Tell us about the company."
-        : path === "custom"
-          ? "Tell us what you need. We write the scope before we build."
-          : "Online checkout is not open on this path yet.";
-
   return (
-    <div className={cn("mt-8 rounded-2xl border p-6 sm:p-8 text-center", theme.card)}>
-      <p className="text-foreground/85 leading-relaxed">{copy}</p>
-      <Link
-        href={href}
-        className={cn(
-          "mt-6 inline-flex w-full items-center justify-center rounded-lg px-8 py-4 text-lg font-semibold",
-          theme.apply,
-          theme.applyHover
-        )}
-      >
-        {label}
-      </Link>
-    </div>
+    <label className="flex cursor-pointer gap-3 rounded-lg border border-white/10 bg-black/20 p-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-4 w-4 accent-cyan-300"
+      />
+      <span>
+        <span className="block font-semibold">{title}</span>
+        <span className="mt-1 block text-sm leading-relaxed text-foreground/65">{detail}</span>
+      </span>
+    </label>
   );
 }
 
-function StartForm({
-  engagement,
-  addons,
-}: {
-  engagement: Engagement;
-  addons: CaptureAddonId[];
-}) {
-  const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onContinue(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-    const details = { path: engagement.id, name, company, email, phone, addons };
-    sessionStorage.setItem("intent-begin", JSON.stringify(details));
-
-    window.location.href = "/begin/agreement";
-  }
-
-  return (
-    <form
-      onSubmit={onContinue}
-      className="mt-8 space-y-4 rounded-2xl border-2 border-accent/30 bg-card/80 p-6 sm:p-8"
-    >
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">
-        Company details
-      </p>
-      <Field label="Your name">
-        <Input
-          required
-          autoComplete="name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </Field>
-      <Field label="Company name">
-        <Input
-          required
-          autoComplete="organization"
-          value={company}
-          onChange={(event) => setCompany(event.target.value)}
-        />
-      </Field>
-      <Field label="Email">
-        <Input
-          required
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </Field>
-      <Field label="Phone">
-        <Input
-          required
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-        />
-      </Field>
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
-      <Button type="submit" className="w-full" size="lg" disabled={loading}>
-        {loading ? "One moment…" : "Review agreement"}
-      </Button>
-      <p className="text-center text-xs text-muted leading-relaxed">
-        By providing your phone number and continuing, you agree to receive text messages and automated updates from Intent Revenue regarding your inquiry and onboarding. Message and data rates may apply. Reply STOP to opt out. Message frequency varies. Subject to our{" "}
-        <Link href="/terms" className="text-accent hover:underline">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="text-accent hover:underline">
-          Privacy Policy
-        </Link>
-        .
-      </p>
-    </form>
-  );
-}
-
-
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-2">
-      <span className="block font-mono text-xs uppercase tracking-wider text-muted">
-        {label}
-      </span>
+      <span className="block font-mono text-xs uppercase tracking-wider text-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+function Line({ label, amount }: { label: string; amount: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="text-foreground/70">{label}</span>
+      <span className="shrink-0 font-semibold text-foreground">{amount}</span>
+    </div>
   );
 }

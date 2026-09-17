@@ -23,7 +23,7 @@ When selling to prospects (trade contractors, HVAC/plumbing business owners, age
 
 ### Golden Rules for Public Copy & Sales Pitches:
 1. **Focus on Business Results, Not Technical Plumbing**:
-   - **Say**: *"Instant 3-second automated text response that books the job before your competitor picks up."*
+   - **Say**: *"A search-ready website with optional follow-up software that helps respond to inquiries quickly."*
    - **Do NOT Say**: *"We built a Next.js serverless API endpoint connected to Twilio webhooks with regex extraction."*
 2. **Never Disclose Infrastructure Providers to Prospects**:
    - Do not mention Twilio, Supabase, Vercel, Stripe webhook structures, or specific third-party APIs during sales pitches or on public marketing pages. Present the platform as **Intent’s Proprietary LeadNet Infrastructure**.
@@ -36,19 +36,17 @@ When selling to prospects (trade contractors, HVAC/plumbing business owners, age
 
 ## 3. Legal & Contractual IP Protections
 
-### A. SaaS / Managed Sprint Model (Never "Work-for-Hire")
-All customer-facing agreements must explicitly state that software setup is a **productized sprint granting a limited, revocable license**, not a custom software development contract where the client acquires copyright.
+### A. Managed Website And Optional Software Model
+Customer-facing agreements must distinguish between managed monthly website service, upfront website deliverables, and optional LeadNet software. Monthly website service does not automatically transfer source/design ownership. Upfront website deliverables transfer only as stated in the accepted agreement and remain subject to third-party licensing limits.
 
-- **Agreement Language Standard** (already codified in `contracts/INTENT-LEADNET-AGREEMENT.md` and `src/app/terms/page.tsx`):
-  > *"Unless a written contract signed by Intent expressly assigns ownership or grants an exclusive license, Intent owns all software, applications, code, templates, dashboards, and related work product we create or customize, including this LeadNet instance. The Client receives a limited, non-exclusive, non-transferable right to use it in their own trade business while they are an active client. Payment of the sprint does not transfer ownership."*
+- **Agreement Language Standard**: the accepted checkout agreement is generated from `src/lib/leadnet-offer.ts` and `src/lib/capture-agreement.ts`; do not reintroduce automatic ownership transfer after a payment count.
 
 ### B. Non-Compete & Non-Circumvention
 1. **No Resale or Sublicensing**: Clients are legally prohibited from sublicensing, white-labeling, or renting their LeadNet instance to third-party contractors or competitors.
 2. **No Reverse Engineering**: Terms of Service explicitly prohibit inspecting, decompiling, extracting source code, or attempting to clone backend APIs.
 
-### C. Branding & Watermark Protection
-- The *"Designed with Intent Revenue"* watermark protects brand attribution and acts as an organic acquisition loop.
-- Removing the watermark is strictly an optional paid upgrade ($250 add-on) and does not transfer source code rights.
+### C. Branding Protection
+- Brand attribution and software/source ownership terms must follow the accepted checkout agreement. Do not sell watermark removal as part of the current website-first checkout.
 
 ---
 
@@ -87,8 +85,8 @@ All customer-facing agreements must explicitly state that software setup is a **
 
 ## 6. Client Churn & Offboarding Protocol
 
-If a client cancels their monthly subscription ($397/mo) or fails to maintain payment:
-1. **Immediate Service Deactivation**: Release or suspend the Twilio tracking line after the contractual grace period.
+If a client cancels a monthly website, Website Care, or LeadNet Follow-Up subscription or fails to maintain payment:
+1. **Paid-Through Service Window**: Continue applicable service through the paid billing period unless the agreement or law requires a different treatment.
 2. **Revoke Webhook Ingestion**: Disable Angi and Google LSA webhook secret tokens to stop processing new inbound leads.
 3. **Terminate Dashboard Access**: Revoke active session tokens and remove client instance hosting.
 4. **Data Retention & Privacy**: Retain lead logs in cold storage according to privacy policies, but do not export Intent's application codebase or internal templates to the client.

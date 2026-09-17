@@ -229,7 +229,7 @@ export function LeadNetComparison() {
                       </svg>
                     </div>
                     <span>
-                      <strong className="text-foreground font-semibold">AutoSet Engine:</strong> Automated 5-star Google review collection &amp; follow-up.
+                      <strong className="text-foreground font-semibold">AutoSet Engine:</strong> Automated Google review-request follow-up.
                     </span>
                   </li>
                   <li className="flex items-start gap-3 text-sm">
@@ -277,7 +277,7 @@ export function LeadNetComparison() {
                 </div>
                 <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-accent/20">
                   <span className="text-xs text-foreground/80">
-                    Monthly Retainer (Starts after 30 days)
+                    LeadNet Follow-Up (Starts at activation)
                   </span>
                   <span className="text-xl font-bold text-foreground">
                     {formatCurrency(LEADNET_MONTHLY_CENTS)}/mo

@@ -3,10 +3,11 @@ import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/sections/legal-shell";
 import { BRAND_NAME, SITE_URL } from "@/lib/seo";
 import {
-  LEADNET_INCLUDED_DAYS,
-  leadNetMonthlyDisplay,
-  leadNetSprintDisplay,
-} from "@/lib/engagements";
+  LEADNET_FOLLOW_UP,
+  WEBSITE_CARE,
+  WEBSITE_PACKAGES,
+} from "@/lib/leadnet-offer";
+import { formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -77,29 +78,30 @@ export default function TermsPage() {
 
       <LegalSection title="5. Intent LeadNet">
         <p>
-          Intent LeadNet is a productized sprint sold on this site. The amount
-          due today is the sprint and any add-ons you select ({leadNetSprintDisplay()} base,
-          optional custom styling, optional no watermark). Setup includes the first {LEADNET_INCLUDED_DAYS} days;
-          {leadNetMonthlyDisplay()}/month begins on day {LEADNET_INCLUDED_DAYS} for the tracking number, voice on that
-          number, speed-to-lead auto-replies, customer database reactivation, owner alerts, and Google review SMS under
-          ordinary trade volume.
+          The LeadNet checkout on this site sells business websites first:
+          Business Website ({formatCurrency(WEBSITE_PACKAGES.business.monthly.setupCents)} setup +{" "}
+          {formatCurrency(WEBSITE_PACKAGES.business.monthly.recurringCents)}/month, or{" "}
+          {formatCurrency(WEBSITE_PACKAGES.business.upfrontCents)} upfront) and Expanded Website (
+          {formatCurrency(WEBSITE_PACKAGES.expanded.monthly.setupCents)} setup +{" "}
+          {formatCurrency(WEBSITE_PACKAGES.expanded.monthly.recurringCents)}/month, or{" "}
+          {formatCurrency(WEBSITE_PACKAGES.expanded.upfrontCents)} upfront). Monthly website plans have no
+          minimum term. Setup and the first month are collected at checkout.
         </p>
         <p>
-          You choose one phone setup at kickoff: keep the public number and
-          forward it into LeadNet (your Phone app rings a private second line
-          you pay your carrier for, typically about $8/month), or keep the
-          phone as it is and put the LeadNet tracking number on Google and ads.
-          Intent does not sell cell plans. A second line is never billed by
-          Intent.
+          Upfront website buyers can optionally add Website Care at{" "}
+          {formatCurrency(WEBSITE_CARE.monthlyCents)}/month beginning when hosting
+          service is activated. LeadNet Follow-Up is optional software at{" "}
+          {formatCurrency(LEADNET_FOLLOW_UP.monthlyCents)}/month beginning when
+          LeadNet is activated. These future activation subscriptions are not
+          charged at website checkout.
         </p>
         <p>
-          Software we build stays with {BRAND_NAME} unless a signed contract
-          says otherwise. You may use LeadNet while you are an active client
-          (current on the monthly, or in the included 30 days). Starting LeadNet
-          via this site requires agreeing to these Terms at checkout and
-          executing the standard onboarding agreement electronically immediately
-          following payment. Scope, refunds, and cancellations are governed by
-          these Terms and the signed onboarding agreement.
+          Monthly website plans provide a managed hosted website while subscribed
+          and do not automatically transfer website source or design ownership.
+          Upfront website purchases transfer agreed deliverables after completion
+          and full payment, subject to third-party licensing limits. Scope,
+          refunds, and cancellations are governed by these Terms and the accepted
+          checkout agreement.
         </p>
       </LegalSection>
 
@@ -173,13 +175,14 @@ export default function TermsPage() {
 
       <LegalSection title="9. Starting work and payments">
         <p>
-          If you start LeadNet, Launchpad, or partnership through this site,
-          that confirmation is payment for the engagement described on that
-          page, not a purchase of software ownership. LeadNet checkout is the
-          sprint and selected add-ons. Setup includes the first {LEADNET_INCLUDED_DAYS} days; the {leadNetMonthlyDisplay()} monthly described on /leadnet
-          and in the LeadNet agreement begins on day {LEADNET_INCLUDED_DAYS}. Refunds apply only if a signed contract says so. Card
-          processing is handled by secure third-party payment processors.
-          Payment processor terms apply to the transaction itself.
+          If you start a website order through this site, that confirmation is
+          payment for the engagement described on that page and in the accepted
+          checkout agreement. Optional Website Care and LeadNet Follow-Up begin
+          billing only when activated. Refunds apply only if a signed contract,
+          accepted checkout agreement, existing approved refund terms, or
+          applicable law says so. Card processing is handled by secure
+          third-party payment processors. Payment processor terms apply to the
+          transaction itself.
         </p>
       </LegalSection>
 

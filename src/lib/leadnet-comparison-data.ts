@@ -32,7 +32,7 @@ export const COMPETITOR_STACK = [
 export const LEADNET_FEATURES = [
   "LiveWire: Sub-3s missed-call text-back",
   "RevSurge: 1-click database reactivation",
-  "AutoSet: 5-star Google review automation",
+  "AutoSet: Google review-request automation",
   "Instant Angi & Google LSA auto-replies",
 ] as const;
 

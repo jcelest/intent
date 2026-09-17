@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  addonAmount,
-  getEngagement,
-  isDocuSignConfigured,
-  parseAddons,
-  parseEngagementId,
-} from "@/lib/engagements";
+import { isDocuSignConfigured } from "@/lib/engagements";
 import { startCaptureSigning } from "@/lib/docusign";
 import { SITE_URL } from "@/lib/seo";
+import { normalizeLeadNetSelection, type LeadNetCustomerDetails } from "@/lib/leadnet-offer";
 
 export const runtime = "nodejs";
 
@@ -20,20 +15,20 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const engagement = getEngagement(parseEngagementId(body?.path));
-  if (engagement.id !== "capture" || !engagement.amountCents) {
-    return NextResponse.json(
-      { error: "DocuSign is set up for LeadNet first." },
-      { status: 400 }
-    );
-  }
-
-  const name = String(body?.name ?? "").trim();
-  const email = String(body?.email ?? "").trim();
-  const phone = String(body?.phone ?? "").trim();
-  const company = String(body?.company ?? "").trim();
-  const addons = parseAddons(body?.addons);
-  if (name.length < 2 || !email.includes("@")) {
+  const rawDetails = (body?.details ?? body ?? {}) as Record<string, unknown>;
+  const details: LeadNetCustomerDetails = {
+    name: String(rawDetails.name ?? "").trim(),
+    company: String(rawDetails.company ?? "").trim(),
+    email: String(rawDetails.email ?? "").trim(),
+    phone: String(rawDetails.phone ?? "").trim(),
+    industry: String(rawDetails.industry ?? "").trim(),
+    domainStatus: String(rawDetails.domainStatus ?? "").trim(),
+    services: String(rawDetails.services ?? "").trim(),
+    serviceAreas: String(rawDetails.serviceAreas ?? "").trim(),
+    brandingAssets: String(rawDetails.brandingAssets ?? "").trim(),
+    notes: String(rawDetails.notes ?? "").trim(),
+  };
+  if (details.name.length < 2 || !details.email.includes("@")) {
     return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
   }
 
@@ -44,12 +39,8 @@ export async function POST(request: Request) {
 
   try {
     const result = await startCaptureSigning({
-      name,
-      company,
-      email,
-      phone,
-      addons,
-      amountCents: engagement.amountCents + addonAmount(addons),
+      details,
+      selection: normalizeLeadNetSelection(body?.selection ?? {}),
       returnUrl: `${origin.replace(/\/$/, "")}/begin/signed`,
     });
     return NextResponse.json(result);

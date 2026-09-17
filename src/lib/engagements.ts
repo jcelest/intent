@@ -1,6 +1,13 @@
+import {
+  LEADNET_FOLLOW_UP,
+  WEBSITE_PACKAGES,
+  leadNetWebsitePricingMetaLine,
+  leadNetWebsitePricingSummary,
+} from "@/lib/leadnet-offer";
+
 export type EngagementId = "capture" | "launchpad" | "partnership" | "custom";
 
-export type CaptureAddonId = "styling" | "nowatermark";
+export type CaptureAddonId = never;
 
 export type Engagement = {
   id: EngagementId;
@@ -12,9 +19,9 @@ export type Engagement = {
   amountCents: number | null;
 };
 
-/** Recurring LeadNet after the included days. Setup includes the first 30 days; begins on day 30. */
-export const LEADNET_MONTHLY_CENTS = 39700;
-export const LEADNET_INCLUDED_DAYS = 30;
+/** Compatibility export. New LeadNet Follow-Up billing begins only when activated. */
+export const LEADNET_MONTHLY_CENTS = LEADNET_FOLLOW_UP.monthlyCents;
+export const LEADNET_INCLUDED_DAYS = 0;
 
 export const LEADNET_PHONE_PATHS = [
   {
@@ -36,24 +43,11 @@ export const CAPTURE_ADDONS: Array<{
   label: string;
   detail: string;
   amountCents: number;
-}> = [
-  {
-    id: "styling",
-    label: "Custom Application Styling",
-    detail: "Brand colors, type, and layout matched to the company.",
-    amountCents: 35000,
-  },
-  {
-    id: "nowatermark",
-    label: "No Watermark",
-    detail: "Removes Designed with Intent Revenue from the live app.",
-    amountCents: 25000,
-  },
-];
+}> = [];
 
 
 
-export const LEADNET_SPRINT_CENTS = 49700;
+export const LEADNET_SPRINT_CENTS = WEBSITE_PACKAGES.business.upfrontCents;
 export const LEADNET_TEST_SPRINT_CENTS = 50;
 
 /** Canonical customer-facing pricing strings — use in metadata, llms.txt, and AI-facing copy */
@@ -75,14 +69,14 @@ export function leadNetMonthlyDisplay() {
   }).format(LEADNET_MONTHLY_CENTS / 100);
 }
 
-/** e.g. "$497 sprint, then $397/month after 30 days" */
+/** Compatibility summary for legacy imports. */
 export function leadNetPricingSummary() {
-  return `${leadNetSprintDisplay()} sprint, then ${leadNetMonthlyDisplay()}/month after ${LEADNET_INCLUDED_DAYS} days`;
+  return leadNetWebsitePricingSummary();
 }
 
 /** Shorter line for meta descriptions */
 export function leadNetPricingMetaLine() {
-  return `${leadNetSprintDisplay()} setup sprint, then ${leadNetMonthlyDisplay()}/month`;
+  return leadNetWebsitePricingMetaLine();
 }
 
 export function isLeadNetTestCheckout() {
@@ -163,18 +157,18 @@ export function getEngagement(id: EngagementId): Engagement {
 
   return {
     id: "capture",
-    kicker: "Nothing slips through",
-    title: "Intent LeadNet",
+    kicker: "Website first",
+    title: "LeadNet Websites",
     summary:
-      "Instant speed-to-lead auto-replies, missed-call recovery, customer database reactivation, Google review SMS, and a live dispatch dashboard. Nothing slips through the cracks.",
+      "Business websites with a search-ready foundation and optional LeadNet Follow-Up software.",
     points: [
-      "Your Company gets its own LeadNet app",
-      "Instant 3-second speed-to-lead & missed-call capture",
-      "Dormant customer database reactivation engine",
-      "Google review booster and live revenue dashboard",
-      `First ${LEADNET_INCLUDED_DAYS} days of the tracking number and texts are in the sprint. Then $${LEADNET_MONTHLY_CENTS / 100}/month.`,
+      "Business Website or Expanded Website",
+      "Monthly or upfront payment mode",
+      "Optional Website Care for upfront buyers",
+      "Optional LeadNet Follow-Up at activation",
+      leadNetWebsitePricingSummary(),
     ],
-    confirmLabel: "Pay and start LeadNet",
+    confirmLabel: "Configure website",
     amountCents: leadNetSprintCents(),
   };
 }

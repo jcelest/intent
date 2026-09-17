@@ -1,7 +1,11 @@
 import { createPrivateKey } from "node:crypto";
 import { SITE_URL } from "@/lib/seo";
-import { captureAgreementHtml } from "@/lib/capture-agreement";
-import type { CaptureAddonId } from "@/lib/engagements";
+import { leadNetWebsiteAgreementHtml } from "@/lib/capture-agreement";
+import {
+  calculateLeadNetOrder,
+  type LeadNetCustomerDetails,
+  type LeadNetOrderSelection,
+} from "@/lib/leadnet-offer";
 
 const AUTH_URL =
   process.env.DOCUSIGN_AUTH_BASE || "https://account-d.docusign.com";
@@ -43,17 +47,32 @@ async function getAccessToken() {
 }
 
 export async function startCaptureSigning(input: {
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  amountCents: number;
-  addons: CaptureAddonId[];
+  details?: LeadNetCustomerDetails;
+  selection?: LeadNetOrderSelection;
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
   returnUrl: string;
 }) {
   const token = await getAccessToken();
   const accountId = process.env.DOCUSIGN_ACCOUNT_ID!;
-  const html = captureAgreementHtml(input);
+  const details =
+    input.details ??
+    ({
+      name: input.name || "",
+      company: input.company || "",
+      email: input.email || "",
+      phone: input.phone || "",
+      industry: "",
+      domainStatus: "",
+      services: "",
+      serviceAreas: "",
+      brandingAssets: "",
+      notes: "",
+    } satisfies LeadNetCustomerDetails);
+  const order = calculateLeadNetOrder(input.selection ?? {});
+  const html = leadNetWebsiteAgreementHtml({ details, order });
   const documentBase64 = Buffer.from(html, "utf8").toString("base64");
 
   const envelopeRes = await fetch(
@@ -65,12 +84,12 @@ export async function startCaptureSigning(input: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        emailSubject: "Intent LeadNet Agreement",
+        emailSubject: "Intent Website Agreement",
         status: "sent",
         documents: [
           {
             documentId: "1",
-            name: "Intent LeadNet Agreement.html",
+            name: "Intent Website Agreement.html",
             fileExtension: "html",
             documentBase64,
           },
@@ -78,8 +97,8 @@ export async function startCaptureSigning(input: {
         recipients: {
           signers: [
             {
-              email: input.email,
-              name: input.name,
+              email: details.email,
+              name: details.name,
               recipientId: "1",
               clientUserId: "capture-signer",
               routingOrder: "1",
@@ -129,8 +148,8 @@ export async function startCaptureSigning(input: {
       body: JSON.stringify({
         returnUrl: input.returnUrl,
         authenticationMethod: "none",
-        email: input.email,
-        userName: input.name,
+        email: details.email,
+        userName: details.name,
         clientUserId: "capture-signer",
       }),
     }

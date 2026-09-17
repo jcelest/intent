@@ -8,11 +8,10 @@ import {
   BUSINESS_GEO,
 } from "@/lib/seo";
 import {
-  LEADNET_INCLUDED_DAYS,
-  LEADNET_MONTHLY_CENTS,
-  LEADNET_SPRINT_CENTS,
-  leadNetPricingMetaLine,
-} from "@/lib/engagements";
+  LEADNET_FOLLOW_UP,
+  WEBSITE_PACKAGES,
+  leadNetWebsitePricingMetaLine,
+} from "@/lib/leadnet-offer";
 
 const organizationAddress = {
   "@type": "PostalAddress",
@@ -173,9 +172,9 @@ export function LeadNetOfferJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: "Intent LeadNet",
+    name: "LeadNet Websites",
     description:
-      "Revenue capture and reactivation engine for contractors: speed-to-lead, missed-call recovery, RevSurge database reactivation, and live dispatch.",
+      "Professionally built business websites with a search-ready foundation and optional LeadNet Follow-Up software.",
     brand: {
       "@type": "Brand",
       name: BRAND_NAME,
@@ -183,10 +182,10 @@ export function LeadNetOfferJsonLd() {
     url: `${SITE_URL}/leadnet`,
     offers: {
       "@type": "Offer",
-      url: `${SITE_URL}/begin?path=leadnet`,
+      url: `${SITE_URL}/begin`,
       priceCurrency: "USD",
-      price: LEADNET_SPRINT_CENTS / 100,
-      description: `${leadNetPricingMetaLine()}. First ${LEADNET_INCLUDED_DAYS} days included in sprint.`,
+      price: WEBSITE_PACKAGES.business.upfrontCents / 100,
+      description: leadNetWebsitePricingMetaLine(),
       availability: "https://schema.org/InStock",
       seller: {
         "@type": "Organization",
@@ -197,8 +196,18 @@ export function LeadNetOfferJsonLd() {
     additionalProperty: [
       {
         "@type": "PropertyValue",
-        name: "Monthly retainer after included period",
-        value: `$${LEADNET_MONTHLY_CENTS / 100}/month after ${LEADNET_INCLUDED_DAYS} days`,
+        name: "Business Website monthly",
+        value: `$${WEBSITE_PACKAGES.business.monthly.setupCents / 100} setup + $${WEBSITE_PACKAGES.business.monthly.recurringCents / 100}/month`,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "Expanded Website monthly",
+        value: `$${WEBSITE_PACKAGES.expanded.monthly.setupCents / 100} setup + $${WEBSITE_PACKAGES.expanded.monthly.recurringCents / 100}/month`,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "Optional LeadNet Follow-Up",
+        value: `$${LEADNET_FOLLOW_UP.monthlyCents / 100}/month beginning at activation`,
       },
     ],
   };

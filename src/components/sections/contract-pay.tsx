@@ -50,11 +50,15 @@ export function ContractPay() {
       return;
     }
     const details = JSON.parse(raw);
+    if (!details.acceptanceId) {
+      setError("The agreement must be accepted before payment.");
+      return;
+    }
 
     fetch("/api/stripe/intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(details),
+      body: JSON.stringify({ acceptanceId: details.acceptanceId }),
     })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
@@ -89,7 +93,8 @@ export function ContractPay() {
         Payment
       </p>
       <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
-        Complete payment to begin your sprint.
+        Complete the charge shown in the accepted agreement. Future activation
+        subscriptions are not charged today.
       </p>
       <Elements stripe={stripePromise} options={options}>
         <ConfirmStep confirmLabel="Pay now" returnUrl={returnUrl} />

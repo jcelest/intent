@@ -1,28 +1,30 @@
 # Intent Revenue (intentrev.net)
 
-> Contractor lead generation and revenue systems for HVAC, plumbing, roofing, and home services. Florida and nationwide.
+> Business websites and revenue systems for local service companies. Florida and nationwide.
 
 ## Summary
 
-Intent Revenue helps trades businesses engineer revenue through lead generation: speed-to-lead response, voice qualification, programmatic local SEO, and conversion-focused web experiences. We focus on measurable outcomes: leads and revenue, not vanity metrics.
+Intent Revenue builds professional business websites with a search-ready foundation and offers optional LeadNet Follow-Up software for texting, intake, owner replies, review-request tools, and reactivation access where operational.
 
-## Intent LeadNet — current pricing (authoritative)
+## LeadNet Websites current pricing
 
-Intent LeadNet is the revenue capture and reactivation product for contractors.
-
-- **Setup sprint:** $497 (one-time; includes first 30 days of tracking number and SMS)
-- **Monthly after 30 days:** $397/month (tracking number, voice, missed-call text-back, owner alerts, Google review SMS, RevSurge database reactivation, dashboard)
-- **Optional add-ons at checkout:** Custom Application Styling $350 · No Watermark $250
+- **Business Website monthly:** $297 setup + $197/month. Setup and first month are collected at checkout. No minimum term.
+- **Business Website upfront:** $1,497.
+- **Expanded Website monthly:** $497 setup + $297/month. Setup and first month are collected at checkout. No minimum term.
+- **Expanded Website upfront:** $2,497.
+- **Website Care:** Optional for upfront buyers only, $49/month beginning when hosting service is activated.
+- **LeadNet Follow-Up:** Optional, $149/month beginning when LeadNet is activated. Standard setup is included for website customers.
+- **SMS allowance:** 1,000 SMS segments per billing month, inbound and outbound combined. Additional SMS segments are $0.03 each only within an expressly approved overage budget. Default approved overage budget is $0.
 - **Product page:** https://intentrev.net/leadnet
-- **Start checkout:** https://intentrev.net/begin?path=leadnet
+- **Start checkout:** https://intentrev.net/begin
 
 ## Key pages
 
 - Home: https://intentrev.net
-- Intent LeadNet: https://intentrev.net/leadnet
+- LeadNet Websites: https://intentrev.net/leadnet
 - Contact: https://intentrev.net/contact
 - Phone: (407) 543-7480
 
-## Contact
+## Exclusions
 
-Website: https://intentrev.net
+This purchase flow does not include ongoing SEO management, monthly content production, ranking campaigns, ecommerce, custom applications, complex integrations, logo design, photography, unlimited revisions, or guaranteed rankings, indexing, traffic, leads, or revenue.

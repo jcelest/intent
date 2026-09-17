@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     return new NextResponse(record.agreement_html, {
       headers: {
         "Content-Type": "text/html",
-        "Content-Disposition": `attachment; filename="LeadNet-Service-Agreement-${record.company_name.replace(/[^a-z0-9]/gi, '_')}.html"`,
+        "Content-Disposition": `attachment; filename="Intent-Website-Agreement-${record.company_name.replace(/[^a-z0-9]/gi, '_')}.html"`,
       },
     });
 
