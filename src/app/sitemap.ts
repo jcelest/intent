@@ -22,6 +22,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.95,
     },
     {
+      url: `${SITE_URL}/intent-quoting-system`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.85,
+    },
+    {
       url: `${SITE_URL}/offering`,
       lastModified: new Date(),
       changeFrequency: "weekly" as const,

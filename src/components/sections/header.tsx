@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/logo";
 
 const NAV_LINKS = [
   { href: "/leadnet", label: "LeadNet" },
+  { href: "/intent-quoting-system", label: "Intent Quoting System" },
   { href: "/offering", label: "Offering" },
   { href: "/qualification", label: "Qualification" },
   { href: "/#get-in-touch", label: "Get a Quote" },
@@ -22,7 +23,7 @@ export function Header() {
           <Logo variant="navbar" />
         </Link>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden lg:flex items-center gap-6">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -35,7 +36,7 @@ export function Header() {
         </div>
 
         <button
-          className="md:hidden p-2 text-foreground"
+          className="lg:hidden p-2 text-foreground"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -70,7 +71,7 @@ export function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border/50 bg-oled/95 backdrop-blur-md"
+            className="lg:hidden border-t border-border/50 bg-oled/95 backdrop-blur-md"
           >
             <div className="px-4 py-4 flex flex-col gap-4">
               {NAV_LINKS.map((link) => (
