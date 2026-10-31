@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { href: "/intent-quoting-system", label: "Intent Quoting System" },
   { href: "/offering", label: "Offering" },
   { href: "/qualification", label: "Qualification" },
-  { href: "/#get-in-touch", label: "Get a Quote" },
+  { href: "/#about", label: "About" },
 ];
 
 export function Header() {

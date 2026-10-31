@@ -1,8 +1,9 @@
 import { Header } from "@/components/sections/header";
 import { HeroSection } from "@/components/sections/hero-section";
+import { FounderTrustSection } from "@/components/sections/founder-trust-section";
 import { MissionStatementSection } from "@/components/sections/mission-statement-section";
 import { BentoGrid } from "@/components/sections/bento-grid";
-import { RevenueDashboard } from "@/components/sections/revenue-dashboard";
+import { TrustOutcomesSection } from "@/components/sections/trust-outcomes-section";
 import { SeoContentSection } from "@/components/sections/seo-content-section";
 import { InquiryFormSection } from "@/components/sections/inquiry-form-section";
 import { Footer } from "@/components/sections/footer";
@@ -46,9 +47,10 @@ export default function Home() {
       <Header />
       <main className="pt-16">
         <HeroSection />
+        <FounderTrustSection />
         <MissionStatementSection />
         <BentoGrid />
-        <RevenueDashboard />
+        <TrustOutcomesSection />
         <SeoContentSection />
         <InquiryFormSection />
       </main>

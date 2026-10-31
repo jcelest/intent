@@ -166,7 +166,7 @@ export function InquiryFormSection({
             ? "Send a message or call us directly. We typically respond within 24 hours."
             : inquiryType === "launchpad"
               ? "Tell us where you are today. We'll build your review and intake foundation toward full partnership."
-              : "Tell us about your business. We'll assess fit and map how we grow your revenue."}
+              : "Tell us about your business. We'll assess fit, identify where revenue is being lost, and only recommend a path if we believe we can help."}
         </p>
 
         {status === "success" ? (

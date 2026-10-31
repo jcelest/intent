@@ -21,38 +21,31 @@ export function SeoContentSection() {
           viewport={{ once: true }}
           className="text-3xl sm:text-4xl font-display font-semibold text-foreground"
         >
-          Revenue growth for contractors that{" "}
-          <span className="text-accent">actually sticks</span>
+          Revenue growth you can{" "}
+          <span className="text-accent">see and understand</span>
         </motion.h2>
         <div className="mt-8 space-y-5 text-foreground/90 text-base sm:text-lg leading-relaxed">
           <p>
-            <strong className="text-foreground">Contractor lead generation</strong> only
-            useful when it turns into booked jobs. {BRAND_NAME} partners with HVAC, plumbing,
-            roofing, electrical, landscaping, and general contractors to grow real
-            revenue: demand, intake, close rates, and repeat work.
+            <strong className="text-foreground">Contractor lead generation</strong> is only useful when it creates real opportunities and booked work. {BRAND_NAME} partners with HVAC, plumbing, roofing, electrical, landscaping, and general contractors to improve demand, intake, close rates, and repeat business.
           </p>
           <p>
-            Trades run on the phone. The{" "}
-            <strong className="text-foreground">{BRAND_NAME} application</strong> is custom
-            software we build for you: site, speed-to-lead, dashboard, and AI voice when
-            your team can&apos;t answer. Your CSRs stay in control.
+            Trades run on trust and responsiveness. The{" "}
+            <strong className="text-foreground">{BRAND_NAME} application</strong> can bring the website, speed-to-lead follow-up, intake, reporting, and AI voice support into one clearer customer journey while your team stays in control.
           </p>
           <h3 className="text-xl font-display font-semibold text-foreground pt-1">
-            Organic-first Google Search, plus paid when it helps
+            Be easier to find and easier to choose
           </h3>
           <p>
-            Local pages, SEO, and content so you rank in your service area and respond
-            first. Paid ads when they accelerate what organic already built.
+            Local pages, search strategy, and useful content help customers understand what you do and where you work. Paid ads can add reach when the offer and customer path are ready for it.
           </p>
           <h3 className="text-xl font-display font-semibold text-foreground pt-1">
-            Revenue engineering, not vanity metrics
+            Clear reporting, not a black box
           </h3>
           <p>
-            Dashboards tie every lead to booked outcomes by source. You always know
-            what&apos;s working and what&apos;s paying for itself.
+            Reporting should connect demand, calls, forms, and follow-up to real opportunities and booked outcomes. That gives you a more honest view of what deserves more time and budget.
           </p>
           <p>
-            Tell us your trade and territory. {BRAND_NAME} will map how we grow your revenue.
+            Tell us your trade and territory. {BRAND_NAME} will look for the clearest path to stronger customer trust and more revenue.
             Call{" "}
             <a href={BUSINESS_PHONE_TEL} className="text-accent hover:underline">
               {BUSINESS_PHONE_DISPLAY}

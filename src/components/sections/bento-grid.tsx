@@ -18,47 +18,47 @@ import {
 
 const BENTO_ITEMS = [
   {
-    title: "Revenue Streams",
+    title: "Turn More Opportunities Into Revenue",
     description:
-      "We work on your behalf to find and grow high-value revenue: demand, conversion, maintenance agreements, and repeat work. Not just more clicks.",
+      "Find where demand, follow-up, close rate, maintenance agreements, and repeat work are leaving money on the table, then improve the path forward.",
     Icon: AtomIcon,
     span: "col-span-1 row-span-2",
     accent: false,
     gold: true,
-    kicker: "#1: Strategy & growth",
+    kicker: "Outcome: more valuable work",
     Visual: RevenueStreamsVisual,
   },
   {
-    title: "We Build Your Application & Software",
+    title: "Give Customers A Faster, Better Experience",
     description:
-      "Custom site, speed-to-lead & intake automation, AI voice when your team can't answer, and an analytics dashboard built for your trade. Software we build for you, not off-the-shelf.",
+      "Use a clear website, faster intake, speed-to-lead follow-up, and helpful automation so customers get answers and your team gets better opportunities.",
     Icon: LightningIcon,
     span: "col-span-1 row-span-2",
     accent: false,
     gold: true,
-    kicker: "#2: We build it for your trade",
+    kicker: "Outcome: more trust and faster response",
     Visual: SoftwareStackVisual,
   },
   {
-    title: "Google Search: Organic Growth",
+    title: "Earn Trust Before The First Call",
     description:
-      "We push exceptional organic pace: geo-targeted pages, local SEO, and content on Google. Organic-first, always.",
+      "Show up with useful service and location content that helps the right customer understand your business before they ever pick up the phone.",
     Icon: TargetIcon,
     span: "col-span-1 row-span-1",
     accent: false,
     gold: false,
-    kicker: "Organic-first",
+    kicker: "Outcome: stronger qualified demand",
     Visual: OrganicSearchVisual,
   },
   {
-    title: "Paid Ads & Content",
+    title: "Put Budget Behind What Works",
     description:
-      "Content creation and Google ad campaigns that complement organic: creative, targeting, and management tied to leads.",
+      "Use paid campaigns when they support a clear offer, a strong customer experience, and a measurable path from attention to real opportunity.",
     Icon: DispatcherIcon,
     span: "col-span-1 row-span-1",
     accent: false,
     gold: false,
-    kicker: "Amplifies organic",
+    kicker: "Outcome: purposeful growth spend",
     Visual: PaidAdsVisual,
   },
 ];
@@ -89,11 +89,10 @@ export function BentoGrid() {
         className="text-center mb-16"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-semibold">
-          Built for the <span className="text-accent">Trades</span>
+          Growth customers can <span className="text-accent">feel and trust</span>
         </h2>
         <p className="mt-4 text-muted max-w-2xl mx-auto">
-          {BRAND_NAME} leads with revenue strategy and software, then exceptional organic growth on
-          Google Search, with paid ads & content when you need more lift.
+          {BRAND_NAME} connects strategy, customer experience, search, software, and paid growth to the outcomes that matter: better opportunities, faster response, more booked work, and clearer revenue decisions.
         </p>
       </motion.div>
 
