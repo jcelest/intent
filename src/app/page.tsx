@@ -1,11 +1,9 @@
 import { Header } from "@/components/sections/header";
 import { HeroSection } from "@/components/sections/hero-section";
 import { FounderTrustSection } from "@/components/sections/founder-trust-section";
-import { MissionStatementSection } from "@/components/sections/mission-statement-section";
-import { BentoGrid } from "@/components/sections/bento-grid";
 import { TrustOutcomesSection } from "@/components/sections/trust-outcomes-section";
-import { SeoContentSection } from "@/components/sections/seo-content-section";
-import { InquiryFormSection } from "@/components/sections/inquiry-form-section";
+import { HomeProductsSection } from "@/components/sections/home-products-section";
+import { HomeFinalCta } from "@/components/sections/home-final-cta";
 import { Footer } from "@/components/sections/footer";
 import type { Metadata } from "next";
 import { SITE_URL, SEO_TITLE_DEFAULT, DEFAULT_DESCRIPTION, PRIMARY_KEYWORD_PHRASE, BRAND_NAME } from "@/lib/seo";
@@ -48,11 +46,9 @@ export default function Home() {
       <main className="pt-16">
         <HeroSection />
         <FounderTrustSection />
-        <MissionStatementSection />
-        <BentoGrid />
         <TrustOutcomesSection />
-        <SeoContentSection />
-        <InquiryFormSection />
+        <HomeProductsSection />
+        <HomeFinalCta />
       </main>
       <Footer />
     </div>

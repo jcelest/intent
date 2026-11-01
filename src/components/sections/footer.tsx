@@ -31,18 +31,6 @@ export function Footer() {
             LeadNet
           </Link>
           <Link
-            href="/offering"
-            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
-          >
-            Offering
-          </Link>
-          <Link
-            href="/qualification"
-            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
-          >
-            Qualification
-          </Link>
-          <Link
             href="/central-florida"
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
           >

@@ -1,21 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
 
 const CREDENTIALS = [
-  "600+ corporate-level escalations resolved",
-  "5+ years in high-stakes customer problem solving",
-  "B.S. in Psychology from the University of Central Florida",
-  "Founder and hands-on product builder",
+  "600+ complex cases resolved",
+  "5+ years in customer problem solving",
+  "UCF psychology graduate",
 ];
 
 export function FounderTrustSection() {
   return (
     <section
       id="about"
-      className="relative scroll-mt-24 border-y border-border/50 bg-card/35 px-4 py-20 sm:px-6 lg:px-8 lg:py-28"
+      className="relative scroll-mt-24 border-y border-border/50 bg-card/35 px-4 py-16 sm:px-6 lg:px-8 lg:py-24"
       aria-labelledby="founder-heading"
     >
       <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
@@ -52,35 +50,25 @@ export function FounderTrustSection() {
             id="founder-heading"
             className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl"
           >
-            Joshua Celestin builds around one outcome: helping good businesses make more money.
+            Built to help good businesses make more money.
           </h2>
-          <div className="mt-6 space-y-5 text-base leading-8 text-foreground/78 sm:text-lg">
+          <div className="mt-6 space-y-4 text-base leading-7 text-foreground/75 sm:text-lg">
             <p>
-              Joshua founded Intent Revenue on a straightforward belief: when a business trusts you with its growth, the work should lead back to revenue, not vague activity or impressive-looking reports.
+              Joshua Celestin founded Intent Revenue to turn customer needs into practical systems that create trust, momentum, and revenue.
             </p>
             <p>
-              Before Intent, he spent more than five years resolving complex executive escalations at Costco Wholesale. He handled more than 600 corporate-level cases across financial, order, fulfillment, refund, and service issues, often coordinating customers, senior leaders, internal teams, and outside partners to reach a clear resolution.
-            </p>
-            <p>
-              That experience shapes how he works with business owners today. Listen closely. Find the real constraint. Communicate clearly. Build a practical system that earns customer trust, captures more opportunities, and gives the owner a better chance to grow revenue.
+              His background resolving 600+ corporate-level escalations shaped the standard behind the work: listen carefully, solve the real problem, and earn trust through results.
             </p>
           </div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          <div className="mt-7 grid gap-3 sm:grid-cols-3">
             {CREDENTIALS.map((credential) => (
-              <div key={credential} className="flex gap-3 rounded-xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-foreground/75">
+              <div key={credential} className="flex gap-3 rounded-xl border border-white/10 bg-black/25 p-4 text-sm leading-5 text-foreground/75">
                 <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                 <span>{credential}</span>
               </div>
             ))}
           </div>
-
-          <Link
-            href="/offering"
-            className="mt-8 inline-flex items-center justify-center rounded-lg border border-accent/45 bg-accent/10 px-6 py-3 font-semibold text-accent transition-colors hover:bg-accent/20"
-          >
-            See how Intent works
-          </Link>
         </motion.div>
       </div>
     </section>

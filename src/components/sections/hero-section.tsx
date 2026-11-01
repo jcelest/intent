@@ -1,19 +1,11 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-
-const LiveTerminal = dynamic(
-  () => import("@/components/ui/live-terminal").then((mod) => mod.LiveTerminal),
-  { ssr: false }
-);
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center overflow-hidden px-4 sm:px-6 py-6 sm:py-0 sm:pb-12">
-      {/* Grid background with radial gradient mask */}
+    <section className="relative flex min-h-[calc(88dvh-4rem)] flex-col items-center justify-center overflow-hidden px-4 py-20 sm:px-6">
       <div
         className="absolute inset-0 bg-[linear-gradient(transparent_0%,transparent_50%,rgba(0,0,0,0.8)_100%)]"
         aria-hidden
@@ -32,59 +24,41 @@ export function HeroSection() {
 
       <div className="relative z-10 flex flex-col items-center text-center w-full max-w-5xl mx-auto min-w-0">
         <motion.h1
-          initial={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-semibold tracking-tight max-w-4xl w-full text-balance"
+          className="max-w-5xl text-balance font-display text-5xl font-semibold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl"
         >
-          <span className="drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] text-accent">
-            Intent Revenue
-          </span>
-          <span className="block mt-2 text-lg sm:text-3xl md:text-4xl text-foreground font-semibold leading-snug">
-            Growth Partner For Contractors And The Trades
-          </span>
-          <span className="block mt-2 sm:mt-3 text-base sm:text-2xl md:text-3xl text-muted font-medium">
-            We Grow Revenue. By A Lot.
-          </span>
+          Turn More Demand Into <span className="text-accent drop-shadow-[0_0_15px_rgba(34,211,238,0.45)]">Revenue.</span>
         </motion.h1>
 
-        <motion.div
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 1 }}
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="mt-6 sm:mt-10 w-full min-w-0 flex justify-center px-0 sm:px-0"
+          className="mt-6 max-w-2xl text-balance text-lg leading-8 text-foreground/70 sm:text-xl"
         >
-          <LiveTerminal className="w-full" />
-        </motion.div>
+          Practical systems that help businesses respond faster, earn trust, and win more work.
+        </motion.p>
 
         <motion.div
-          initial={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full"
+          className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row"
         >
           <Link
             href="/leadnet"
-            className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-lg bg-accent px-8 py-4 text-lg font-semibold text-oled drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:bg-cyan-300"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-lg bg-accent px-7 py-3.5 font-semibold text-oled transition-colors hover:bg-cyan-300 sm:w-auto"
           >
-            See LeadNet
+            Explore LeadNet
           </Link>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-full max-w-xs sm:w-auto sm:max-w-none"
-            onClick={() => (window.location.href = "/qualification")}
+          <Link
+            href="/intent-quoting-system"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-7 py-3.5 font-semibold text-foreground transition-colors hover:border-accent/50 hover:text-accent sm:w-auto"
           >
-            See Qualification
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-full max-w-xs sm:w-auto sm:max-w-none"
-            onClick={() => (window.location.href = "/offering")}
-          >
-            See the Package
-          </Button>
+            Explore Quoting
+          </Link>
         </motion.div>
       </div>
     </section>

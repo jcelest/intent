@@ -8,8 +8,6 @@ import { Logo } from "@/components/ui/logo";
 const NAV_LINKS = [
   { href: "/leadnet", label: "LeadNet" },
   { href: "/intent-quoting-system", label: "Intent Quoting System" },
-  { href: "/offering", label: "Offering" },
-  { href: "/qualification", label: "Qualification" },
   { href: "/#about", label: "About" },
 ];
 
