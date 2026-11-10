@@ -11,6 +11,7 @@ const NAV = [
     match: (p: string) => p.includes("/analytics") && !p.includes("/keyword"),
   },
   { href: "/admin/forms", label: "Intent Forms", match: (p: string) => p.includes("/forms") },
+  { href: "/admin/trade-demand", label: "Trade Demand", match: (p: string) => p.includes("/trade-demand") },
   { href: "/admin/keyword-demand", label: "Intent Traffic", match: (p: string) => p.includes("/keyword-demand") },
 ] as const;
 

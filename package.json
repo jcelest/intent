@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate": "node --env-file=.env.local scripts/migrate-db.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/migrate-db.mjs && node --env-file=.env.local scripts/migrate-trade-demand.mjs",
+    "db:migrate:trade-demand": "node --env-file=.env.local scripts/migrate-trade-demand.mjs",
+    "test:trade-demand": "node --experimental-strip-types --test tests/trade-demand.test.mjs",
     "test:matrix": "node --env-file=.env.development.local scripts/phase-h-test-matrix.mjs"
   },
   "dependencies": {
