@@ -22,10 +22,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.95,
     },
     {
-      url: `${SITE_URL}/intent-quoting-system`,
+      url: `${SITE_URL}/b2b`,
       lastModified: new Date(),
       changeFrequency: "monthly" as const,
-      priority: 0.85,
+      priority: 0.95,
     },
     {
       url: `${SITE_URL}/offering`,

@@ -11,13 +11,13 @@ const PRODUCTS = [
     cta: "Explore LeadNet",
   },
   {
-    name: "Intent Quoting System",
-    headline: "Turn pricing into a growth tool.",
+    name: "Intent B2B",
+    headline: "Land commercial accounts that send repeat work.",
     description:
-      "Give customers useful quotes in minutes while your team keeps control of the final price.",
-    points: ["Built from your price book", "Customer and team quoting", "Human review before approval"],
-    href: "/intent-quoting-system",
-    cta: "Explore Quoting",
+      "Reach the people who assign commercial work, follow up consistently, and get through vendor onboarding.",
+    points: ["Buyer outreach", "Follow-up", "Vendor onboarding"],
+    href: "/b2b",
+    cta: "Explore Intent B2B",
   },
 ];
 
@@ -28,7 +28,7 @@ export function HomeProductsSection() {
         <div className="mx-auto max-w-3xl text-center">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">What we build</p>
           <h2 id="products-heading" className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-            Two products. One job: help you win more revenue.
+            Two ways to help you win more revenue.
           </h2>
         </div>
 

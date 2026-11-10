@@ -54,10 +54,10 @@ export function HeroSection() {
             Explore LeadNet
           </Link>
           <Link
-            href="/intent-quoting-system"
+            href="/b2b"
             className="inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-7 py-3.5 font-semibold text-foreground transition-colors hover:border-accent/50 hover:text-accent sm:w-auto"
           >
-            Explore Quoting
+            Explore Intent B2B
           </Link>
         </motion.div>
       </div>

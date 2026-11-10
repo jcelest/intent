@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/intent-quoting-system",
+        destination: "/b2b",
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     instrumentationHook: true,
     serverComponentsExternalPackages: ["@google-analytics/data", "google-gax"],

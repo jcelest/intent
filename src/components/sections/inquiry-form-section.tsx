@@ -68,7 +68,7 @@ export function InquiryFormSection({
   mode = "default",
 }: {
   id?: string;
-  mode?: "default" | "contact";
+  mode?: "default" | "contact" | "b2b";
 } = {}) {
   const [inquiryType, setInquiryType] = useState<InquiryType>("partnership");
   const [name, setName] = useState("");
@@ -147,7 +147,11 @@ export function InquiryFormSection({
         className="max-w-xl mx-auto"
       >
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-semibold text-center">
-          {mode === "contact" ? (
+          {mode === "b2b" ? (
+            <>
+              Request a <span className="text-accent">10-minute call</span>
+            </>
+          ) : mode === "contact" ? (
             <>
               Contact <span className="text-accent">{BRAND_NAME}</span>
             </>
@@ -162,7 +166,9 @@ export function InquiryFormSection({
           )}
         </h2>
         <p className="mt-4 text-muted text-center">
-          {mode === "contact"
+          {mode === "b2b"
+            ? "Tell Josh your trade, service area, and the kind of commercial account you want to pursue."
+            : mode === "contact"
             ? "Send a message or call us directly. We typically respond within 24 hours."
             : inquiryType === "launchpad"
               ? "Tell us where you are today. We'll build your review and intake foundation toward full partnership."
@@ -197,7 +203,7 @@ export function InquiryFormSection({
             onSubmit={handleSubmit}
             className="mt-10 space-y-5"
           >
-            <div>
+            {mode !== "b2b" && <div>
               <p className="font-mono text-xs text-muted uppercase tracking-wider mb-3">
                 I&apos;m applying for
               </p>
@@ -229,7 +235,7 @@ export function InquiryFormSection({
                   Intent Launchpad
                 </button>
               </div>
-            </div>
+            </div>}
 
             <div>
               <label htmlFor="inquiry-name" className="block font-mono text-xs text-muted uppercase tracking-wider mb-2">
@@ -409,7 +415,9 @@ export function InquiryFormSection({
                 id="inquiry-message"
                 rows={4}
                 placeholder={
-                  inquiryType === "launchpad"
+                  mode === "b2b"
+                    ? "What kind of account or commercial work do you want more of?"
+                    : inquiryType === "launchpad"
                     ? "What's holding you back from full partnership today?"
                     : "Tell us about your business, territory, and growth goals..."
                 }
@@ -450,7 +458,9 @@ export function InquiryFormSection({
             >
               {status === "loading"
                 ? "Submitting..."
-                : inquiryType === "launchpad"
+                : mode === "b2b"
+                  ? "Request a 10-minute call"
+                  : inquiryType === "launchpad"
                   ? "Apply for Launchpad"
                   : "Apply for Partnership"}
             </Button>
