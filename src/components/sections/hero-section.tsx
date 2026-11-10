@@ -29,7 +29,7 @@ export function HeroSection() {
           transition={{ duration: 0.6 }}
           className="max-w-5xl text-balance font-display text-5xl font-semibold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl"
         >
-          Turn More Demand Into <span className="text-accent drop-shadow-[0_0_15px_rgba(34,211,238,0.45)]">Revenue.</span>
+          We Engineer <span className="text-accent drop-shadow-[0_0_15px_rgba(34,211,238,0.45)]">Revenue.</span>
         </motion.h1>
 
         <motion.p
