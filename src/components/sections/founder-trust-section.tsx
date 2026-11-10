@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 const CREDENTIALS = [
   "600+ complex cases resolved",
   "5+ years in customer problem solving",
-  "UCF psychology graduate",
+  "Bachelor's in Psychology at UCF",
 ];
 
 export function FounderTrustSection() {
@@ -57,7 +57,7 @@ export function FounderTrustSection() {
               Joshua Celestin founded Intent Revenue to turn customer needs into practical systems that create trust, momentum, and revenue.
             </p>
             <p>
-              His background resolving 600+ corporate-level escalations shaped the standard behind the work: listen carefully, solve the real problem, and earn trust through results.
+              His background in corporate America with Costco Wholesale shaped the standard behind the work: listen carefully, solve the real problem, and earn trust through results.
             </p>
           </div>
 
