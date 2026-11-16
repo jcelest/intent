@@ -168,9 +168,12 @@ export default function B2BPage() {
                 The offer
               </p>
               <h2 id="offer-heading" className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                $4,000 upfront.
+                $4,000 total campaign fee.
               </h2>
-              <p className="mt-5 text-lg leading-8 text-slate-300">
+              <p className="mt-3 text-base font-medium text-accent">
+                $2,000 start payment due on signing.
+              </p>
+              <p className="mt-4 text-lg leading-8 text-slate-300">
                 Before starting, Josh and the contractor agree on one primary campaign goal.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">

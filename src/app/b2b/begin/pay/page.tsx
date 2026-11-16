@@ -18,7 +18,7 @@ export default function B2BBeginPayPage() {
           stage="sign"
           kicker="Agreement Accepted"
           title="Almost done."
-          body="Complete the $4,000 payment to initiate your Commercial Partnerships campaign scoping and outreach."
+          body="Complete the $2,000 start payment to initiate your Commercial Partnerships campaign."
         >
           <B2BContractPay />
         </BeginOutcome>
