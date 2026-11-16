@@ -130,14 +130,31 @@ def query_for(row: dict[str, str]) -> str:
     return f"{business} {location}".strip()
 
 
-def place_score(row: dict[str, str], place: dict[str, Any]) -> float:
-    target_name = normalize(
-        row.get("sunbiz_entity_name") or row.get("dba_business_name") or row.get("contractor_name")
+def fallback_query_for(row: dict[str, str]) -> str:
+    """Broader DBA/city query for leads missed by the address-heavy first pass."""
+    business = (
+        clean(row.get("dba_business_name"))
+        or clean(row.get("sunbiz_entity_name"))
+        or clean(row.get("contractor_name"))
     )
+    return f"{business} {clean(row.get('city'))} FL HVAC contractor".strip()
+
+
+def place_score(row: dict[str, str], place: dict[str, Any]) -> float:
+    target_names = {
+        normalize(value)
+        for value in (
+            row.get("sunbiz_entity_name"),
+            row.get("dba_business_name"),
+            row.get("contractor_name"),
+        )
+        if normalize(value)
+    }
     place_name = normalize(place.get("displayName", {}).get("text", ""))
-    if not target_name or not place_name:
+    if not target_names or not place_name:
         return 0.0
-    score = 0.72 * SequenceMatcher(None, target_name, place_name).ratio()
+    name_similarity = max(SequenceMatcher(None, target, place_name).ratio() for target in target_names)
+    score = 0.72 * name_similarity
     address = normalize(place.get("formattedAddress", ""))
     city = normalize(row.get("city"))
     zip5 = clean(row.get("zip"))[:5]
@@ -192,26 +209,51 @@ def load_jsonl(path: Path) -> dict[str, dict[str, Any]]:
     return records
 
 
-def search_one(row: dict[str, str], api_key: str) -> dict[str, Any]:
+def count_successful_jsonl(path: Path) -> int:
+    """Count billable successful requests, including multiple strategies per lead."""
+    if not path.exists():
+        return 0
+    count = 0
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip() and json.loads(line).get("status") != "error":
+                count += 1
+    return count
+
+
+def search_one(
+    row: dict[str, str],
+    api_key: str,
+    query: str | None = None,
+    strategy: str = "primary",
+) -> dict[str, Any]:
     key = lead_key(row)
+    text_query = query or query_for(row)
     try:
         wait_for_search_slot()
         response = request_json(
             SEARCH_URL,
             api_key,
             SEARCH_FIELDS,
-            {"textQuery": query_for(row), "pageSize": 5, "languageCode": "en", "regionCode": "US"},
+            {"textQuery": text_query, "pageSize": 5, "languageCode": "en", "regionCode": "US"},
         )
         selected, score = select_place(row, response.get("places", []))
         return {
             "lead_key": key,
-            "query": query_for(row),
+            "query": text_query,
+            "strategy": strategy,
             "match_score": score,
             "place": selected,
             "status": "matched" if selected else "no_confident_match",
         }
     except Exception as exc:  # persisted for audit; retryable errors are retried on the next invocation
-        return {"lead_key": key, "query": query_for(row), "status": "error", "error": str(exc)}
+        return {
+            "lead_key": key,
+            "query": text_query,
+            "strategy": strategy,
+            "status": "error",
+            "error": str(exc),
+        }
 
 
 def run_searches(
@@ -220,7 +262,7 @@ def run_searches(
     cached = load_jsonl(cache_path)
     # Failed requests are not billable successful Text Search events. Retry them
     # without treating them as consumed free-cap allowance.
-    successful = sum(record.get("status") != "error" for record in cached.values())
+    successful = count_successful_jsonl(cache_path)
     pending = [
         row
         for row in rows
@@ -245,6 +287,48 @@ def run_searches(
             completed += 1
             if completed % 100 == 0:
                 print(f"  Text Search progress: {completed}/{len(pending)}", flush=True)
+    return cached
+
+
+def run_fallback_searches(
+    rows: list[dict[str, str]], api_key: str, cache_path: Path, cap: int, workers: int
+) -> dict[str, dict[str, Any]]:
+    cached = load_jsonl(cache_path)
+    successful = count_successful_jsonl(cache_path)
+    allowance = max(0, cap - successful)
+    candidates = [
+        row
+        for row in rows
+        if cached.get(lead_key(row), {}).get("status") == "no_confident_match"
+        and cached.get(lead_key(row), {}).get("strategy") != "fallback"
+    ]
+    candidates.sort(
+        key=lambda row: (
+            CONFIDENCE_ORDER.get(clean(row.get("sunbiz_match_confidence")), 0),
+            float(cached.get(lead_key(row), {}).get("match_score", 0)),
+        ),
+        reverse=True,
+    )
+    pending = candidates[:allowance]
+    if pending:
+        print(
+            f"Running {len(pending)} fallback DBA/city searches "
+            f"({successful}/{cap} successful searches already used)...",
+            flush=True,
+        )
+    completed = 0
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        futures = {
+            pool.submit(search_one, row, api_key, fallback_query_for(row), "fallback"): row
+            for row in pending
+        }
+        for future in as_completed(futures):
+            record = future.result()
+            append_jsonl(cache_path, record)
+            cached[record["lead_key"]] = record
+            completed += 1
+            if completed % 100 == 0:
+                print(f"  Fallback Search progress: {completed}/{len(pending)}", flush=True)
     return cached
 
 
@@ -410,6 +494,7 @@ def main() -> int:
     detail_cache = args.output_dir / f"google_place_details_{month}.jsonl"
     usage_path = args.output_dir / f"google_free_cap_usage_{month}.json"
     searches = run_searches(rows, api_key, search_cache, args.search_cap, args.workers)
+    searches = run_fallback_searches(rows, api_key, search_cache, args.search_cap, args.workers)
     ranked = ranked_matches(rows, searches)
     details = run_details(ranked, api_key, detail_cache, usage_path, args.details_cap)
     output_path = args.output_dir / "hvac_google_places_enriched.csv"

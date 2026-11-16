@@ -46,6 +46,15 @@ class GooglePlacesEnrichTests(unittest.TestCase):
         self.assertEqual(selected["id"], "right")
         self.assertGreaterEqual(score, enrich.MATCH_THRESHOLD)
 
+    def test_place_score_accepts_dba_name(self):
+        row = self.row()
+        row["sunbiz_entity_name"] = "Unrelated Holding Company LLC"
+        place = {
+            "displayName": {"text": "Alpha Air"},
+            "formattedAddress": "123 Main St, Orlando, FL 32801",
+        }
+        self.assertGreaterEqual(enrich.place_score(row, place), enrich.MATCH_THRESHOLD)
+
     def test_details_cap_is_reserved_before_requests(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -87,6 +96,14 @@ class GooglePlacesEnrichTests(unittest.TestCase):
             finally:
                 enrich.search_one = original
             self.assertEqual(records[enrich.lead_key(row)]["status"], "no_confident_match")
+
+    def test_success_count_includes_primary_and_fallback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary) / "search.jsonl"
+            enrich.append_jsonl(cache, {"lead_key": "CAC1", "status": "no_confident_match"})
+            enrich.append_jsonl(cache, {"lead_key": "CAC1", "status": "matched", "strategy": "fallback"})
+            enrich.append_jsonl(cache, {"lead_key": "CAC2", "status": "error"})
+            self.assertEqual(enrich.count_successful_jsonl(cache), 2)
 
     def test_merge_writes_phone_and_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:
