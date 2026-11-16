@@ -1,5 +1,4 @@
 import {
-  COMMERCIAL_PARTNERSHIPS_AGREEMENT_VERSION,
   type B2BCustomerDetails,
   type B2BOrderSnapshot,
 } from "@/lib/b2b-offer";
@@ -39,8 +38,7 @@ export function commercialPartnershipsAgreementHtml(input: {
       : "";
 
   return `<div style="font-family: Georgia, serif; color: #111; line-height: 1.55; max-width: 760px; margin: 0 auto; padding: 32px; background: white; border-radius: 8px;">
-    <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 4px;">Commercial Partnerships Service Agreement</h1>
-    <p style="font-size: 12px; color: #64748b; margin-top: 0; margin-bottom: 20px;">Agreement Version: ${COMMERCIAL_PARTNERSHIPS_AGREEMENT_VERSION}</p>
+    <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Commercial Partnerships Service Agreement</h1>
 
     <p>This Agreement is between Intent Revenue ("Provider"), operated by Josh Celestin, Apopka, Florida, and ${clientCompanyName} ("Client")${clientLocationText}. Together, the "Parties."</p>
 

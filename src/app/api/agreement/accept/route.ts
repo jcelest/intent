@@ -123,6 +123,7 @@ export async function POST(request: Request) {
             acceptanceId,
             companyName: details.company,
             product: "commercial_partnerships",
+            agreementVersion: order.agreementVersion,
             offerVersion: order.offerVersion,
           },
         },

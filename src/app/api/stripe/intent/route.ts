@@ -110,6 +110,7 @@ export async function POST(request: Request) {
             receipt_email: record.customer_email,
             metadata: {
               acceptanceId,
+              agreementVersion: record.agreement_version || (order as { agreementVersion?: string })?.agreementVersion || "commercial-partnerships-service-agreement-v1",
               offerVersion: order.offerVersion,
               product: "commercial_partnerships",
               companyName: record.company_name,
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
             receipt_email: record.customer_email,
             metadata: {
               acceptanceId,
+              agreementVersion: record.agreement_version || (order as { agreementVersion?: string })?.agreementVersion || "commercial-partnerships-service-agreement-v1",
               offerVersion: order.offerVersion,
               product: "commercial_partnerships",
               companyName: record.company_name,
