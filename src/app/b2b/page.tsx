@@ -173,6 +173,14 @@ export default function B2BPage() {
               <p className="mt-5 text-lg leading-8 text-slate-300">
                 Before starting, Josh and the contractor agree on one primary campaign goal.
               </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/b2b/begin"
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg bg-accent px-6 py-3 text-center text-sm font-semibold text-oled shadow-[0_0_24px_rgba(34,211,238,0.2)] transition hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Start Commercial Partnership
+                </Link>
+              </div>
             </div>
 
             <div className="space-y-4">

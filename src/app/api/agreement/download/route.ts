@@ -18,10 +18,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
     }
 
+    const filenamePrefix =
+      record.package_id === "b2b-commercial-partnerships"
+        ? "Intent-B2B-Agreement-"
+        : "Intent-Website-Agreement-";
+
     return new NextResponse(record.agreement_html, {
       headers: {
         "Content-Type": "text/html",
-        "Content-Disposition": `attachment; filename="Intent-Website-Agreement-${record.company_name.replace(/[^a-z0-9]/gi, '_')}.html"`,
+        "Content-Disposition": `attachment; filename="${filenamePrefix}${record.company_name.replace(/[^a-z0-9]/gi, '_')}.html"`,
       },
     });
 

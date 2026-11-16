@@ -7,6 +7,26 @@ const nextConfig = {
         destination: "/b2b",
         permanent: true,
       },
+      {
+        source: "/b2b/checkout",
+        destination: "/b2b/begin",
+        permanent: false,
+      },
+      {
+        source: "/b2b/agreement",
+        destination: "/b2b/begin/agreement",
+        permanent: false,
+      },
+      {
+        source: "/b2b/pay",
+        destination: "/b2b/begin/pay",
+        permanent: false,
+      },
+      {
+        source: "/b2b/signed",
+        destination: "/b2b/begin/signed",
+        permanent: false,
+      },
     ];
   },
   experimental: {

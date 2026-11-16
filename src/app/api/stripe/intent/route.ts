@@ -69,16 +69,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This order is already paid." }, { status: 409 });
   }
 
-  const missingPriceEnvNames = missingStripePriceEnvNames(order);
-  if (isStripeLiveMode() && missingPriceEnvNames.length) {
-    return NextResponse.json(
-      { error: `Live Stripe price IDs are not configured: ${missingPriceEnvNames.join(", ")}` },
-      { status: 503 }
-    );
+  const isB2B =
+    record.package_id === "b2b-commercial-partnerships" ||
+    record.package_id === "commercial-partnerships" ||
+    (order as { product?: string })?.product === "commercial-partnerships" ||
+    (order as { product?: string })?.product === "b2b";
+
+  if (!isB2B) {
+    const missingPriceEnvNames = missingStripePriceEnvNames(order);
+    if (isStripeLiveMode() && missingPriceEnvNames.length) {
+      return NextResponse.json(
+        { error: `Live Stripe price IDs are not configured: ${missingPriceEnvNames.join(", ")}` },
+        { status: 503 }
+      );
+    }
   }
 
   const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || SITE_URL;
-  const returnUrl = `${origin.replace(/\/$/, "")}/begin/signed`;
+  const returnUrl = isB2B
+    ? `${origin.replace(/\/$/, "")}/b2b/begin/signed`
+    : `${origin.replace(/\/$/, "")}/begin/signed`;
 
   try {
     if (record.stripe_payment_intent_id) {
@@ -86,6 +96,58 @@ export async function POST(request: Request) {
       if (paymentIntent.client_secret) {
         return NextResponse.json({ clientSecret: paymentIntent.client_secret, returnUrl });
       }
+    }
+
+    if (isB2B) {
+      let paymentIntent;
+      try {
+        paymentIntent = await stripe.paymentIntents.create(
+          {
+            amount: order.dueTodayCents,
+            currency: order.currency || "usd",
+            customer: record.stripe_customer_id,
+            payment_method_types: ["card", "us_bank_account"],
+            receipt_email: record.customer_email,
+            metadata: {
+              acceptanceId,
+              offerVersion: order.offerVersion,
+              product: "commercial_partnerships",
+              companyName: record.company_name,
+            },
+          },
+          { idempotencyKey: `${acceptanceId}:b2b-payment-intent` }
+        );
+      } catch {
+        paymentIntent = await stripe.paymentIntents.create(
+          {
+            amount: order.dueTodayCents,
+            currency: order.currency || "usd",
+            customer: record.stripe_customer_id,
+            automatic_payment_methods: { enabled: true },
+            receipt_email: record.customer_email,
+            metadata: {
+              acceptanceId,
+              offerVersion: order.offerVersion,
+              product: "commercial_partnerships",
+              companyName: record.company_name,
+            },
+          },
+          { idempotencyKey: `${acceptanceId}:b2b-payment-intent-fallback` }
+        );
+      }
+
+      if (!paymentIntent.client_secret) {
+        return NextResponse.json({ error: "Could not create payment session." }, { status: 500 });
+      }
+
+      await db.sql`
+        UPDATE agreements
+        SET stripe_payment_intent_id = ${paymentIntent.id},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE acceptance_id = ${acceptanceId}
+      `;
+
+      return NextResponse.json({ clientSecret: paymentIntent.client_secret, returnUrl });
     }
 
     if (order.selection.paymentMode === "monthly") {
