@@ -43,6 +43,9 @@ next-env.d.ts
 __pycache__/
 *.pyc
 
+# Local lead sources, caches, and enriched exports
+/data/
+
 # office temp lock files
 ~$*
 
