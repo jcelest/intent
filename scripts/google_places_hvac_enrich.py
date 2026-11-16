@@ -47,6 +47,7 @@ DEFAULT_OUTPUT = Path("data/leads/google_places")
 FREE_TEXT_SEARCH_CAP = 5_000
 FREE_DETAILS_CAP = 1_000
 MATCH_THRESHOLD = 0.68
+SEARCH_INTERVAL_SECONDS = 0.12  # 500 requests/minute, below the API's per-minute quota.
 CONFIDENCE_ORDER = {
     "high_officer": 4,
     "high_entity": 3,
@@ -55,6 +56,8 @@ CONFIDENCE_ORDER = {
     "unmatched": 0,
 }
 _write_lock = threading.Lock()
+_rate_lock = threading.Lock()
+_next_search_at = 0.0
 
 
 class PlacesError(RuntimeError):
@@ -155,6 +158,17 @@ def select_place(row: dict[str, str], places: list[dict[str, Any]]) -> tuple[dic
     return ranked[0][1], ranked[0][0]
 
 
+def wait_for_search_slot() -> None:
+    """Apply one process-wide search rate limit across all worker threads."""
+    global _next_search_at
+    with _rate_lock:
+        now = time.monotonic()
+        delay = max(0.0, _next_search_at - now)
+        if delay:
+            time.sleep(delay)
+        _next_search_at = time.monotonic() + SEARCH_INTERVAL_SECONDS
+
+
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with _write_lock, path.open("a", encoding="utf-8", newline="") as handle:
@@ -181,6 +195,7 @@ def load_jsonl(path: Path) -> dict[str, dict[str, Any]]:
 def search_one(row: dict[str, str], api_key: str) -> dict[str, Any]:
     key = lead_key(row)
     try:
+        wait_for_search_slot()
         response = request_json(
             SEARCH_URL,
             api_key,
@@ -203,11 +218,23 @@ def run_searches(
     rows: list[dict[str, str]], api_key: str, cache_path: Path, cap: int, workers: int
 ) -> dict[str, dict[str, Any]]:
     cached = load_jsonl(cache_path)
-    pending = [row for row in rows if lead_key(row) and lead_key(row) not in cached]
-    allowance = max(0, cap - len(cached))
+    # Failed requests are not billable successful Text Search events. Retry them
+    # without treating them as consumed free-cap allowance.
+    successful = sum(record.get("status") != "error" for record in cached.values())
+    pending = [
+        row
+        for row in rows
+        if lead_key(row)
+        and (lead_key(row) not in cached or cached[lead_key(row)].get("status") == "error")
+    ]
+    allowance = max(0, cap - successful)
     pending = pending[:allowance]
     if pending:
-        print(f"Searching Google Places for {len(pending)} leads ({len(cached)} cached)...", flush=True)
+        print(
+            f"Searching Google Places for {len(pending)} leads "
+            f"({successful} successful responses cached; retrying prior errors)...",
+            flush=True,
+        )
     completed = 0
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {pool.submit(search_one, row, api_key): row for row in pending}

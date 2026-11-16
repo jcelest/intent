@@ -67,6 +67,27 @@ class GooglePlacesEnrichTests(unittest.TestCase):
             self.assertEqual(enrich.read_usage(usage), 1000)
             self.assertEqual(len(records), 1)
 
+    def test_search_retries_cached_errors_without_spending_success_cap(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary) / "search.jsonl"
+            row = self.row()
+            enrich.append_jsonl(
+                cache,
+                {"lead_key": enrich.lead_key(row), "status": "error", "error": "HTTP 429"},
+            )
+            original = enrich.search_one
+            enrich.search_one = lambda candidate, api_key: {
+                "lead_key": enrich.lead_key(candidate),
+                "status": "no_confident_match",
+                "match_score": 0,
+                "place": None,
+            }
+            try:
+                records = enrich.run_searches([row], "key", cache, cap=1, workers=1)
+            finally:
+                enrich.search_one = original
+            self.assertEqual(records[enrich.lead_key(row)]["status"], "no_confident_match")
+
     def test_merge_writes_phone_and_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "out.csv"
