@@ -18,7 +18,18 @@ export async function GET(request: Request) {
 
   const calls = targetUserId
     ? await sql`
-        SELECT c.*, u.display_name AS user_name, u.role AS user_role, l.first_name, l.last_name, l.company
+        SELECT
+          c.*,
+          u.display_name AS user_name,
+          u.role AS user_role,
+          l.first_name,
+          l.last_name,
+          l.company,
+          l.city,
+          l.state,
+          l.metadata,
+          l.notes AS lead_notes,
+          l.phone_e164 AS lead_phone
         FROM dialer_calls c
         LEFT JOIN dialer_users u ON u.id = c.user_id
         LEFT JOIN dialer_leads l ON l.id = c.lead_id
@@ -26,7 +37,18 @@ export async function GET(request: Request) {
         ORDER BY c.started_at DESC LIMIT ${limit}
       `
     : await sql`
-        SELECT c.*, u.display_name AS user_name, u.role AS user_role, l.first_name, l.last_name, l.company
+        SELECT
+          c.*,
+          u.display_name AS user_name,
+          u.role AS user_role,
+          l.first_name,
+          l.last_name,
+          l.company,
+          l.city,
+          l.state,
+          l.metadata,
+          l.notes AS lead_notes,
+          l.phone_e164 AS lead_phone
         FROM dialer_calls c
         LEFT JOIN dialer_users u ON u.id = c.user_id
         LEFT JOIN dialer_leads l ON l.id = c.lead_id

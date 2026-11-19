@@ -34,16 +34,37 @@ export async function POST(request: Request) {
       do_not_call = ${isDnc}, updated_at = CURRENT_TIMESTAMP
     WHERE id = ${body.leadId}
   `;
+  const callNote = body.notes?.trim() || null;
   if (body.callId) {
-    await sql`
-      UPDATE dialer_calls SET disposition = ${disposition}, notes = ${body.notes?.trim() || null}, updated_at = CURRENT_TIMESTAMP
+    const updatedCalls = await sql`
+      UPDATE dialer_calls SET disposition = ${disposition}, notes = ${callNote}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${body.callId} AND (user_id = ${auth.user.id} OR ${auth.user.role} = 'owner')
+      RETURNING id
+    `;
+    if (!updatedCalls.length) {
+      await sql`
+        UPDATE dialer_calls SET disposition = ${disposition}, notes = ${callNote}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = (
+          SELECT id FROM dialer_calls
+          WHERE lead_id = ${body.leadId} AND (user_id = ${auth.user.id} OR ${auth.user.role} = 'owner')
+          ORDER BY started_at DESC LIMIT 1
+        )
+      `;
+    }
+  } else {
+    await sql`
+      UPDATE dialer_calls SET disposition = ${disposition}, notes = ${callNote}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = (
+        SELECT id FROM dialer_calls
+        WHERE lead_id = ${body.leadId} AND (user_id = ${auth.user.id} OR ${auth.user.role} = 'owner')
+        ORDER BY started_at DESC LIMIT 1
+      )
     `;
   }
   if (isDnc) {
     await sql`
       INSERT INTO dialer_dnc (phone_e164, reason, source, requested_by)
-      SELECT phone_e164, ${body.notes?.trim() || "Lead requested no further calls"}, 'disposition', ${auth.user.id}
+      SELECT phone_e164, ${callNote || "Lead requested no further calls"}, 'disposition', ${auth.user.id}
       FROM dialer_leads WHERE id = ${body.leadId}
       ON CONFLICT (phone_e164) DO UPDATE SET reason = EXCLUDED.reason
     `;
@@ -55,7 +76,7 @@ export async function POST(request: Request) {
       SELECT id, COALESCE(assigned_user_id, ${auth.user.id}), ${auth.user.id},
         ${disposition === "appointment" ? "follow_up" : "callback"},
         ${disposition === "appointment" ? "Appointment follow-up" : "Call back lead"},
-        ${body.notes?.trim() || null}, ${dueAt}
+        ${callNote}, ${dueAt}
       FROM dialer_leads WHERE id = ${body.leadId}
     `;
   }
@@ -63,8 +84,8 @@ export async function POST(request: Request) {
     leadId: body.leadId,
     userId: auth.user.id,
     type: "disposition",
-    summary: `Marked ${disposition.replaceAll("_", " ")}`,
-    metadata: { callId: body.callId || null, callbackAt: body.callbackAt || null },
+    summary: callNote ? `Marked ${disposition.replaceAll("_", " ")}: "${callNote.slice(0, 80)}"` : `Marked ${disposition.replaceAll("_", " ")}`,
+    metadata: { callId: body.callId || null, callbackAt: body.callbackAt || null, notes: callNote },
   });
   await releaseLeadReservation({ userId: auth.user.id, leadId: body.leadId });
   const nextLead = body.reserveNext

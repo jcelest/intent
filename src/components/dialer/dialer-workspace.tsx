@@ -963,7 +963,44 @@ export function DialerWorkspace() {
       {modal === "password" && <PasswordModal onClose={() => setModal(null)} onDone={() => { setPasswordChanged(true); setModal(null); setToast("Password updated"); void refresh(); }} />}
       {modal === "dialpad" && <ManualDialModal onClose={() => setModal(null)} onPrepare={prepareMobileCalling} onDial={(lead) => { setModal(null); void refresh(); void placeCall(lead); }} />}
       {modal === "guardrails" && <GuardrailsModal workspace={workspace} onClose={() => setModal(null)} onRefresh={refresh} onNotify={(msg) => setToast(msg)} />}
-      {activeLead && <CallDock lead={activeLead} phase={callPhase} error={callError} disposition={disposition} setDisposition={setDisposition} notes={callNotes} setNotes={setCallNotes} callbackAt={callbackAt} setCallbackAt={setCallbackAt} autoDial={autoDial} setAutoDial={(value) => { autoDialRef.current = value; dialSessionStateRef.current = value ? "running" : "paused"; setAutoDial(value); setDialSessionState(value ? "running" : "paused"); }} onEnd={endCall} onSendDigit={sendDigit} onSave={saveDisposition} onClose={() => { const hadActiveCall = Boolean(callRef.current); dialSessionStateRef.current = "paused"; autoDialRef.current = false; setDialSessionState("paused"); setAutoDial(false); if (hadActiveCall) endCall(); if (!hadActiveCall) { void releaseWakeLock(); void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(activeLead, "id") }) }).catch(() => undefined); } activeLeadRef.current = null; setActiveLead(null); setCallPhase("idle"); }} />}
+      {activeLead && <CallDock lead={activeLead} phase={callPhase} error={callError} disposition={disposition} setDisposition={setDisposition} notes={callNotes} setNotes={setCallNotes} callbackAt={callbackAt} setCallbackAt={setCallbackAt} autoDial={autoDial} setAutoDial={(value) => { autoDialRef.current = value; dialSessionStateRef.current = value ? "running" : "paused"; setAutoDial(value); setDialSessionState(value ? "running" : "paused"); }} onEnd={endCall} onSendDigit={sendDigit} onSave={saveDisposition} onClose={() => {
+        const hadActiveCall = Boolean(callRef.current);
+        const enteredNotes = callNotes.trim();
+        const currentLeadId = text(activeLead, "id");
+        const currentCallId = activeCallId;
+        const currentDisp = disposition || "contacted";
+
+        dialSessionStateRef.current = "paused";
+        autoDialRef.current = false;
+        setDialSessionState("paused");
+        setAutoDial(false);
+        if (hadActiveCall) endCall();
+
+        if (enteredNotes && currentLeadId) {
+          void api("/api/dialer/disposition", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              leadId: currentLeadId,
+              callId: currentCallId,
+              disposition: currentDisp,
+              notes: enteredNotes,
+            }),
+          }).then(() => void refresh()).catch(() => undefined);
+        } else if (!hadActiveCall && currentLeadId) {
+          void releaseWakeLock();
+          void api("/api/dialer/queue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "release", leadId: currentLeadId }),
+          }).catch(() => undefined);
+        }
+
+        activeLeadRef.current = null;
+        setActiveLead(null);
+        setActiveCallId(null);
+        setCallPhase("idle");
+      }} />}
       {incomingCall && <IncomingCall call={incomingCall} onAccept={() => void requestWakeLock()} onClose={() => { setIncomingCall(null); void releaseWakeLock(); }} />}
     </div>
   );
@@ -1251,6 +1288,11 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
                     <span>{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</span>
                     <span>{text(lead, "assigned_name") || "Unassigned"}</span>
                   </div>
+                  {text(lead, "notes") && (
+                    <div className="mt-2 rounded-xl bg-[#f8fbfe] border border-[#d5e3f1] px-3 py-1.5 text-xs text-[#334155] break-words">
+                      <strong className="text-[#1266c4]">Note:</strong> {text(lead, "notes")}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2">
@@ -1357,6 +1399,11 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
                   ) : null}
                   {text(lead, "title") && (
                     <div className="truncate text-[11px] text-[#64748b]">{text(lead, "title")}</div>
+                  )}
+                  {text(lead, "notes") && (
+                    <div className="truncate text-xs text-[#475569] mt-0.5" title={text(lead, "notes")}>
+                      <span className="font-semibold text-[#1266c4]">Note:</span> {text(lead, "notes")}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1679,6 +1726,93 @@ function AttachRecordingModal({
   );
 }
 
+function EditCallNoteModal({
+  call,
+  onClose,
+  onDone,
+}: {
+  call: Row;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const [notes, setNotes] = useState(text(call, "notes") || text(call, "lead_notes") || "");
+  const [disposition, setDisposition] = useState(text(call, "disposition") || "contacted");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const callId = text(call, "id");
+  const comp = text(call, "company");
+  const owner = getBusinessOwner(call);
+  const name = owner || leadName(call);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await api(`/api/dialer/calls/${callId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes, disposition, syncLead: true }),
+      });
+      onDone("Call log and notes updated");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to update call log.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Call Log & Notes"
+      description={comp ? `${comp}${owner ? ` · ${owner}` : ""}` : name}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#d5e3f1] bg-[#f8fbfe] p-3 text-xs text-[#334155]">
+          <span>Date: <strong>{formatDate(call.started_at)}</strong></span>
+          <span>·</span>
+          <span>Duration: <strong>{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "0s"}</strong></span>
+          <span>·</span>
+          <span className="capitalize">Direction: <strong>{text(call, "direction")}</strong></span>
+          {text(call, "user_name") && <span>· Rep: <strong>{text(call, "user_name")}</strong></span>}
+        </div>
+
+        <Field label="Call Outcome / Disposition">
+          <select
+            value={disposition}
+            onChange={(e) => setDisposition(e.target.value)}
+            className={inputClass}
+          >
+            {DISPOSITIONS.map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Call Notes">
+          <textarea
+            rows={4}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className={`${inputClass} min-h-[100px] resize-none text-base sm:text-sm py-2`}
+            placeholder="Type notes on what happened, key objections, decision maker comments, quote details…"
+          />
+        </Field>
+
+        {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <SecondaryButton onClick={onClose} disabled={saving}>Cancel</SecondaryButton>
+          <PrimaryButton type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save Call Log"}
+          </PrimaryButton>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ResponsiveCallsView({
   calls,
   users = [],
@@ -1696,11 +1830,12 @@ function ResponsiveCallsView({
   const [repFilter, setRepFilter] = useState("all");
   const [recordingOnly, setRecordingOnly] = useState(false);
   const [attachCall, setAttachCall] = useState<Row | null>(null);
+  const [editNoteCall, setEditNoteCall] = useState<Row | null>(null);
 
   const visible = useMemo(() => {
     return calls.filter((call) => {
       const q = query.toLowerCase();
-      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
+      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${getBusinessOwner(call)} ${text(call, "notes")} ${text(call, "lead_notes")} ${text(call, "disposition")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
       const matchesRep = repFilter === "all" || (repFilter === "owner" ? text(call, "user_role") === "owner" : repFilter === "agent" ? text(call, "user_role") === "agent" : text(call, "user_id") === repFilter);
       const matchesRecording = !recordingOnly || Boolean(call.recording_sid || call.recording_url);
       return matchesSearch && matchesRep && matchesRecording;
@@ -1733,13 +1868,14 @@ function ResponsiveCallsView({
         <div className="border-b border-[#e2e8f0] p-3">
           <div className="relative">
             <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search call history..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search contact, company, notes, phone, outcome…" className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/>
           </div>
         </div>
         <div className="divide-y divide-[#e2e8f0]">
           {visible.map((call) => {
             const owner = getBusinessOwner(call);
             const comp = text(call, "company");
+            const callNote = text(call, "notes") || text(call, "lead_notes");
             return (
               <article key={text(call, "id")} className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
@@ -1792,12 +1928,37 @@ function ResponsiveCallsView({
                 </div>
                 <div>
                   <div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Duration</div>
-                  <div className="mt-1 font-semibold text-[#0f172a]">{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "—"}</div>
+                  <div className="mt-1 font-semibold text-[#0f172a]">{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "0s"}</div>
                 </div>
                 <div>
                   <div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Started</div>
                   <div className="mt-1 font-semibold text-[#0f172a]">{formatDate(call.started_at)}</div>
                 </div>
+              </div>
+
+              {/* Dedicated Call Notes Box */}
+              <div className="rounded-xl border border-[#d5e3f1] bg-[#f8fbfe] p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1266c4] flex items-center gap-1">
+                    <Icon name="check" className="h-3 w-3" />
+                    <span>Call Notes</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditNoteCall(call)}
+                    className="text-xs font-bold text-[#1266c4] hover:underline inline-flex items-center gap-1"
+                  >
+                    <Icon name={callNote ? "sliders" : "plus"} className="h-3 w-3" />
+                    <span>{callNote ? "Edit note" : "+ Add note"}</span>
+                  </button>
+                </div>
+                {callNote ? (
+                  <p className="text-xs text-[#0f172a] whitespace-pre-wrap break-words leading-relaxed font-medium">
+                    {callNote}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#94a3b8] italic">No notes logged for this call.</p>
+                )}
               </div>
 
               <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
@@ -1836,6 +1997,18 @@ function ResponsiveCallsView({
         }}
       />
     )}
+
+    {editNoteCall && (
+      <EditCallNoteModal
+        call={editNoteCall}
+        onClose={() => setEditNoteCall(null)}
+        onDone={(msg) => {
+          setEditNoteCall(null);
+          if (onNotify) onNotify(msg);
+          if (onRefresh) void onRefresh();
+        }}
+      />
+    )}
   </>;
 }
 
@@ -1856,11 +2029,12 @@ function CallsView({
   const [repFilter, setRepFilter] = useState("all");
   const [recordingOnly, setRecordingOnly] = useState(false);
   const [attachCall, setAttachCall] = useState<Row | null>(null);
+  const [editNoteCall, setEditNoteCall] = useState<Row | null>(null);
 
   const visible = useMemo(() => {
     return calls.filter((call) => {
       const q = query.toLowerCase();
-      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
+      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${getBusinessOwner(call)} ${text(call, "notes")} ${text(call, "lead_notes")} ${text(call, "disposition")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
       const matchesRep = repFilter === "all" || (repFilter === "owner" ? text(call, "user_role") === "owner" : repFilter === "agent" ? text(call, "user_role") === "agent" : text(call, "user_id") === repFilter);
       const matchesRecording = !recordingOnly || Boolean(call.recording_sid || call.recording_url);
       return matchesSearch && matchesRep && matchesRecording;
@@ -1935,7 +2109,7 @@ function CallsView({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search contact, company, phone, rep…"
+            placeholder="Search contact, company, notes, phone, rep, outcome…"
             className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"
           />
         </div>
@@ -1958,15 +2132,15 @@ function CallsView({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1050px] text-left">
+        <table className="w-full min-w-[1100px] text-left">
           <thead>
             <tr className="bg-[#f8fafc] text-[10px] uppercase tracking-[.12em] text-[#64748b] border-b border-[#e2e8f0]">
               <th className="px-5 py-3">Contact</th>
               <th className="px-4 py-3">Rep (Caller)</th>
-              <th className="px-4 py-3">Direction</th>
               <th className="px-4 py-3">Outcome</th>
+              <th className="px-4 py-3 min-w-[240px]">Call Notes</th>
               <th className="px-4 py-3">Duration</th>
-              <th className="px-4 py-3 min-w-[300px]">Recording</th>
+              <th className="px-4 py-3 min-w-[280px]">Recording</th>
               <th className="px-5 py-3 text-right">Started</th>
             </tr>
           </thead>
@@ -1974,6 +2148,7 @@ function CallsView({
             {visible.map((call) => {
               const owner = getBusinessOwner(call);
               const comp = text(call, "company");
+              const callNote = text(call, "notes") || text(call, "lead_notes");
               return (
                 <tr key={text(call, "id")} className="hover:bg-[#f8fafc]">
                   <td className="px-5 py-3.5">
@@ -2023,12 +2198,46 @@ function CallsView({
                     ) : null}
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-xs capitalize text-[#334155]">{text(call, "direction")}</td>
-                <td className="px-4 py-3.5"><StatusBadge status={text(call, "disposition") || text(call, "status")}/></td>
+                <td className="px-4 py-3.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditNoteCall(call)}
+                    title="Change call outcome"
+                    className="hover:opacity-80 transition cursor-pointer"
+                  >
+                    <StatusBadge status={text(call, "disposition") || text(call, "status")}/>
+                  </button>
+                </td>
+                <td className="px-4 py-3.5">
+                  {callNote ? (
+                    <div className="flex items-start justify-between gap-2 rounded-xl border border-[#d5e3f1] bg-[#f8fbfe] p-2 text-xs">
+                      <p className="min-w-0 flex-1 font-medium text-[#0f172a] whitespace-pre-wrap break-words line-clamp-2 hover:line-clamp-none transition">
+                        {callNote}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditNoteCall(call)}
+                        title="Edit call notes"
+                        className="shrink-0 p-1 text-[#64748b] hover:text-[#1266c4] hover:bg-white rounded transition"
+                      >
+                        <Icon name="sliders" className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditNoteCall(call)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#1266c4] hover:underline px-2.5 py-1 rounded-lg hover:bg-[#edf5fc] transition"
+                    >
+                      <Icon name="plus" className="h-3 w-3" />
+                      <span>Add note</span>
+                    </button>
+                  )}
+                </td>
                 <td className="px-4 py-3.5 text-xs text-[#334155]">
                   {number(call, "duration_seconds")
                     ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}`
-                    : "—"}
+                    : "0s"}
                 </td>
                 <td className="px-4 py-3.5">
                   <CallAudioPlayer
@@ -2058,6 +2267,18 @@ function CallsView({
         onClose={() => setAttachCall(null)}
         onDone={(msg) => {
           setAttachCall(null);
+          if (onNotify) onNotify(msg);
+          if (onRefresh) void onRefresh();
+        }}
+      />
+    )}
+
+    {editNoteCall && (
+      <EditCallNoteModal
+        call={editNoteCall}
+        onClose={() => setEditNoteCall(null)}
+        onDone={(msg) => {
+          setEditNoteCall(null);
           if (onNotify) onNotify(msg);
           if (onRefresh) void onRefresh();
         }}
@@ -3171,9 +3392,9 @@ function CallDock({
                       </span>
                     )}
                   </div>
-                  {leadNotes && !leadNotes.startsWith("Hook:") && (
+                  {leadNotes && (
                     <div className="mt-2 text-xs text-[#334155] border-t border-amber-200/60 pt-2 font-medium break-words">
-                      <strong>Pitch Notes:</strong> {leadNotes}
+                      <strong>{leadNotes.startsWith("Hook:") ? "Sales Hook:" : "Prospect Notes:"}</strong> {leadNotes}
                     </div>
                   )}
                 </div>
@@ -3317,10 +3538,11 @@ function CallDock({
             </Field>
 
             <Field label="Live Call Notes">
-              <input
+              <textarea
+                rows={2}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                className={`${inputClass} min-h-11 text-base sm:text-sm`}
+                className={`${inputClass} min-h-[50px] resize-none text-base sm:text-sm py-2`}
                 placeholder="What happened on the call? Type notes here…"
               />
             </Field>
