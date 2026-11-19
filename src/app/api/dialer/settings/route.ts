@@ -21,6 +21,8 @@ export async function GET(request: Request) {
       phoneNumber: process.env.TWILIO_PHONE_NUMBER || null,
       voiceUrl: `${dialerOrigin}/api/twilio/voice`,
       inboundUrl: `${dialerOrigin}/api/twilio/inbound`,
+      recordingUrl: `${dialerOrigin}/api/twilio/recording`,
+      recordingEnabled: (values.twilio as { recordingEnabled?: boolean })?.recordingEnabled !== false,
     },
     currentUser: auth.user,
   });

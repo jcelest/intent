@@ -18,12 +18,23 @@ export async function POST(request: Request) {
   `;
   const callId = calls[0].id as string;
   const users = await sql`SELECT id FROM dialer_users WHERE active = TRUE ORDER BY role DESC, display_name`;
+  const settingRows = await sql`SELECT value FROM dialer_settings WHERE key = 'twilio' LIMIT 1`;
+  const setting = (settingRows[0]?.value || {}) as { recordingEnabled?: boolean };
+  const isRecordingEnabled = setting.recordingEnabled !== false;
+  const recordingCallback = absoluteCallbackUrl(request, `/api/twilio/recording?callId=${callId}`);
+
   const response = new twilio.twiml.VoiceResponse();
   if (!users.length) {
     response.say("No one is available. Please leave a message after the tone.");
-    response.record({ maxLength: 120, recordingStatusCallback: absoluteCallbackUrl(request, `/api/twilio/recording?callId=${callId}`) });
+    response.record({ maxLength: 120, recordingStatusCallback: recordingCallback });
   } else {
-    const dial = response.dial({ timeout: 25, answerOnBridge: true, action: absoluteCallbackUrl(request, `/api/twilio/status?callId=${callId}`) });
+    const dial = response.dial({
+      timeout: 25,
+      answerOnBridge: true,
+      action: absoluteCallbackUrl(request, `/api/twilio/status?callId=${callId}`),
+      record: isRecordingEnabled ? "record-from-answer-dual" : undefined,
+      recordingStatusCallback: isRecordingEnabled ? recordingCallback : undefined,
+    });
     for (const user of users) dial.client(String(user.id));
   }
   return new NextResponse(response.toString(), { headers: { "Content-Type": "text/xml; charset=utf-8" } });

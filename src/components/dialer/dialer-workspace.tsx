@@ -172,6 +172,8 @@ export function DialerWorkspace() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: "single"; id: string; name: string } | { type: "bulk"; count: number } | null>(null);
+  const [deletingLead, setDeletingLead] = useState(false);
   const [modal, setModal] = useState<"lead" | "import" | "task" | "user" | "password" | "dialpad" | "guardrails" | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [activeLead, setActiveLead] = useState<Row | null>(null);
@@ -310,6 +312,32 @@ export function DialerWorkspace() {
     } catch (cause) { setCallError(cause instanceof Error ? cause.message : "Unable to save outcome."); }
   };
 
+  const handleDeleteLeads = async () => {
+    if (!confirmDelete) return;
+    setDeletingLead(true);
+    try {
+      if (confirmDelete.type === "bulk") {
+        await api("/api/dialer/leads", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedIds }),
+        });
+        setSelectedIds([]);
+        setToast(`${confirmDelete.count} lead${confirmDelete.count === 1 ? "" : "s"} deleted`);
+      } else {
+        await api(`/api/dialer/leads/${confirmDelete.id}`, { method: "DELETE" });
+        setSelectedIds((prev) => prev.filter((id) => id !== confirmDelete.id));
+        setToast("Lead deleted");
+      }
+      setConfirmDelete(null);
+      await refresh();
+    } catch (cause) {
+      setToast(cause instanceof Error ? cause.message : "Failed to delete lead(s)");
+    } finally {
+      setDeletingLead(false);
+    }
+  };
+
   const logout = async () => {
     deviceRef.current?.destroy();
     await fetch("/api/admin/logout", { method: "POST" });
@@ -386,18 +414,46 @@ export function DialerWorkspace() {
         )}
         <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-6 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
           {view === "dashboard" && <Dashboard counts={counts} metrics={metrics} recentCalls={(overview.recentCalls || []) as Row[]} conversations={(overview.conversations || []) as Row[]} outcomeBreakdown={(overview.outcomeBreakdown || []) as Row[]} tasks={(overview.tasks || []) as Row[]} repStats={(overview.repStats || []) as Row[]} onNavigate={navigate} onOpenDialpad={() => setModal("dialpad")} />}
-          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} />}
-          {view === "calls" && <ResponsiveCallsView calls={calls} onOpenDialpad={() => setModal("dialpad")} />}
+          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
+          {view === "calls" && <ResponsiveCallsView calls={calls} users={users} onRefresh={refresh} onOpenDialpad={() => setModal("dialpad")} onNotify={(msg) => setToast(msg)} />}
           {view === "tasks" && <TasksView tasks={tasks} onCreate={() => setModal("task")} onRefresh={refresh} />}
           {view === "sequences" && <SequencesView sequences={sequences} onRefresh={refresh} />}
-          {view === "pipeline" && <PipelineView leads={leads} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} />}
+          {view === "pipeline" && <PipelineView leads={leads} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} />}
           {view === "dnc" && <DncView entries={dnc} onRefresh={refresh} />}
-          {view === "settings" && <SettingsView settings={settings} currentUser={currentUser} onCreateUser={() => setModal("user")} onChangePassword={() => setModal("password")} onRefresh={refresh} />}
+          {view === "settings" && <SettingsView settings={settings} currentUser={currentUser} onCreateUser={() => setModal("user")} onChangePassword={() => setModal("password")} onRefresh={refresh} onNotify={(msg) => setToast(msg)} />}
         </main>
       </div>
 
       <MobileBottomNav view={view} navigate={navigate} />
       {toast && <div className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-full bg-[#123b70] px-5 py-2.5 text-sm font-medium text-white shadow-xl lg:bottom-5">{toast}</div>}
+      {confirmDelete && (
+        <Modal
+          title={confirmDelete.type === "bulk" ? `Delete ${confirmDelete.count} leads?` : `Delete ${confirmDelete.name || "lead"}?`}
+          description="This permanently removes the lead and any scheduled tasks. Associated call history is preserved."
+          onClose={() => setConfirmDelete(null)}
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 leading-relaxed">
+              <strong>Warning:</strong> This action cannot be undone. Are you sure you want to delete {confirmDelete.type === "bulk" ? `these ${confirmDelete.count} leads` : `"${confirmDelete.name}"`}?
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <SecondaryButton onClick={() => setConfirmDelete(null)}>Cancel</SecondaryButton>
+              <button
+                disabled={deletingLead}
+                onClick={() => void handleDeleteLeads()}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deletingLead ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Icon name="trash" className="h-4 w-4" />
+                )}
+                <span>Delete permanently</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {modal === "lead" && <AddLeadModal users={users} lists={lists} onClose={() => setModal(null)} onDone={() => { setModal(null); setToast("Lead added"); void refresh(); }} />}
       {modal === "import" && <ImportModal users={users} onClose={() => setModal(null)} onDone={(message) => { setModal(null); setToast(message); void refresh(); }} />}
       {modal === "task" && <TaskModal leads={leads} users={users} onClose={() => setModal(null)} onDone={() => { setModal(null); setToast("Task created"); void refresh(); }} />}
@@ -433,6 +489,12 @@ function Icon({ name, className = "h-4 w-4" }: { name: string; className?: strin
     sliders: <><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></>,
     clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
     close: <path d="M18 6L6 18M6 6l12 12"/>, menu: <path d="M4 6h16M4 12h16M4 18h16"/>,
+    trash: <><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
+    play: <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/>,
+    pause: <><rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+    mic: <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></>,
+    link: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>,
   };
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name] || paths.grid}</svg>;
 }
@@ -497,8 +559,8 @@ function PrimaryButton({ children, onClick, type = "button", disabled = false }:
   return <button type={type} onClick={onClick} disabled={disabled} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1266c4] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-700/15 transition hover:bg-[#0f57aa] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
 }
 
-function SecondaryButton({ children, onClick, type = "button" }: { children: React.ReactNode; onClick?: () => void; type?: "button" | "submit" }) {
-  return <button type={type} onClick={onClick} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d0dbe7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1e293b] shadow-sm transition hover:border-[#1266c4] hover:bg-[#f8fbfe] hover:text-[#1266c4] active:scale-[.99]">{children}</button>;
+function SecondaryButton({ children, onClick, type = "button", disabled = false }: { children: React.ReactNode; onClick?: () => void; type?: "button" | "submit"; disabled?: boolean }) {
+  return <button type={type} onClick={onClick} disabled={disabled} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d0dbe7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1e293b] shadow-sm transition hover:border-[#1266c4] hover:bg-[#f8fbfe] hover:text-[#1266c4] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
 }
 
 function Dashboard({ counts, metrics, recentCalls, conversations, outcomeBreakdown, tasks, repStats, onNavigate, onOpenDialpad }: { counts: Row; metrics: Row; recentCalls: Row[]; conversations: Row[]; outcomeBreakdown: Row[]; tasks: Row[]; repStats: Row[]; onNavigate: (view: View) => void; onOpenDialpad: () => void }) {
@@ -549,10 +611,31 @@ function DailyRecap({ metrics, conversations, outcomeBreakdown }: { metrics: Row
   </section>;
 }
 
-type LeadsViewProps = { leads: Row[]; allLeads: Row[]; counts: Row; users: Row[]; lists: Row[]; statusFilter: string; setStatusFilter: (value: string) => void; search: string; setSearch: (value: string) => void; selectedIds: string[]; setSelectedIds: (value: string[]) => void; onDial: (lead: Row) => void; onOpenDialpad: () => void; onOpenGuardrails?: () => void; onAdd: () => void; onImport: () => void; onRefresh: () => Promise<void> };
+type LeadsViewProps = {
+  leads: Row[];
+  allLeads: Row[];
+  counts: Row;
+  users: Row[];
+  lists: Row[];
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  search: string;
+  setSearch: (value: string) => void;
+  selectedIds: string[];
+  setSelectedIds: (value: string[]) => void;
+  onDial: (lead: Row) => void;
+  onOpenDialpad: () => void;
+  onOpenGuardrails?: () => void;
+  onAdd: () => void;
+  onImport: () => void;
+  onRefresh: () => Promise<void>;
+  onRequestDeleteLead?: (id: string, name: string) => void;
+  onRequestDeleteBulk?: () => void;
+  onNotify?: (msg: string) => void;
+};
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
   const changeAssignment = async (userId: string) => {
@@ -568,15 +651,30 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
       <PageHeader eyebrow="Your sheet" title="Leads" description="Your calling queue, optimized for one-handed dialing." action={<>{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></>}/>
       <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-[104px] snap-start rounded-2xl border p-3 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="text-xl font-bold">{count}</div><div className={`mt-1 text-xs font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
       <section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
-        <div className="space-y-3 border-b border-[#e2e8f0] p-3"><div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>{selectedIds.length > 0 ? <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} selected...</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select> : <div className="px-1 text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>}</div>
-        <div className="divide-y divide-[#e2e8f0]">{leads.map((lead) => { const leadId = text(lead, "id"); const disabled = Boolean(lead.do_not_call) || text(lead, "status") === "closed"; return <article key={leadId} className="p-4"><div className="flex items-start gap-3"><label className="flex min-h-11 items-center"><input aria-label={`Select ${leadName(lead)}`} type="checkbox" checked={selectedIds.includes(leadId)} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, leadId] : selectedIds.filter((id) => id !== leadId))}/></label><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(lead)}</h2><p className="truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "No company"}</p></div><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></div><a href={`tel:${text(lead, "phone_e164")}`} className="mt-3 block text-base font-bold tracking-tight text-[#1266c4]">{formatPhone(lead.phone_e164)}</a><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#64748b]"><span>{localTime(lead)} local</span><span>{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</span><span>{text(lead, "assigned_name") || "Unassigned"}</span></div></div></div><button disabled={disabled} onClick={() => onDial(lead)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#edf5fc] text-sm font-bold text-[#1266c4] transition hover:bg-[#e1effb] active:scale-[.99] disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone"/>Dial {leadName(lead).split(" ")[0]}</button></article>; })}{!leads.length && <Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/>}</div>
+        <div className="space-y-3 border-b border-[#e2e8f0] p-3">
+          <div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+          {selectedIds.length > 0 ? (
+            <div className="flex gap-2">
+              <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} selected...</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
+              <button
+                type="button"
+                onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 hover:bg-red-100 transition shrink-0"
+              >
+                <Icon name="trash" className="h-4 w-4" />
+                <span>Delete ({selectedIds.length})</span>
+              </button>
+            </div>
+          ) : <div className="px-1 text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>}
+        </div>
+        <div className="divide-y divide-[#e2e8f0]">{leads.map((lead) => { const leadId = text(lead, "id"); const disabled = Boolean(lead.do_not_call) || text(lead, "status") === "closed"; return <article key={leadId} className="p-4"><div className="flex items-start gap-3"><label className="flex min-h-11 items-center"><input aria-label={`Select ${leadName(lead)}`} type="checkbox" checked={selectedIds.includes(leadId)} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, leadId] : selectedIds.filter((id) => id !== leadId))}/></label><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(lead)}</h2><p className="truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "No company"}</p></div><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></div><a href={`tel:${text(lead, "phone_e164")}`} className="mt-3 block text-base font-bold tracking-tight text-[#1266c4]">{formatPhone(lead.phone_e164)}</a><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#64748b]"><span>{localTime(lead)} local</span><span>{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</span><span>{text(lead, "assigned_name") || "Unassigned"}</span></div></div></div><div className="mt-4 flex items-center gap-2"><button disabled={disabled} onClick={() => onDial(lead)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#edf5fc] text-sm font-bold text-[#1266c4] transition hover:bg-[#e1effb] active:scale-[.99] disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone"/>Dial {leadName(lead).split(" ")[0]}</button><button title="Delete lead" onClick={() => onRequestDeleteLead && onRequestDeleteLead(leadId, leadName(lead))} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition"><Icon name="trash" className="h-5 w-5" /></button></div></article>; })}{!leads.length && <Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/>}</div>
       </section>
     </div>
     <div className="hidden lg:block"><LeadsView {...props}/></div>
   </>;
 }
 
-function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh }: LeadsViewProps) {
+function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
@@ -594,29 +692,639 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
         <div className="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names, companies, phones…" className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
-        {selectedIds.length > 0 && <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} leads…</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2 text-sm text-[#0f172a]">
+              <option value="" disabled>Assign {selectedIds.length} leads…</option>
+              <option value="">Unassigned</option>
+              {users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition shadow-xs"
+            >
+              <Icon name="trash" className="h-3.5 w-3.5" />
+              <span>Delete ({selectedIds.length})</span>
+            </button>
+          </div>
+        )}
         <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>
       </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input type="checkbox" checked={leads.length > 0 && leads.every((lead) => selectedIds.includes(text(lead, "id")))} onChange={(event) => setSelectedIds(event.target.checked ? leads.map((lead) => text(lead, "id")) : [])}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => <tr key={text(lead, "id")} className="group hover:bg-[#f8fafc]"><td className="px-4 py-3"><input type="checkbox" checked={selectedIds.includes(text(lead, "id"))} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, text(lead, "id")] : selectedIds.filter((id) => id !== text(lead, "id")))}/></td><td className="px-3 py-3"><div className="flex items-center gap-3"><Avatar name={leadName(lead)}/><div><div className="text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="max-w-[240px] truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "—"}</div></div></div></td><td className="px-3 py-3"><div className="text-sm font-semibold text-[#0f172a]">{formatPhone(lead.phone_e164)}</div><div className="mt-0.5 text-[11px] text-[#64748b]">{localTime(lead)} local</div></td><td className="px-3 py-3"><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></td><td className="px-3 py-3"><div className="text-xs font-medium text-[#0f172a]">{formatDate(lead.last_call_at)}</div><div className="text-[11px] text-[#64748b]">{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</div></td><td className="px-3 py-3 text-xs text-[#475569]">{text(lead, "assigned_name") || "Unassigned"}</td><td className="px-3 py-3 text-right"><button disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"} onClick={() => onDial(lead)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone" className="h-3.5 w-3.5"/>Dial</button></td></tr>)}{!leads.length && <tr><td colSpan={7}><Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/></td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input type="checkbox" checked={leads.length > 0 && leads.every((lead) => selectedIds.includes(text(lead, "id")))} onChange={(event) => setSelectedIds(event.target.checked ? leads.map((lead) => text(lead, "id")) : [])}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => <tr key={text(lead, "id")} className="group hover:bg-[#f8fafc]"><td className="px-4 py-3"><input type="checkbox" checked={selectedIds.includes(text(lead, "id"))} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, text(lead, "id")] : selectedIds.filter((id) => id !== text(lead, "id")))}/></td><td className="px-3 py-3"><div className="flex items-center gap-3"><Avatar name={leadName(lead)}/><div><div className="text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="max-w-[240px] truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "—"}</div></div></div></td><td className="px-3 py-3"><div className="text-sm font-semibold text-[#0f172a]">{formatPhone(lead.phone_e164)}</div><div className="mt-0.5 text-[11px] text-[#64748b]">{localTime(lead)} local</div></td><td className="px-3 py-3"><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></td><td className="px-3 py-3"><div className="text-xs font-medium text-[#0f172a]">{formatDate(lead.last_call_at)}</div><div className="text-[11px] text-[#64748b]">{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</div></td><td className="px-3 py-3 text-xs text-[#475569]">{text(lead, "assigned_name") || "Unassigned"}</td><td className="px-3 py-3 text-right"><div className="flex items-center justify-end gap-1.5"><button disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"} onClick={() => onDial(lead)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone" className="h-3.5 w-3.5"/>Dial</button><button title="Delete lead" onClick={(e) => { e.stopPropagation(); if (onRequestDeleteLead) onRequestDeleteLead(text(lead, "id"), leadName(lead)); }} className="grid h-8 w-8 place-items-center rounded-lg text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition"><Icon name="trash" className="h-4 w-4" /></button></div></td></tr>)}{!leads.length && <tr><td colSpan={7}><Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/></td></tr>}</tbody></table></div>
     </section>
   </>;
 }
 
 function Empty({ message }: { message: string }) { return <div className="px-5 py-10 text-center text-sm text-[#89928e]">{message}</div>; }
 
-function ResponsiveCallsView({ calls, onOpenDialpad }: { calls: Row[]; onOpenDialpad?: () => void }) {
+function CallAudioPlayer({
+  callId,
+  durationSeconds,
+  hasRecording = false,
+  compact = false,
+  onAttachClick,
+}: {
+  callId: string;
+  durationSeconds?: number | null;
+  hasRecording?: boolean;
+  compact?: boolean;
+  onAttachClick?: () => void;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(durationSeconds || 0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePlay = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      setError(null);
+      setIsLoading(true);
+      try {
+        await audioRef.current.play();
+      } catch {
+        setIsLoading(false);
+        setError("Playback failed");
+      }
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const val = Number(e.target.value);
+    setCurrentTime(val);
+    if (audioRef.current) audioRef.current.currentTime = val;
+  };
+
+  const cycleSpeed = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const speeds = [1, 1.25, 1.5, 2];
+    const next = speeds[(speeds.indexOf(playbackRate) + 1) % speeds.length];
+    setPlaybackRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  };
+
+  const formatSec = (sec: number) => {
+    if (!Number.isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  if (!hasRecording) {
+    return (
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <span className="text-xs text-[#94a3b8] italic">No recording</span>
+        {onAttachClick && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAttachClick(); }}
+            className="inline-flex items-center gap-1 rounded bg-[#edf5fc] px-2 py-1 text-[11px] font-semibold text-[#1266c4] hover:bg-[#e1effb] transition"
+            title="Attach or sync recording"
+          >
+            <Icon name="link" className="h-3 w-3" />
+            <span>Attach</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const mp3Url = `/api/dialer/calls/${callId}/recording?format=mp3&download=1`;
+  const wavUrl = `/api/dialer/calls/${callId}/recording?format=wav&download=1`;
+  const streamUrl = `/api/dialer/calls/${callId}/recording?format=mp3`;
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${compact ? "w-full" : "min-w-[270px] max-w-[340px]"}`} onClick={(e) => e.stopPropagation()}>
+      <audio
+        ref={audioRef}
+        src={streamUrl}
+        preload="none"
+        onPlay={() => { setIsPlaying(true); setIsLoading(false); }}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+        onTimeUpdate={() => {
+          if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current && audioRef.current.duration) setDuration(audioRef.current.duration);
+          setIsLoading(false);
+        }}
+        onError={() => {
+          setIsLoading(false);
+          setIsPlaying(false);
+          setError("Audio unavailable");
+        }}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={isPlaying ? "Pause recording" : "Play recording"}
+          disabled={isLoading}
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-white shadow-xs transition ${
+            isPlaying ? "bg-amber-600 hover:bg-amber-700" : "bg-[#1266c4] hover:bg-[#0e529e]"
+          }`}
+        >
+          {isLoading ? (
+            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          ) : isPlaying ? (
+            <Icon name="pause" className="h-3 w-3" />
+          ) : (
+            <Icon name="play" className="h-3 w-3 ml-0.5" />
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            value={currentTime}
+            onChange={handleSeek}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[#e2e8f0] accent-[#1266c4]"
+          />
+          <div className="flex justify-between text-[10px] text-[#64748b] font-medium leading-none mt-1">
+            <span>{formatSec(currentTime)}</span>
+            <span>{formatSec(duration)}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={cycleSpeed}
+          title="Playback speed"
+          className="rounded px-1.5 py-0.5 text-[10px] font-bold text-[#475569] bg-[#f1f5f9] hover:bg-[#e2e8f0] transition shrink-0"
+        >
+          {playbackRate}x
+        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <a
+            href={mp3Url}
+            download
+            title="Download MP3"
+            className="inline-flex items-center gap-0.5 rounded px-2 py-1 text-[11px] font-bold text-[#1266c4] bg-[#edf5fc] hover:bg-[#e1effb] transition"
+          >
+            <Icon name="download" className="h-3 w-3" />
+            <span>MP3</span>
+          </a>
+          <a
+            href={wavUrl}
+            download
+            title="Download WAV"
+            className="inline-flex items-center gap-0.5 rounded px-2 py-1 text-[11px] font-bold text-[#475569] bg-[#f1f5f9] hover:bg-[#e2e8f0] transition"
+          >
+            <Icon name="download" className="h-3 w-3" />
+            <span>WAV</span>
+          </a>
+        </div>
+      </div>
+      {error && <span className="text-[10px] text-red-600 font-medium">{error}</span>}
+    </div>
+  );
+}
+
+function AttachRecordingModal({
+  call,
+  onClose,
+  onDone,
+}: {
+  call: Row;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const [sid, setSid] = useState("");
+  const [url, setUrl] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const callId = text(call, "id");
+  const callSid = text(call, "twilio_call_sid") || text(call, "twilio_parent_call_sid");
+
+  const syncFromTwilio = async () => {
+    setError("");
+    setSyncing(true);
+    try {
+      const res = await api<{ success: boolean; call: Row }>(`/api/dialer/calls/${callId}/recording`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ syncFromTwilio: true }),
+      });
+      if (res.success) onDone("Recording synced from Twilio!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sync recording from Twilio.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const saveManual = async () => {
+    if (!sid.trim() && !url.trim()) return;
+    setError("");
+    setSaving(true);
+    try {
+      const res = await api<{ success: boolean }>(`/api/dialer/calls/${callId}/recording`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordingSid: sid.trim() || undefined, recordingUrl: url.trim() || undefined }),
+      });
+      if (res.success) onDone("Recording attached!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to attach recording.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Attach recording: ${leadName(call)}`} description="Attach or sync a call recording for this conversation." onClose={onClose}>
+      <div className="space-y-4">
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
+        <div className="rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs space-y-1.5">
+          <div className="flex justify-between">
+            <span className="text-[#64748b]">Rep:</span>
+            <span className="font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"} ({text(call, "user_role") === "owner" ? "Owner" : "Setter"})</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#64748b]">Started:</span>
+            <span className="font-semibold text-[#0f172a]">{formatDate(call.started_at)}</span>
+          </div>
+          {callSid && (
+            <div className="flex justify-between">
+              <span className="text-[#64748b]">Twilio Call SID:</span>
+              <code className="text-[#1266c4] text-[11px] font-mono">{callSid}</code>
+            </div>
+          )}
+        </div>
+
+        {callSid && (
+          <div className="rounded-xl border border-[#d0dbe7] bg-white p-4">
+            <div className="font-semibold text-sm text-[#0f172a]">Option 1: Auto-sync from Twilio</div>
+            <p className="mt-1 text-xs text-[#64748b]">
+              Twilio logged this call with SID {callSid}. Check Twilio to automatically locate and link the recording.
+            </p>
+            <div className="mt-3">
+              <PrimaryButton onClick={() => void syncFromTwilio()} disabled={syncing}>
+                {syncing ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon name="check" />}
+                <span>{syncing ? "Checking Twilio…" : "Sync from Twilio"}</span>
+              </PrimaryButton>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-[#d0dbe7] bg-white p-4 space-y-3">
+          <div className="font-semibold text-sm text-[#0f172a]">Option 2: Enter Recording SID or Direct URL</div>
+          <Field label="Twilio Recording SID (e.g. RE...)">
+            <input value={sid} onChange={(e) => setSid(e.target.value)} placeholder="RE1234567890abcdef..." className={inputClass} />
+          </Field>
+          <Field label="Or direct audio URL (MP3/WAV)">
+            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." className={inputClass} />
+          </Field>
+          <div className="pt-2">
+            <SecondaryButton onClick={() => void saveManual()} disabled={saving || (!sid.trim() && !url.trim())}>
+              {saving ? "Saving…" : "Attach recording"}
+            </SecondaryButton>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ResponsiveCallsView({
+  calls,
+  users = [],
+  onRefresh,
+  onOpenDialpad,
+  onNotify,
+}: {
+  calls: Row[];
+  users?: Row[];
+  onRefresh?: () => Promise<void>;
+  onOpenDialpad?: () => void;
+  onNotify?: (msg: string) => void;
+}) {
   const [query, setQuery] = useState("");
-  const visible = calls.filter((call) => `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "user_name")}`.toLowerCase().includes(query.toLowerCase()));
+  const [repFilter, setRepFilter] = useState("all");
+  const [recordingOnly, setRecordingOnly] = useState(false);
+  const [attachCall, setAttachCall] = useState<Row | null>(null);
+
+  const visible = useMemo(() => {
+    return calls.filter((call) => {
+      const q = query.toLowerCase();
+      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
+      const matchesRep = repFilter === "all" || (repFilter === "owner" ? text(call, "user_role") === "owner" : repFilter === "agent" ? text(call, "user_role") === "agent" : text(call, "user_id") === repFilter);
+      const matchesRecording = !recordingOnly || Boolean(call.recording_sid || call.recording_url);
+      return matchesSearch && matchesRep && matchesRecording;
+    });
+  }, [calls, query, repFilter, recordingOnly]);
+
+  const ownerCount = calls.filter((c) => text(c, "user_role") === "owner").length;
+  const setterCount = calls.filter((c) => text(c, "user_role") === "agent").length;
+  const recordedCount = calls.filter((c) => Boolean(c.recording_sid || c.recording_url)).length;
+
   return <>
-    <div className="lg:hidden"><PageHeader eyebrow="Activity" title="Calls" description="Every attempt, outcome, and rep in one timeline." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]"><div className="border-b border-[#e2e8f0] p-3"><div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search call history..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div></div><div className="divide-y divide-[#e2e8f0]">{visible.map((call) => <article key={text(call, "id")} className="p-4"><div className="flex items-start gap-3"><Avatar name={leadName(call)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(call)}</h2><p className="truncate text-xs text-[#64748b]">{text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}</p></div><StatusBadge status={text(call, "disposition") || text(call, "status")}/></div><div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-[#f8fafc] p-3 text-xs"><div><div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Direction</div><div className="mt-1 font-semibold capitalize text-[#0f172a]">{text(call, "direction")}</div></div><div><div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Rep</div><div className="mt-1 truncate font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</div></div><div><div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Duration</div><div className="mt-1 font-semibold text-[#0f172a]">{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "—"}</div></div></div><div className="mt-2 text-[11px] text-[#64748b]">{formatDate(call.started_at)}</div></div></div></article>)}{!visible.length && <Empty message="No call records found."/>}</div></section></div>
-    <div className="hidden lg:block"><CallsView calls={calls} onOpenDialpad={onOpenDialpad}/></div>
+    <div className="lg:hidden">
+      <PageHeader eyebrow="Activity" title="Calls" description="Every attempt, outcome, and rep with attached recordings." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/>
+      <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6">
+        <button onClick={() => { setRepFilter("all"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "all" && !recordingOnly ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+          <div className="text-lg font-bold">{calls.length}</div>All
+        </button>
+        <button onClick={() => { setRepFilter("owner"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "owner" ? "border-indigo-600 bg-indigo-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+          <div className="text-lg font-bold">{ownerCount}</div>Owner
+        </button>
+        <button onClick={() => { setRepFilter("agent"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "agent" ? "border-teal-600 bg-teal-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+          <div className="text-lg font-bold">{setterCount}</div>Setter
+        </button>
+        <button onClick={() => setRecordingOnly(!recordingOnly)} className={`min-w-[110px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${recordingOnly ? "border-emerald-600 bg-emerald-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+          <div className="text-lg font-bold">{recordedCount}</div>Recordings
+        </button>
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
+        <div className="border-b border-[#e2e8f0] p-3">
+          <div className="relative">
+            <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search call history..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/>
+          </div>
+        </div>
+        <div className="divide-y divide-[#e2e8f0]">
+          {visible.map((call) => (
+            <article key={text(call, "id")} className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Avatar name={leadName(call)}/>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(call)}</h2>
+                      <p className="truncate text-xs text-[#64748b]">{text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}</p>
+                    </div>
+                    <StatusBadge status={text(call, "disposition") || text(call, "status")}/>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</span>
+                    {text(call, "user_role") === "owner" ? (
+                      <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">Owner</span>
+                    ) : text(call, "user_role") === "agent" ? (
+                      <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-700 border border-teal-200">Setter</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#f8fafc] p-3 text-xs">
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Direction</div>
+                  <div className="mt-1 font-semibold capitalize text-[#0f172a]">{text(call, "direction")}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Duration</div>
+                  <div className="mt-1 font-semibold text-[#0f172a]">{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "—"}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Started</div>
+                  <div className="mt-1 font-semibold text-[#0f172a]">{formatDate(call.started_at)}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#e2e8f0] bg-white p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b] mb-2 flex items-center gap-1.5">
+                  <Icon name="mic" className="h-3 w-3 text-[#1266c4]" />
+                  <span>Call recording</span>
+                </div>
+                <CallAudioPlayer
+                  compact
+                  callId={text(call, "id")}
+                  durationSeconds={number(call, "duration_seconds")}
+                  hasRecording={Boolean(call.recording_sid || call.recording_url)}
+                  onAttachClick={() => setAttachCall(call)}
+                />
+              </div>
+            </article>
+          ))}
+          {!visible.length && <Empty message="No call records found."/>}
+        </div>
+      </section>
+    </div>
+
+    <div className="hidden lg:block">
+      <CallsView calls={calls} users={users} onRefresh={onRefresh} onOpenDialpad={onOpenDialpad} onNotify={onNotify} />
+    </div>
+
+    {attachCall && (
+      <AttachRecordingModal
+        call={attachCall}
+        onClose={() => setAttachCall(null)}
+        onDone={(msg) => {
+          setAttachCall(null);
+          if (onNotify) onNotify(msg);
+          if (onRefresh) void onRefresh();
+        }}
+      />
+    )}
   </>;
 }
 
-function CallsView({ calls, onOpenDialpad }: { calls: Row[]; onOpenDialpad?: () => void }) {
+function CallsView({
+  calls,
+  users = [],
+  onRefresh,
+  onOpenDialpad,
+  onNotify,
+}: {
+  calls: Row[];
+  users?: Row[];
+  onRefresh?: () => Promise<void>;
+  onOpenDialpad?: () => void;
+  onNotify?: (msg: string) => void;
+}) {
   const [query, setQuery] = useState("");
-  const visible = calls.filter((call) => `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "user_name")}`.toLowerCase().includes(query.toLowerCase()));
-  return <><PageHeader eyebrow="Activity" title="Calls" description="Every outbound attempt and inbound callback, attributed to the rep who handled it." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-xs"><div className="border-b border-[#e2e8f0] p-3"><div className="relative max-w-xl"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search call history…" className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left"><thead><tr className="bg-[#f8fafc] text-[10px] uppercase tracking-[.12em] text-[#64748b] border-b border-[#e2e8f0]"><th className="px-5 py-3">Contact</th><th className="px-4 py-3">Direction</th><th className="px-4 py-3">Outcome</th><th className="px-4 py-3">Rep</th><th className="px-4 py-3">Duration</th><th className="px-5 py-3 text-right">Started</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{visible.map((call) => <tr key={text(call, "id")} className="hover:bg-[#f8fafc]"><td className="px-5 py-3.5"><div className="text-sm font-semibold text-[#0f172a]">{leadName(call)}</div><div className="text-xs text-[#64748b]">{text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}</div></td><td className="px-4 py-3.5 text-xs capitalize text-[#334155]">{text(call, "direction")}</td><td className="px-4 py-3.5"><StatusBadge status={text(call, "disposition") || text(call, "status")}/></td><td className="px-4 py-3.5 text-xs text-[#334155]">{text(call, "user_name") || "Unclaimed"}</td><td className="px-4 py-3.5 text-xs text-[#334155]">{number(call, "duration_seconds") ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}` : "—"}</td><td className="px-5 py-3.5 text-right text-xs text-[#64748b]">{formatDate(call.started_at)}</td></tr>)}{!visible.length && <tr><td colSpan={6}><Empty message="No call records found."/></td></tr>}</tbody></table></div></section></>;
+  const [repFilter, setRepFilter] = useState("all");
+  const [recordingOnly, setRecordingOnly] = useState(false);
+  const [attachCall, setAttachCall] = useState<Row | null>(null);
+
+  const visible = useMemo(() => {
+    return calls.filter((call) => {
+      const q = query.toLowerCase();
+      const matchesSearch = !query || `${leadName(call)} ${text(call, "company")} ${text(call, "to_number")} ${text(call, "from_number")} ${text(call, "user_name")}`.toLowerCase().includes(q);
+      const matchesRep = repFilter === "all" || (repFilter === "owner" ? text(call, "user_role") === "owner" : repFilter === "agent" ? text(call, "user_role") === "agent" : text(call, "user_id") === repFilter);
+      const matchesRecording = !recordingOnly || Boolean(call.recording_sid || call.recording_url);
+      return matchesSearch && matchesRep && matchesRecording;
+    });
+  }, [calls, query, repFilter, recordingOnly]);
+
+  const ownerCount = calls.filter((c) => text(c, "user_role") === "owner").length;
+  const setterCount = calls.filter((c) => text(c, "user_role") === "agent").length;
+  const recordedCount = calls.filter((c) => Boolean(c.recording_sid || c.recording_url)).length;
+
+  return <>
+    <PageHeader
+      eyebrow="Activity"
+      title="Calls"
+      description="Every outbound attempt and inbound callback for owner and setter, with attached audio recordings."
+      action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}
+    />
+
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => { setRepFilter("all"); setRecordingOnly(false); }}
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            repFilter === "all" && !recordingOnly
+              ? "bg-[#1266c4] text-white shadow-xs"
+              : "border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#b8d0e6]"
+          }`}
+        >
+          All calls ({calls.length})
+        </button>
+        <button
+          onClick={() => { setRepFilter("owner"); setRecordingOnly(false); }}
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            repFilter === "owner"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#b8d0e6]"
+          }`}
+        >
+          Owner calls ({ownerCount})
+        </button>
+        <button
+          onClick={() => { setRepFilter("agent"); setRecordingOnly(false); }}
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            repFilter === "agent"
+              ? "bg-teal-600 text-white shadow-xs"
+              : "border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#b8d0e6]"
+          }`}
+        >
+          Setter calls ({setterCount})
+        </button>
+        <button
+          onClick={() => setRecordingOnly(!recordingOnly)}
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            recordingOnly
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#b8d0e6]"
+          }`}
+        >
+          With recording ({recordedCount})
+        </button>
+      </div>
+
+      <div className="text-xs text-[#64748b]">
+        Showing {visible.length} of {calls.length} calls
+      </div>
+    </div>
+
+    <section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-xs">
+      <div className="border-b border-[#e2e8f0] p-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 max-w-xl">
+          <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search contact, company, phone, rep…"
+            className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"
+          />
+        </div>
+        {users.length > 0 && (
+          <select
+            value={repFilter}
+            onChange={(e) => setRepFilter(e.target.value)}
+            className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2 text-sm text-[#0f172a]"
+          >
+            <option value="all">All reps</option>
+            <option value="owner">Owner only</option>
+            <option value="agent">Setter only</option>
+            {users.map((u) => (
+              <option key={text(u, "id")} value={text(u, "id")}>
+                {text(u, "display_name")} ({text(u, "role") === "owner" ? "Owner" : "Setter"})
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1050px] text-left">
+          <thead>
+            <tr className="bg-[#f8fafc] text-[10px] uppercase tracking-[.12em] text-[#64748b] border-b border-[#e2e8f0]">
+              <th className="px-5 py-3">Contact</th>
+              <th className="px-4 py-3">Rep (Caller)</th>
+              <th className="px-4 py-3">Direction</th>
+              <th className="px-4 py-3">Outcome</th>
+              <th className="px-4 py-3">Duration</th>
+              <th className="px-4 py-3 min-w-[300px]">Recording</th>
+              <th className="px-5 py-3 text-right">Started</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#e2e8f0]">
+            {visible.map((call) => (
+              <tr key={text(call, "id")} className="hover:bg-[#f8fafc]">
+                <td className="px-5 py-3.5">
+                  <div className="text-sm font-semibold text-[#0f172a]">{leadName(call)}</div>
+                  <div className="text-xs text-[#64748b]">
+                    {text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}
+                  </div>
+                </td>
+                <td className="px-4 py-3.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</span>
+                    {text(call, "user_role") === "owner" ? (
+                      <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">
+                        Owner
+                      </span>
+                    ) : text(call, "user_role") === "agent" ? (
+                      <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-700 border border-teal-200">
+                        Setter
+                      </span>
+                    ) : null}
+                  </div>
+                </td>
+                <td className="px-4 py-3.5 text-xs capitalize text-[#334155]">{text(call, "direction")}</td>
+                <td className="px-4 py-3.5"><StatusBadge status={text(call, "disposition") || text(call, "status")}/></td>
+                <td className="px-4 py-3.5 text-xs text-[#334155]">
+                  {number(call, "duration_seconds")
+                    ? `${Math.floor(number(call, "duration_seconds") / 60)}:${String(number(call, "duration_seconds") % 60).padStart(2, "0")}`
+                    : "—"}
+                </td>
+                <td className="px-4 py-3.5">
+                  <CallAudioPlayer
+                    callId={text(call, "id")}
+                    durationSeconds={number(call, "duration_seconds")}
+                    hasRecording={Boolean(call.recording_sid || call.recording_url)}
+                    onAttachClick={() => setAttachCall(call)}
+                  />
+                </td>
+                <td className="px-5 py-3.5 text-right text-xs text-[#64748b]">{formatDate(call.started_at)}</td>
+              </tr>
+            ))}
+            {!visible.length && (
+              <tr>
+                <td colSpan={7}><Empty message="No call records found."/></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {attachCall && (
+      <AttachRecordingModal
+        call={attachCall}
+        onClose={() => setAttachCall(null)}
+        onDone={(msg) => {
+          setAttachCall(null);
+          if (onNotify) onNotify(msg);
+          if (onRefresh) void onRefresh();
+        }}
+      />
+    )}
+  </>;
 }
 
 function TasksView({ tasks, onCreate, onRefresh }: { tasks: Row[]; onCreate: () => void; onRefresh: () => Promise<void> }) {
@@ -632,9 +1340,9 @@ function SequencesView({ sequences, onRefresh }: { sequences: Row[]; onRefresh: 
   return <><PageHeader eyebrow="Cadences" title="Sequences" description="Reusable call schedules for consistent follow-up without parallel or predictive dialing."/><div className="grid gap-6 lg:grid-cols-[1fr_340px]"><section className="grid content-start gap-4 sm:grid-cols-2">{sequences.map((sequence) => { const steps = Array.isArray(sequence.steps) ? sequence.steps as Row[] : []; return <div key={text(sequence, "id")} className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-xs"><div className="flex items-start justify-between"><div><h3 className="font-semibold text-[#0f172a]">{text(sequence, "name")}</h3><p className="mt-1 text-xs text-[#64748b]">{text(sequence, "description") || "Call sequence"}</p></div><StatusBadge status={Boolean(sequence.active) ? "contacted" : "closed"}/></div><div className="mt-5 flex items-center gap-2">{steps.map((step, index) => <div key={index} className="contents"><div className="grid h-10 min-w-10 place-items-center rounded-full bg-[#edf5fc] text-xs font-bold text-[#1266c4]">D{number(step, "day")}</div>{index < steps.length - 1 && <div className="h-px flex-1 bg-[#d0dbe7]"/>}</div>)}</div></div>; })}{!sequences.length && <div className="sm:col-span-2 rounded-2xl border border-dashed border-[#d0dbe7] bg-white"><Empty message="Create your first call sequence."/></div>}</section><aside className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-xs"><h2 className="font-semibold text-[#0f172a]">New sequence</h2><p className="mt-1 text-xs leading-relaxed text-[#64748b]">Creates a simple three-call cadence on days 0, 2, and 5. Calls are always placed one at a time by a rep.</p><label className="mt-5 block text-xs font-semibold text-[#475569]">Sequence name</label><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Florida HVAC follow-up" className="mt-2 w-full rounded-lg border border-[#d0dbe7] px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/><div className="mt-4"><PrimaryButton onClick={() => void create()} disabled={!name.trim()}><Icon name="plus"/>Create sequence</PrimaryButton></div></aside></div></>;
 }
 
-function PipelineView({ leads, onDial, onOpenDialpad }: { leads: Row[]; onDial: (lead: Row) => void; onOpenDialpad?: () => void }) {
+function PipelineView({ leads, onDial, onOpenDialpad, onDeleteLead }: { leads: Row[]; onDial: (lead: Row) => void; onOpenDialpad?: () => void; onDeleteLead?: (id: string, name: string) => void }) {
   const columns = [["to_call", "To call"], ["try_again", "Try again"], ["follow_up", "Follow up"], ["closed", "Closed"]] as const;
-  return <><PageHeader eyebrow="Pipeline" title="Lead pipeline" description="A compact board organized by the next action your team needs to take." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><div className="grid gap-4 lg:grid-cols-4">{columns.map(([status, label]) => { const items = leads.filter((lead) => text(lead, "status") === status); return <section key={status} className="rounded-2xl border border-[#e2e8f0] bg-[#f1f5f9]/70 p-3"><div className="mb-3 flex items-center justify-between px-1"><h2 className="text-sm font-bold text-[#0f172a]">{label}</h2><span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#64748b] border border-[#e2e8f0]">{items.length}</span></div><div className="space-y-3">{items.slice(0, 100).map((lead) => <div key={text(lead, "id")} className="rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-xs"><div className="flex items-start gap-2"><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="truncate text-xs text-[#64748b]">{text(lead, "company") || formatPhone(lead.phone_e164)}</div></div></div><div className="mt-3 flex items-center justify-between"><StatusBadge status={text(lead, "disposition") || status}/>{status !== "closed" && <button onClick={() => onDial(lead)} className="rounded-full bg-[#edf5fc] p-2 text-[#1266c4] hover:bg-[#e1effb] transition"><Icon name="phone" className="h-3.5 w-3.5"/></button>}</div></div>)}</div></section>; })}</div></>;
+  return <><PageHeader eyebrow="Pipeline" title="Lead pipeline" description="A compact board organized by the next action your team needs to take." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><div className="grid gap-4 lg:grid-cols-4">{columns.map(([status, label]) => { const items = leads.filter((lead) => text(lead, "status") === status); return <section key={status} className="rounded-2xl border border-[#e2e8f0] bg-[#f1f5f9]/70 p-3"><div className="mb-3 flex items-center justify-between px-1"><h2 className="text-sm font-bold text-[#0f172a]">{label}</h2><span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#64748b] border border-[#e2e8f0]">{items.length}</span></div><div className="space-y-3">{items.slice(0, 100).map((lead) => <div key={text(lead, "id")} className="rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-xs"><div className="flex items-start gap-2"><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="truncate text-xs text-[#64748b]">{text(lead, "company") || formatPhone(lead.phone_e164)}</div></div></div><div className="mt-3 flex items-center justify-between"><StatusBadge status={text(lead, "disposition") || status}/><div className="flex items-center gap-1">{status !== "closed" && <button onClick={() => onDial(lead)} className="rounded-full bg-[#edf5fc] p-2 text-[#1266c4] hover:bg-[#e1effb] transition"><Icon name="phone" className="h-3.5 w-3.5"/></button>}<button title="Delete lead" onClick={() => onDeleteLead && onDeleteLead(text(lead, "id"), leadName(lead))} className="rounded-full p-2 text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition"><Icon name="trash" className="h-3.5 w-3.5"/></button></div></div></div>)}</div></section>; })}</div></>;
 }
 
 function DncView({ entries, onRefresh }: { entries: Row[]; onRefresh: () => Promise<void> }) {
@@ -644,14 +1352,69 @@ function DncView({ entries, onRefresh }: { entries: Row[]; onRefresh: () => Prom
   return <><PageHeader eyebrow="Compliance" title="Do not call" description="A workspace-wide suppression list. Numbers here are blocked before Twilio receives a dial request."/><div className="grid gap-6 lg:grid-cols-[360px_1fr]"><aside className="h-fit rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-xs"><h2 className="font-semibold text-[#0f172a]">Suppress a number</h2><p className="mt-1 text-xs leading-relaxed text-[#64748b]">This closes every matching lead and prevents future calls.</p>{error && <p className="mt-3 text-xs font-semibold text-red-600">{error}</p>}<label className="mt-5 block text-xs font-semibold text-[#475569]">Phone number</label><input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(407) 555-0123" className="mt-2 w-full rounded-lg border border-[#d0dbe7] px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/><label className="mt-4 block text-xs font-semibold text-[#475569]">Reason</label><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Requested no further calls" className="mt-2 min-h-24 w-full rounded-lg border border-[#d0dbe7] px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/><div className="mt-4"><PrimaryButton onClick={() => void add()} disabled={!phone.trim()}><Icon name="shield"/>Add to DNC</PrimaryButton></div></aside><section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-xs"><div className="border-b border-[#e2e8f0] px-5 py-4 text-sm font-semibold text-[#0f172a]">{entries.length} suppressed numbers</div><div className="divide-y divide-[#e2e8f0]">{entries.map((entry) => <div key={text(entry, "id")} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center hover:bg-[#f8fafc]"><div className="flex-1"><div className="font-semibold text-[#0f172a]">{formatPhone(entry.phone_e164)}</div><div className="mt-1 text-xs text-[#64748b]">{text(entry, "reason") || "No reason provided"} · {formatDate(entry.created_at)}</div></div><div className="text-xs text-[#64748b]">{text(entry, "requested_by_name") || text(entry, "source")}</div><button onClick={() => void remove(text(entry, "phone_e164"))} className="text-xs font-semibold text-red-600 hover:underline">Remove</button></div>)}{!entries.length && <Empty message="No suppressed numbers."/>}</div></section></div></>;
 }
 
-function SettingsView({ settings, currentUser, onCreateUser, onChangePassword, onRefresh }: { settings: Row; currentUser: Row; onCreateUser: () => void; onChangePassword: () => void; onRefresh: () => Promise<void> }) {
+function SettingsView({ settings, currentUser, onCreateUser, onChangePassword, onRefresh, onNotify }: { settings: Row; currentUser: Row; onCreateUser: () => void; onChangePassword: () => void; onRefresh: () => Promise<void>; onNotify?: (msg: string) => void }) {
   const workspace = (settings.settings as Row | undefined)?.workspace as Row | undefined || {};
   const twilio = settings.twilio as Row | undefined || {};
   const users = settings.users as Row[] | undefined || [];
+
+  const toggleRecording = async () => {
+    const next = !Boolean(twilio.recordingEnabled !== false);
+    try {
+      await api("/api/dialer/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "twilio", value: { recordingEnabled: next } }),
+      });
+      await onRefresh();
+      if (onNotify) onNotify(next ? "Call recording enabled" : "Call recording disabled");
+    } catch (err) {
+      if (onNotify) onNotify(err instanceof Error ? err.message : "Failed to update recording settings");
+    }
+  };
+
   return <><PageHeader eyebrow="Workspace" title="Settings & team" description="Manage calling guardrails, Twilio connection details, and the people who can access this dialer." action={<SecondaryButton onClick={onChangePassword}>Change my password</SecondaryButton>}/><div className="grid gap-6 xl:grid-cols-2">
     <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-[#0f172a]">Team accounts</h2><p className="mt-1 text-xs text-[#64748b]">Separate logins keep assignments, calls, and tasks attributable.</p></div>{text(currentUser, "role") === "owner" && <PrimaryButton onClick={onCreateUser}><Icon name="plus"/>Add setter</PrimaryButton>}</div><div className="mt-5 divide-y divide-[#e2e8f0]">{users.map((user) => <div key={text(user, "id")} className="flex items-center gap-3 py-3"><Avatar name={text(user, "display_name")}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{text(user, "display_name")}</div><div className="text-xs text-[#64748b]">@{text(user, "username")} · {text(user, "last_login_at") ? `last active ${formatDate(user.last_login_at)}` : "never signed in"}</div></div><span className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-[10px] font-bold uppercase text-[#475569]">{text(user, "role")}</span><span className={`h-2.5 w-2.5 rounded-full ${Boolean(user.active) ? "bg-emerald-500" : "bg-slate-300"}`}/></div>)}</div></section>
     <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-full ${Boolean(twilio.configured) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Icon name={Boolean(twilio.configured) ? "check" : "alert"}/></div><div><h2 className="font-semibold text-[#0f172a]">Twilio connection</h2><p className="text-xs text-[#64748b]">{Boolean(twilio.configured) ? `Ready on ${formatPhone(twilio.phoneNumber)}` : "Environment variables still required"}</p></div></div><div className="mt-5 space-y-4 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs"><div><div className="font-semibold text-[#475569]">TwiML App voice URL</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "voiceUrl")}</code></div><div><div className="font-semibold text-[#475569]">Phone number inbound webhook</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "inboundUrl")}</code></div></div><p className="mt-4 text-xs leading-relaxed text-[#64748b]">Use HTTP POST for both URLs. Outbound calls use your Twilio number and inbound callbacks ring every active dialer account.</p></section>
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 xl:col-span-2 shadow-xs">
+    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-blue-100 text-[#1266c4]">
+            <Icon name="mic"/>
+          </div>
+          <div>
+            <h2 className="font-semibold text-[#0f172a]">Call recording</h2>
+            <p className="text-xs text-[#64748b]">
+              {Boolean(twilio.recordingEnabled !== false) ? "Dual-channel recording active (Owner & Setter)" : "Recording disabled"}
+            </p>
+          </div>
+        </div>
+        {text(currentUser, "role") === "owner" && (
+          <button
+            type="button"
+            onClick={toggleRecording}
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+              Boolean(twilio.recordingEnabled !== false)
+                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            {Boolean(twilio.recordingEnabled !== false) ? "Enabled" : "Disabled"}
+          </button>
+        )}
+      </div>
+      <p className="mt-4 text-xs leading-relaxed text-[#64748b]">
+        Dual-channel recording records both sides of every call (caller and prospect) in separate audio channels. Recordings are attached to each call in the Calls section where both owner and setter can play, pause, and download MP3 or WAV files.
+      </p>
+      {text(twilio, "recordingUrl") && (
+        <div className="mt-4 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs">
+          <div className="font-semibold text-[#475569]">Twilio recording status webhook URL</div>
+          <code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">
+            {text(twilio, "recordingUrl")}
+          </code>
+        </div>
+      )}
+    </section>
+    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs">
       <CallingGuardrailsEditor workspace={workspace} onRefresh={onRefresh} />
     </section>
   </div></>;

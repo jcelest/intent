@@ -185,3 +185,26 @@ export async function PATCH(request: Request) {
   `;
   return NextResponse.json({ success: true, updated: body.ids.length });
 }
+
+export async function DELETE(request: Request) {
+  const auth = await requireDialerSession(request);
+  if (auth.response || !auth.user) return auth.response;
+  const body = (await request.json()) as { ids?: string[] };
+  if (!body.ids?.length) {
+    return NextResponse.json({ error: "Lead ids are required." }, { status: 400 });
+  }
+  if (body.ids.length > 1000) {
+    return NextResponse.json({ error: "Bulk deletion is limited to 1,000 leads at a time." }, { status: 400 });
+  }
+  const deleted = await sql`
+    DELETE FROM dialer_leads WHERE id = ANY(${body.ids}::uuid[])
+    RETURNING id
+  `;
+  await addActivity({
+    userId: auth.user.id,
+    type: "leads_deleted",
+    summary: `Deleted ${deleted.length} lead${deleted.length === 1 ? "" : "s"}`,
+    metadata: { count: deleted.length, ids: body.ids },
+  });
+  return NextResponse.json({ success: true, deleted: deleted.length });
+}

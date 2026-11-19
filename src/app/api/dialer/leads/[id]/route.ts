@@ -52,8 +52,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const auth = await requireDialerSession(request, "owner");
-  if (auth.response) return auth.response;
-  await sql`DELETE FROM dialer_leads WHERE id = ${params.id}`;
-  return NextResponse.json({ success: true });
+  const auth = await requireDialerSession(request);
+  if (auth.response || !auth.user) return auth.response;
+  const rows = await sql`
+    DELETE FROM dialer_leads WHERE id = ${params.id}
+    RETURNING id, first_name, last_name, company
+  `;
+  if (!rows[0]) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  const leadName = [rows[0].first_name, rows[0].last_name].filter(Boolean).join(" ") || rows[0].company || "Lead";
+  await addActivity({
+    userId: auth.user.id,
+    type: "lead_deleted",
+    summary: `Deleted lead ${leadName}`,
+    metadata: { leadId: params.id },
+  });
+  return NextResponse.json({ success: true, deleted: params.id });
 }

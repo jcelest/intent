@@ -50,13 +50,14 @@ export async function POST(request: Request) {
     `;
     const settingRows = await sql`SELECT value FROM dialer_settings WHERE key = 'twilio' LIMIT 1`;
     const setting = (settingRows[0]?.value || {}) as { recordingEnabled?: boolean };
+    const isRecordingEnabled = setting.recordingEnabled !== false;
     const callback = absoluteCallbackUrl(request, `/api/twilio/status?callId=${encodeURIComponent(callId)}`);
     const dial = response.dial({
       callerId: config.phoneNumber,
       answerOnBridge: true,
       timeout: 30,
-      record: setting.recordingEnabled ? "record-from-answer-dual" : undefined,
-      recordingStatusCallback: setting.recordingEnabled
+      record: isRecordingEnabled ? "record-from-answer-dual" : undefined,
+      recordingStatusCallback: isRecordingEnabled
         ? absoluteCallbackUrl(request, `/api/twilio/recording?callId=${encodeURIComponent(callId)}`)
         : undefined,
     });
