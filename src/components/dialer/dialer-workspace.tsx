@@ -348,7 +348,7 @@ export function DialerWorkspace() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[#f8fafc] text-[#0f172a]">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-[#e2e8f0] bg-[#f1f5f9] lg:flex">
         <div className="flex h-16 items-center gap-3 border-b border-[#e2e8f0] px-5">
           <DialerBrandMark />
@@ -408,11 +408,11 @@ export function DialerWorkspace() {
         <MobileHeader view={view} navigate={navigate} logout={logout} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} guardrailsActive={guardrailsActive} />
         {error && <div className="mx-auto mt-5 max-w-7xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {!Boolean(twilio.configured) && view !== "settings" && (
-          <button onClick={() => navigate("settings")} className="mx-auto mt-5 flex max-w-7xl items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
-            <Icon name="alert" /> Add the Twilio environment variables before placing calls. Open settings for the exact webhook URLs.
+          <button onClick={() => navigate("settings")} className="mx-4 mt-4 flex max-w-7xl items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm leading-5 text-amber-800 sm:mx-6 lg:mx-auto lg:mt-5">
+            <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" /> <span className="min-w-0">Add the Twilio environment variables before placing calls. Open settings for the exact webhook URLs.</span>
           </button>
         )}
-        <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-6 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
+        <main className="mx-auto min-w-0 max-w-[1500px] overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
           {view === "dashboard" && <Dashboard counts={counts} metrics={metrics} recentCalls={(overview.recentCalls || []) as Row[]} conversations={(overview.conversations || []) as Row[]} outcomeBreakdown={(overview.outcomeBreakdown || []) as Row[]} tasks={(overview.tasks || []) as Row[]} repStats={(overview.repStats || []) as Row[]} onNavigate={navigate} onOpenDialpad={() => setModal("dialpad")} />}
           {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
           {view === "calls" && <ResponsiveCallsView calls={calls} users={users} onRefresh={refresh} onOpenDialpad={() => setModal("dialpad")} onNotify={(msg) => setToast(msg)} />}
@@ -425,7 +425,7 @@ export function DialerWorkspace() {
       </div>
 
       <MobileBottomNav view={view} navigate={navigate} />
-      {toast && <div className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-full bg-[#123b70] px-5 py-2.5 text-sm font-medium text-white shadow-xl lg:bottom-5">{toast}</div>}
+      {toast && <div className="fixed bottom-20 left-1/2 z-[80] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl bg-[#123b70] px-5 py-2.5 text-center text-sm font-medium text-white shadow-xl lg:bottom-5">{toast}</div>}
       {confirmDelete && (
         <Modal
           title={confirmDelete.type === "bulk" ? `Delete ${confirmDelete.count} leads?` : `Delete ${confirmDelete.name || "lead"}?`}
@@ -517,11 +517,7 @@ function MobileHeader({ view, navigate, logout, onOpenDialpad, onOpenGuardrails,
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#e2e8f0]/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl lg:hidden">
       <button aria-label="Open navigation" onClick={() => setOpen(true)} className="grid h-11 w-11 place-items-center rounded-xl text-[#1e293b] transition hover:bg-[#f1f5f9]"><Icon name="menu" className="h-5 w-5"/></button>
       <div className="flex items-center gap-2.5"><DialerBrandMark/><div><div className="text-sm font-bold leading-none text-[#0f172a]">Intent Dialer</div><div className="mt-1 text-[9px] font-bold uppercase tracking-[.18em] text-[#64748b]">Private workspace</div></div></div>
-      <div className="flex items-center gap-1.5">
-        <button onClick={onOpenGuardrails} className={`grid h-11 w-11 place-items-center rounded-xl border transition ${guardrailsActive ? "border-[#dce6f1] bg-white text-[#1266c4] hover:bg-[#edf5fc]" : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"}`} aria-label="Open calling guardrails" title="Calling guardrails"><Icon name="sliders" className="h-5 w-5"/></button>
-        <button onClick={onOpenDialpad} className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf5fc] text-[#1266c4] transition hover:bg-[#e1effb]" aria-label="Open dial keypad"><Icon name="dialpad" className="h-5 w-5"/></button>
-        <button onClick={() => navigate("leads")} className="grid h-11 w-11 place-items-center rounded-xl bg-[#1266c4] text-white transition hover:bg-[#0f57aa]" aria-label="Open calling queue"><Icon name="phone" className="h-5 w-5"/></button>
-      </div>
+      <button onClick={() => navigate("leads")} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1266c4] text-white shadow-sm shadow-blue-700/15 transition hover:bg-[#0f57aa]" aria-label="Open calling queue"><Icon name="phone" className="h-5 w-5"/></button>
     </header>
     {open && <div className="fixed inset-0 z-[85] bg-[#0f172a]/50 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)}><div className="h-full w-[min(86vw,340px)] overflow-y-auto bg-[#f8fafc] p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-4 flex items-center justify-between rounded-2xl bg-gradient-to-br from-[#123b70] via-[#14579a] to-[#1266c4] p-4 text-white"><div className="flex items-center gap-3"><DialerBrandMark/><div><div className="font-bold">Intent Dialer</div><div className="mt-1 text-[10px] uppercase tracking-[.16em] text-white/70">Workspace menu</div></div></div><button aria-label="Close navigation" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><Icon name="close"/></button></div><div className="space-y-2 mb-3"><button onClick={() => { onOpenDialpad(); setOpen(false); }} className="flex w-full items-center justify-between rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-4 py-3 text-sm font-bold text-[#1266c4] shadow-sm"><span className="flex items-center gap-2.5"><Icon name="dialpad" className="h-5 w-5"/><span>Keypad</span></span><span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1266c4]">Dial</span></button><button onClick={() => { onOpenGuardrails(); setOpen(false); }} className="flex w-full items-center justify-between rounded-xl border border-[#dce6f1] bg-white px-4 py-3 text-sm font-semibold text-[#1e293b] shadow-2xs"><span className="flex items-center gap-2.5"><Icon name="sliders" className="h-5 w-5 text-[#1266c4]"/><span>Calling guardrails</span></span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${guardrailsActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>{guardrailsActive ? "Active" : "Flexible"}</span></button></div><div className="space-y-1">{[...VIEWS, { id: "dnc" as View, label: "Do not call", icon: "shield" }, { id: "settings" as View, label: "Settings & team", icon: "settings" }].map((item) => <NavButton key={item.id} {...item} active={view === item.id} onClick={() => { navigate(item.id); setOpen(false); }}/>)}</div><button onClick={logout} className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700"><Icon name="logout"/>Log out</button></div></div>}
   </>;
@@ -535,11 +531,11 @@ function MobileBottomNav({ view, navigate }: { view: View; navigate: (view: View
     { id: "tasks", label: "Tasks", icon: "check" },
     { id: "settings", label: "More", icon: "settings" },
   ];
-  return <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e2e8f0] bg-white/95 px-2 pt-2 shadow-[0_-12px_30px_rgba(18,59,112,.08)] backdrop-blur-xl [padding-bottom:calc(env(safe-area-inset-bottom)+.5rem)] lg:hidden"><div className="mx-auto grid max-w-lg grid-cols-5">{items.map((item) => { const active = view === item.id || (item.id === "settings" && ["settings", "dnc", "sequences", "pipeline"].includes(view)); return <button key={item.id} onClick={() => navigate(item.id)} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition ${active ? "bg-[#edf5fc] text-[#1266c4]" : "text-[#64748b]"}`}><Icon name={item.icon} className="h-4.5 w-4.5"/><span>{item.label}</span></button>; })}</div></nav>;
+  return <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-[#dce6f1] bg-white/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(18,59,112,.07)] backdrop-blur-xl [padding-bottom:calc(env(safe-area-inset-bottom)+.25rem)] lg:hidden"><div className="mx-auto grid max-w-lg grid-cols-5 gap-1">{items.map((item) => { const active = view === item.id || (item.id === "settings" && ["settings", "dnc", "sequences", "pipeline"].includes(view)); return <button key={item.id} onClick={() => navigate(item.id)} className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[9px] font-bold transition ${active ? "bg-[#edf5fc] text-[#1266c4]" : "text-[#64748b] hover:bg-[#f8fafc]"}`}>{active && <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-[#1266c4]"/>}<Icon name={item.icon} className="h-5 w-5 shrink-0"/><span className="truncate">{item.label}</span></button>; })}</div></nav>;
 }
 
 function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
-  return <div className="mb-6 flex flex-col justify-between gap-4 sm:mb-7 sm:flex-row sm:items-end"><div><div className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-[#1266c4]">{eyebrow}</div><h1 className="text-[2rem] font-bold tracking-[-.04em] text-[#0f172a] sm:text-3xl">{title}</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-[#64748b]">{description}</p></div>{action && <div className="flex flex-wrap gap-2">{action}</div>}</div>;
+  return <div className="mb-5 flex min-w-0 flex-col justify-between gap-4 sm:mb-7 sm:flex-row sm:items-end"><div className="min-w-0"><div className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-[#1266c4]">{eyebrow}</div><h1 className="break-words text-[1.85rem] font-bold tracking-[-.04em] text-[#0f172a] sm:text-3xl">{title}</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-[#64748b]">{description}</p></div>{action && <div className="flex min-w-0 flex-wrap gap-2">{action}</div>}</div>;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -635,9 +631,10 @@ type LeadsViewProps = {
 };
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
+  const nextEligibleLead = allLeads.find((lead) => !Boolean(lead.do_not_call) && text(lead, "status") !== "closed");
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
     setAssigning(true);
@@ -648,18 +645,28 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   };
   return <>
     <div className="lg:hidden">
-      <PageHeader eyebrow="Your sheet" title="Leads" description="Your calling queue, optimized for one-handed dialing." action={<>{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></>}/>
-      <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-[104px] snap-start rounded-2xl border p-3 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="text-xl font-bold">{count}</div><div className={`mt-1 text-xs font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
-      <section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
+      <PageHeader eyebrow="Your sheet" title="Leads" description="Your calling queue, optimized for one-handed dialing." action={<><SecondaryButton onClick={onImport}><Icon name="upload" className="h-4 w-4"/>Import</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus" className="h-4 w-4"/>Add lead</PrimaryButton></>}/>
+      <section className="mb-4 min-w-0 rounded-2xl border border-[#b8d0e6] bg-gradient-to-br from-[#edf5fc] to-white p-3 shadow-[0_8px_24px_rgba(18,102,196,.08)]">
+        <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0"><div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1266c4]">Outbound dialing</div><p className="mt-0.5 truncate text-xs text-[#64748b]">Key in a number or call the next eligible lead.</p></div>
+          <span className="shrink-0 rounded-full border border-[#c9def1] bg-white px-2 py-1 text-[10px] font-bold text-[#1266c4]">1 at a time</span>
+        </div>
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <button type="button" onClick={onOpenDialpad} className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-[#b8d0e6] bg-white px-2 text-sm font-bold text-[#1266c4] shadow-xs transition hover:bg-[#f8fbfe]"><Icon name="dialpad" className="h-4 w-4 shrink-0"/><span className="truncate">Keypad</span></button>
+          <button type="button" disabled={!nextEligibleLead} onClick={() => nextEligibleLead && onDial(nextEligibleLead)} className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-[#1266c4] px-2 text-sm font-bold text-white shadow-sm shadow-blue-700/15 transition hover:bg-[#0f57aa] disabled:cursor-not-allowed disabled:opacity-45"><Icon name="phone" className="h-4 w-4 shrink-0"/><span className="truncate">Start outbound</span></button>
+        </div>
+      </section>
+      <div className="mb-4 grid min-w-0 grid-cols-6 gap-2">{filters.map(([id, label, count], index) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${index < 3 ? "col-span-2" : "col-span-3"} ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="truncate text-lg font-bold">{count}</div><div className={`mt-0.5 truncate text-[11px] font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
         <div className="space-y-3 border-b border-[#e2e8f0] p-3">
           <div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
           {selectedIds.length > 0 ? (
-            <div className="flex gap-2">
+            <div className="grid min-w-0 gap-2 sm:flex">
               <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} selected...</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
               <button
                 type="button"
                 onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 hover:bg-red-100 transition shrink-0"
+                className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:shrink-0"
               >
                 <Icon name="trash" className="h-4 w-4" />
                 <span>Delete ({selectedIds.length})</span>
@@ -802,7 +809,7 @@ function CallAudioPlayer({
   const streamUrl = `/api/dialer/calls/${callId}/recording?format=mp3`;
 
   return (
-    <div className={`flex flex-col gap-1.5 ${compact ? "w-full" : "min-w-[270px] max-w-[340px]"}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`min-w-0 max-w-full flex-col gap-1.5 ${compact ? "flex w-full" : "flex w-full sm:max-w-[340px]"}`} onClick={(e) => e.stopPropagation()}>
       <audio
         ref={audioRef}
         src={streamUrl}
@@ -823,7 +830,7 @@ function CallAudioPlayer({
           setError("Audio unavailable");
         }}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
         <button
           type="button"
           onClick={togglePlay}
@@ -863,7 +870,7 @@ function CallAudioPlayer({
         >
           {playbackRate}x
         </button>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <a
             href={mp3Url}
             download
@@ -1032,17 +1039,17 @@ function ResponsiveCallsView({
   return <>
     <div className="lg:hidden">
       <PageHeader eyebrow="Activity" title="Calls" description="Every attempt, outcome, and rep with attached recordings." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/>
-      <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6">
-        <button onClick={() => { setRepFilter("all"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "all" && !recordingOnly ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+      <div className="mb-4 grid min-w-0 grid-cols-2 gap-2">
+        <button onClick={() => { setRepFilter("all"); setRecordingOnly(false); }} className={`min-w-0 rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "all" && !recordingOnly ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
           <div className="text-lg font-bold">{calls.length}</div>All
         </button>
-        <button onClick={() => { setRepFilter("owner"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "owner" ? "border-indigo-600 bg-indigo-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+        <button onClick={() => { setRepFilter("owner"); setRecordingOnly(false); }} className={`min-w-0 rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "owner" ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
           <div className="text-lg font-bold">{ownerCount}</div>Owner
         </button>
-        <button onClick={() => { setRepFilter("agent"); setRecordingOnly(false); }} className={`min-w-[90px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "agent" ? "border-teal-600 bg-teal-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+        <button onClick={() => { setRepFilter("agent"); setRecordingOnly(false); }} className={`min-w-0 rounded-xl border p-2.5 text-left text-xs font-semibold transition ${repFilter === "agent" ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
           <div className="text-lg font-bold">{setterCount}</div>Setter
         </button>
-        <button onClick={() => setRecordingOnly(!recordingOnly)} className={`min-w-[110px] snap-start rounded-xl border p-2.5 text-left text-xs font-semibold transition ${recordingOnly ? "border-emerald-600 bg-emerald-600 text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
+        <button onClick={() => setRecordingOnly(!recordingOnly)} className={`min-w-0 rounded-xl border p-2.5 text-left text-xs font-semibold transition ${recordingOnly ? "border-[#1266c4] bg-[#1266c4] text-white shadow-sm" : "border-[#e2e8f0] bg-white text-[#334155]"}`}>
           <div className="text-lg font-bold">{recordedCount}</div>Recordings
         </button>
       </div>
@@ -1356,6 +1363,7 @@ function SettingsView({ settings, currentUser, onCreateUser, onChangePassword, o
   const workspace = (settings.settings as Row | undefined)?.workspace as Row | undefined || {};
   const twilio = settings.twilio as Row | undefined || {};
   const users = settings.users as Row[] | undefined || [];
+  const [settingsSection, setSettingsSection] = useState<"team" | "guardrails">("team");
 
   const toggleRecording = async () => {
     const next = !Boolean(twilio.recordingEnabled !== false);
@@ -1372,60 +1380,49 @@ function SettingsView({ settings, currentUser, onCreateUser, onChangePassword, o
     }
   };
 
-  return <><PageHeader eyebrow="Workspace" title="Settings & team" description="Manage calling guardrails, Twilio connection details, and the people who can access this dialer." action={<SecondaryButton onClick={onChangePassword}>Change my password</SecondaryButton>}/><div className="grid gap-6 xl:grid-cols-2">
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-[#0f172a]">Team accounts</h2><p className="mt-1 text-xs text-[#64748b]">Separate logins keep assignments, calls, and tasks attributable.</p></div>{text(currentUser, "role") === "owner" && <PrimaryButton onClick={onCreateUser}><Icon name="plus"/>Add setter</PrimaryButton>}</div><div className="mt-5 divide-y divide-[#e2e8f0]">{users.map((user) => <div key={text(user, "id")} className="flex items-center gap-3 py-3"><Avatar name={text(user, "display_name")}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{text(user, "display_name")}</div><div className="text-xs text-[#64748b]">@{text(user, "username")} · {text(user, "last_login_at") ? `last active ${formatDate(user.last_login_at)}` : "never signed in"}</div></div><span className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-[10px] font-bold uppercase text-[#475569]">{text(user, "role")}</span><span className={`h-2.5 w-2.5 rounded-full ${Boolean(user.active) ? "bg-emerald-500" : "bg-slate-300"}`}/></div>)}</div></section>
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-full ${Boolean(twilio.configured) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Icon name={Boolean(twilio.configured) ? "check" : "alert"}/></div><div><h2 className="font-semibold text-[#0f172a]">Twilio connection</h2><p className="text-xs text-[#64748b]">{Boolean(twilio.configured) ? `Ready on ${formatPhone(twilio.phoneNumber)}` : "Environment variables still required"}</p></div></div><div className="mt-5 space-y-4 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs"><div><div className="font-semibold text-[#475569]">TwiML App voice URL</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "voiceUrl")}</code></div><div><div className="font-semibold text-[#475569]">Phone number inbound webhook</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "inboundUrl")}</code></div></div><p className="mt-4 text-xs leading-relaxed text-[#64748b]">Use HTTP POST for both URLs. Outbound calls use your Twilio number and inbound callbacks ring every active dialer account.</p></section>
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-blue-100 text-[#1266c4]">
-            <Icon name="mic"/>
+  return <>
+    <PageHeader eyebrow="Workspace" title="Settings" description="Manage your team, calling connection, recordings, and workspace guardrails." action={<SecondaryButton onClick={onChangePassword}>Change password</SecondaryButton>}/>
+    <div className="mb-5 grid min-w-0 grid-cols-2 gap-1 rounded-xl border border-[#dce6f1] bg-[#edf3f8] p-1">
+      <button type="button" onClick={() => setSettingsSection("team")} className={`min-h-11 min-w-0 rounded-lg px-2 text-xs font-bold transition sm:text-sm ${settingsSection === "team" ? "bg-white text-[#1266c4] shadow-sm" : "text-[#64748b] hover:text-[#0f172a]"}`}>Settings &amp; team</button>
+      <button type="button" onClick={() => setSettingsSection("guardrails")} className={`min-h-11 min-w-0 rounded-lg px-2 text-xs font-bold transition sm:text-sm ${settingsSection === "guardrails" ? "bg-white text-[#1266c4] shadow-sm" : "text-[#64748b] hover:text-[#0f172a]"}`}>Calling guardrails</button>
+    </div>
+    {settingsSection === "guardrails" ? (
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-xs sm:p-6">
+        <CallingGuardrailsEditor workspace={workspace} onRefresh={onRefresh} onNotify={onNotify} />
+      </section>
+    ) : (
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <section className="min-w-0 rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-xs sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
+            <div className="min-w-0"><h2 className="font-semibold text-[#0f172a]">Team accounts</h2><p className="mt-1 text-xs leading-5 text-[#64748b]">Separate logins keep assignments, calls, and tasks attributable.</p></div>
+            {text(currentUser, "role") === "owner" && <PrimaryButton onClick={onCreateUser}><Icon name="plus" className="h-4 w-4"/>Add setter</PrimaryButton>}
           </div>
-          <div>
-            <h2 className="font-semibold text-[#0f172a]">Call recording</h2>
-            <p className="text-xs text-[#64748b]">
-              {Boolean(twilio.recordingEnabled !== false) ? "Dual-channel recording active (Owner & Setter)" : "Recording disabled"}
-            </p>
+          <div className="mt-5 divide-y divide-[#e2e8f0]">{users.map((user) => <div key={text(user, "id")} className="flex min-w-0 items-center gap-3 py-3"><Avatar name={text(user, "display_name")}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{text(user, "display_name")}</div><div className="break-words text-xs leading-4 text-[#64748b]">@{text(user, "username")} · {text(user, "last_login_at") ? `last active ${formatDate(user.last_login_at)}` : "never signed in"}</div></div><div className="flex shrink-0 items-center gap-2"><span className="hidden rounded-full bg-[#f1f5f9] px-2.5 py-1 text-[10px] font-bold uppercase text-[#475569] min-[350px]:inline-flex">{text(user, "role")}</span><span className={`h-2.5 w-2.5 rounded-full ${Boolean(user.active) ? "bg-emerald-500" : "bg-slate-300"}`}/></div></div>)}</div>
+        </section>
+        <section className="min-w-0 rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-xs sm:p-6">
+          <div className="flex min-w-0 items-center gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${Boolean(twilio.configured) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Icon name={Boolean(twilio.configured) ? "check" : "alert"} className="h-4 w-4"/></div><div className="min-w-0"><h2 className="font-semibold text-[#0f172a]">Twilio connection</h2><p className="truncate text-xs text-[#64748b]">{Boolean(twilio.configured) ? `Ready on ${formatPhone(twilio.phoneNumber)}` : "Environment variables still required"}</p></div></div>
+          <div className="mt-5 min-w-0 space-y-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3 text-xs sm:p-4"><div className="min-w-0"><div className="font-semibold text-[#475569]">TwiML App voice URL</div><code className="mt-1 block max-w-full break-all rounded border border-[#e2e8f0] bg-white p-2 leading-5 text-[#1266c4]">{text(twilio, "voiceUrl")}</code></div><div className="min-w-0"><div className="font-semibold text-[#475569]">Phone number inbound webhook</div><code className="mt-1 block max-w-full break-all rounded border border-[#e2e8f0] bg-white p-2 leading-5 text-[#1266c4]">{text(twilio, "inboundUrl")}</code></div></div>
+          <p className="mt-4 text-xs leading-relaxed text-[#64748b]">Use HTTP POST for both URLs. Outbound calls use your Twilio number and inbound callbacks ring every active dialer account.</p>
+        </section>
+        <section className="min-w-0 rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-xs sm:p-6">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-100 text-[#1266c4]"><Icon name="mic" className="h-4 w-4"/></div><div className="min-w-0"><h2 className="font-semibold text-[#0f172a]">Call recording</h2><p className="text-xs leading-4 text-[#64748b]">{Boolean(twilio.recordingEnabled !== false) ? "Dual-channel recording active" : "Recording disabled"}</p></div></div>
+            {text(currentUser, "role") === "owner" && <button type="button" onClick={toggleRecording} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition ${Boolean(twilio.recordingEnabled !== false) ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{Boolean(twilio.recordingEnabled !== false) ? "Enabled" : "Disabled"}</button>}
           </div>
-        </div>
-        {text(currentUser, "role") === "owner" && (
-          <button
-            type="button"
-            onClick={toggleRecording}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-              Boolean(twilio.recordingEnabled !== false)
-                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            {Boolean(twilio.recordingEnabled !== false) ? "Enabled" : "Disabled"}
-          </button>
-        )}
+          <p className="mt-4 text-xs leading-relaxed text-[#64748b]">Dual-channel recording captures both sides of each call. Owner and setter can play, pause, and download recordings from Calls.</p>
+          {text(twilio, "recordingUrl") && <div className="mt-4 min-w-0 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3 text-xs sm:p-4"><div className="font-semibold text-[#475569]">Recording status webhook URL</div><code className="mt-1 block max-w-full break-all rounded border border-[#e2e8f0] bg-white p-2 leading-5 text-[#1266c4]">{text(twilio, "recordingUrl")}</code></div>}
+        </section>
       </div>
-      <p className="mt-4 text-xs leading-relaxed text-[#64748b]">
-        Dual-channel recording records both sides of every call (caller and prospect) in separate audio channels. Recordings are attached to each call in the Calls section where both owner and setter can play, pause, and download MP3 or WAV files.
-      </p>
-      {text(twilio, "recordingUrl") && (
-        <div className="mt-4 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs">
-          <div className="font-semibold text-[#475569]">Twilio recording status webhook URL</div>
-          <code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">
-            {text(twilio, "recordingUrl")}
-          </code>
-        </div>
-      )}
-    </section>
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs">
-      <CallingGuardrailsEditor workspace={workspace} onRefresh={onRefresh} />
-    </section>
-  </div></>;
+    )}
+  </>;
 }
 
 function Modal({ title, description, onClose, children }: { title: string; description?: string; onClose: () => void; children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-[70] flex items-end overflow-y-auto bg-[#0f172a]/50 backdrop-blur-sm sm:grid sm:place-items-center sm:p-4" onMouseDown={onClose}><div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/60 bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl sm:my-8 sm:max-w-xl sm:rounded-2xl sm:p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#cbd5e1] sm:hidden"/><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold tracking-tight text-[#0f172a]">{title}</h2>{description && <p className="mt-1 text-sm leading-5 text-[#64748b]">{description}</p>}</div><button aria-label="Close" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] transition"><Icon name="close"/></button></div><div className="mt-5 sm:mt-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 z-[70] flex max-w-full items-end overflow-x-hidden overflow-y-auto bg-[#0f172a]/50 backdrop-blur-sm sm:grid sm:place-items-center sm:p-4" onMouseDown={onClose}><div className="max-h-[92dvh] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl border border-white/60 bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl sm:my-8 sm:max-w-xl sm:rounded-2xl sm:p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#cbd5e1] sm:hidden"/><div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-bold tracking-tight text-[#0f172a]">{title}</h2>{description && <p className="mt-1 break-words text-sm leading-5 text-[#64748b]">{description}</p>}</div><button aria-label="Close" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#0f172a]"><Icon name="close" className="h-5 w-5"/></button></div><div className="mt-5 min-w-0 sm:mt-6">{children}</div></div></div>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-xs font-semibold text-[#475569]">{label}</span>{children}</label>; }
-const inputClass = "w-full rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]";
+const inputClass = "min-w-0 max-w-full w-full rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]";
 
 function formatClockTime(clock?: string) {
   if (!clock) return "";
@@ -1534,10 +1531,10 @@ function Switch({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2">
+    <div className="flex min-w-0 items-start justify-between gap-3 py-2">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#0f172a]">{label}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="break-words text-sm font-semibold text-[#0f172a]">{label}</span>
           {badge}
         </div>
         {description && <p className="mt-0.5 text-xs leading-relaxed text-[#64748b]">{description}</p>}
@@ -1665,7 +1662,7 @@ function CallingGuardrailsEditor({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#e2e8f0] pb-4">
         <div>
           <h2 className="text-base font-bold text-[#0f172a] sm:text-lg">Calling guardrails</h2>
@@ -1673,7 +1670,7 @@ function CallingGuardrailsEditor({
             Enforced server-side before outbound calls bridge. Changes save immediately.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {saveStatus === "saving" && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
               <span className="h-1.5 w-1.5 animate-ping rounded-full bg-amber-500" />
@@ -1702,7 +1699,7 @@ function CallingGuardrailsEditor({
       </div>
 
       <div>
-        <div className="mb-2.5 flex items-center justify-between">
+        <div className="mb-2.5 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs font-bold uppercase tracking-[.14em] text-[#64748b]">Quick presets</span>
           <span className="text-[11px] text-[#94a3b8]">Clicking a preset applies &amp; saves instantly</span>
         </div>
@@ -1721,15 +1718,15 @@ function CallingGuardrailsEditor({
                 key={preset.id}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className={`group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                className={`group relative flex min-w-0 flex-col justify-between rounded-xl border p-3.5 text-left transition ${
                   isMatch
                     ? "border-[#1266c4] bg-[#edf5fc] shadow-xs ring-2 ring-[#1266c4]"
                     : "border-[#e2e8f0] bg-white hover:border-[#b8d0e6] hover:bg-[#f8fafc]"
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-sm font-bold text-[#0f172a]">{preset.name}</span>
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 break-words text-sm font-bold text-[#0f172a]">{preset.name}</span>
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
                         isMatch ? "bg-[#1266c4] text-white" : "bg-[#f1f5f9] text-[#475569]"
@@ -1740,7 +1737,7 @@ function CallingGuardrailsEditor({
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-[#64748b]">{preset.desc}</p>
                 </div>
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#e2e8f0]/60 text-[11px]">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-1 border-t border-[#e2e8f0]/60 pt-2 text-[11px]">
                   <span className={`font-semibold ${isMatch ? "text-[#1266c4]" : "text-[#64748b]"}`}>
                     {isMatch ? "✓ Current preset" : "Apply preset"}
                   </span>
@@ -1850,7 +1847,7 @@ function CallingGuardrailsEditor({
           />
 
           <div className={`mt-3 pt-3 border-t border-[#f1f5f9] transition ${!enforceDailyLimit ? "opacity-50 pointer-events-none" : ""}`}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-semibold text-[#475569]">Max dials / 24 hours:</span>
               <div className="flex items-center gap-2">
                 <button
@@ -1954,7 +1951,7 @@ const DIALPAD_KEYS = [
 ] as const;
 
 function PhoneKeypad({ onPress, disabled = false }: { onPress: (digit: string) => void; disabled?: boolean }) {
-  return <div className="mx-auto grid w-full max-w-[280px] grid-cols-3 gap-2">{DIALPAD_KEYS.map(([digit, letters]) => <button key={digit} type="button" disabled={disabled} onClick={() => onPress(digit)} aria-label={`Press ${digit}`} className="flex aspect-[1.35] min-h-14 flex-col items-center justify-center rounded-2xl border border-[#d5e3f1] bg-white text-xl font-bold text-[#173d6b] shadow-xs transition hover:border-[#76a9d8] hover:bg-[#edf5fc] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"><span>{digit}</span>{letters && <span className="mt-0.5 text-[8px] font-bold tracking-[.16em] text-[#7f9bb7]">{letters}</span>}</button>)}</div>;
+  return <div className="mx-auto grid w-full min-w-0 max-w-[280px] grid-cols-3 gap-2">{DIALPAD_KEYS.map(([digit, letters]) => <button key={digit} type="button" disabled={disabled} onClick={() => onPress(digit)} aria-label={`Press ${digit}`} className="flex min-h-12 min-w-0 flex-col items-center justify-center rounded-xl border border-[#d5e3f1] bg-white py-2 text-xl font-bold text-[#173d6b] shadow-xs transition hover:border-[#76a9d8] hover:bg-[#edf5fc] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-14 sm:rounded-2xl"><span>{digit}</span>{letters && <span className="mt-0.5 text-[8px] font-bold tracking-[.12em] text-[#7f9bb7]">{letters}</span>}</button>)}</div>;
 }
 
 function ManualDialModal({ onClose, onDial }: { onClose: () => void; onDial: (lead: Row) => void }) {
@@ -1979,10 +1976,10 @@ function ManualDialModal({ onClose, onDial }: { onClose: () => void; onDial: (le
     }
   };
   return <Modal title="Dial a number" description="Use the keypad, paste, or type directly. It will be saved as a manual lead so the call remains in your history." onClose={onClose}>
-    <div className="mx-auto max-w-sm">
-      <div className="mb-4 rounded-2xl border border-[#d5e3f1] bg-[#f8fbfe] p-4 text-center">
+    <div className="mx-auto w-full min-w-0 max-w-sm">
+      <div className="mb-4 min-w-0 rounded-2xl border border-[#d5e3f1] bg-[#f8fbfe] p-3 text-center sm:p-4">
         <div className="text-xs font-bold uppercase tracking-widest text-[#7a95b3]">Phone number</div>
-        <input inputMode="tel" autoFocus value={phone} onChange={(event) => setPhone(event.target.value.replace(/[^\d+*#() -]/g, ""))} placeholder="Enter number…" className="mt-2 w-full border-0 bg-transparent text-center text-3xl font-bold tracking-wide text-[#173d6b] outline-none placeholder:text-lg placeholder:font-medium placeholder:tracking-normal placeholder:text-[#a5b9cb]"/>
+        <input inputMode="tel" autoFocus value={phone} onChange={(event) => setPhone(event.target.value.replace(/[^\d+*#() -]/g, ""))} placeholder="Enter number…" className="mt-2 w-full min-w-0 border-0 bg-transparent text-center text-2xl font-bold tracking-wide text-[#173d6b] outline-none placeholder:text-base placeholder:font-medium placeholder:tracking-normal placeholder:text-[#a5b9cb] sm:text-3xl sm:placeholder:text-lg"/>
         <div className="mt-3 flex justify-center gap-2"><button type="button" onClick={() => setPhone((current) => current.slice(0, -1))} className="rounded-full bg-[#edf5fc] px-4 py-1.5 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition">Delete</button><button type="button" onClick={() => setPhone("")} className="rounded-full bg-[#edf5fc] px-4 py-1.5 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition">Clear</button></div>
       </div>
       <PhoneKeypad onPress={press}/>
@@ -2052,41 +2049,23 @@ function CallDock({ lead, phase, error, disposition, setDisposition, notes, setN
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [phase, handleDigit]);
 
-  return <div className="fixed inset-x-0 bottom-0 z-[60] mx-auto max-h-[95dvh] max-w-5xl overflow-y-auto rounded-t-3xl border border-[#9ebbd6] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_25px_80px_rgba(18,59,112,.28)] sm:inset-x-3 sm:bottom-3 sm:rounded-2xl lg:left-[252px]">
-    <div className="flex items-center gap-3 bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-4 py-4 text-white sm:px-5">
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${phase === "open" ? "animate-pulse bg-white/25 text-white" : "bg-white/10"}`}><Icon name="phone" className="h-5 w-5"/></div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="truncate font-semibold">{leadName(lead)}</div>
-          <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{phase === "open" ? "Connected" : phase}</span>
+  return <div className="fixed inset-x-0 bottom-0 z-[60] mx-auto max-h-[95dvh] max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl border border-[#9ebbd6] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_25px_80px_rgba(18,59,112,.28)] sm:inset-x-3 sm:bottom-3 sm:max-w-5xl sm:rounded-2xl lg:left-[252px]">
+    <div className="min-w-0 bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-4 py-4 text-white sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full sm:h-12 sm:w-12 ${phase === "open" ? "animate-pulse bg-white/25 text-white" : "bg-white/10"}`}><Icon name="phone" className="h-5 w-5"/></div>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2"><div className="truncate font-semibold">{leadName(lead)}</div><span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider sm:text-[10px]">{phase === "open" ? "Connected" : phase}</span></div>
+          <div className="mt-1 truncate text-xs text-white/75 sm:text-sm">{text(lead, "company")} · {formatPhone(lead.phone_e164)} · {localTime(lead)} local</div>
         </div>
-        <div className="mt-1 truncate text-sm text-white/75">{text(lead, "company")} · {formatPhone(lead.phone_e164)} · {localTime(lead)} local</div>
+        <button onClick={onClose} aria-label="Close call dock" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"><Icon name="close" className="h-5 w-5"/></button>
       </div>
-      {active && (
-        <button
-          type="button"
-          onClick={() => setKeypadOpen((current) => !current)}
-          className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-bold transition shadow-sm ${
-            keypadOpen
-              ? "bg-white text-[#1266c4]"
-              : "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20"
-          }`}
-          aria-label="Toggle in-call keypad"
-        >
-          <Icon name="dialpad" className="h-4 w-4"/>
-          <span>Keypad</span>
-          {sentDigits.length > 0 && (
-            <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-[#1266c4]">
-              {sentDigits.slice(-4)}
-            </span>
-          )}
-        </button>
-      )}
-      {active && <button onClick={onEnd} className="shrink-0 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 shadow-sm transition">End<span className="hidden sm:inline"> call</span></button>}
-      <button onClick={onClose} aria-label="Close call dock" className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white transition"><Icon name="close"/></button>
+      {active && <div className="mt-3 grid min-w-0 grid-cols-2 gap-2">
+        <button type="button" onClick={() => setKeypadOpen((current) => !current)} className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-2 text-xs font-bold shadow-sm transition ${keypadOpen ? "bg-white text-[#1266c4]" : "bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25"}`} aria-label="Toggle in-call keypad"><Icon name="dialpad" className="h-4 w-4 shrink-0"/><span>Keypad</span>{sentDigits.length > 0 && <span className="max-w-12 truncate rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-[#1266c4]">{sentDigits.slice(-4)}</span>}</button>
+        <button onClick={onEnd} className="min-h-10 min-w-0 rounded-xl bg-red-500 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-600">End call</button>
+      </div>}
     </div>
     {keypadOpen && active && (
-      <div className="border-b border-[#dce8f3] bg-[#f5f9fd] px-4 py-5">
+      <div className="min-w-0 border-b border-[#dce8f3] bg-[#f5f9fd] px-3 py-4 sm:px-4 sm:py-5">
         <div className="mb-3 text-center">
           <div className="text-sm font-bold text-[#173d6b]">In-call keypad (DTMF)</div>
           <div className="mt-1 text-xs text-[#64748b]">
@@ -2095,9 +2074,9 @@ function CallDock({ lead, phase, error, disposition, setDisposition, notes, setN
               : "Keypad activates as soon as the call connects."}
           </div>
           {sentDigits.length > 0 && (
-            <div className="mt-2.5 inline-flex items-center gap-2 rounded-lg border border-[#d5e3f1] bg-white px-3 py-1 text-xs shadow-xs">
+            <div className="mt-2.5 inline-flex max-w-full min-w-0 flex-wrap items-center justify-center gap-2 rounded-lg border border-[#d5e3f1] bg-white px-3 py-1 text-xs shadow-xs">
               <span className="text-[#64748b]">Sent:</span>
-              <span className="font-mono text-sm font-bold tracking-widest text-[#1266c4]">{sentDigits}</span>
+              <span className="max-w-40 truncate font-mono text-sm font-bold tracking-wider text-[#1266c4]">{sentDigits}</span>
               <button
                 type="button"
                 onClick={() => setSentDigits("")}
@@ -2111,7 +2090,7 @@ function CallDock({ lead, phase, error, disposition, setDisposition, notes, setN
         <PhoneKeypad onPress={handleDigit} disabled={phase !== "open"}/>
       </div>
     )}
-    <div className="grid gap-4 p-4 lg:grid-cols-[240px_1fr_auto] lg:items-end">
+    <div className="grid min-w-0 gap-4 p-3 sm:p-4 lg:grid-cols-[240px_1fr_auto] lg:items-end">
       <Field label="Outcome">
         <select value={disposition} onChange={(event) => setDisposition(event.target.value)} className={inputClass}>
           {DISPOSITIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
