@@ -27,16 +27,19 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireDialerSession(request, "owner");
+  const auth = await requireDialerSession(request);
   if (auth.response || !auth.user) return auth.response;
   const body = (await request.json()) as { key?: string; value?: Record<string, unknown> };
   if (!body.key || !body.value || !["workspace", "twilio"].includes(body.key)) {
     return NextResponse.json({ error: "Valid setting key and value are required." }, { status: 400 });
   }
+  if (body.key === "twilio" && auth.user.role !== "owner") {
+    return NextResponse.json({ error: "Only owners can modify Twilio settings." }, { status: 403 });
+  }
   await sql`
     INSERT INTO dialer_settings (key, value, updated_by, updated_at)
     VALUES (${body.key}, ${JSON.stringify(body.value)}, ${auth.user.id}, CURRENT_TIMESTAMP)
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP
+    ON CONFLICT (key) DO UPDATE SET value = dialer_settings.value || EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP
   `;
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, value: body.value });
 }

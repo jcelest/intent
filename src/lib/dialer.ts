@@ -96,35 +96,70 @@ export async function leadIsCallable(leadId: string) {
   if (lead.status === "closed") return { ok: false as const, error: "This lead is closed." };
 
   const settingsRows = await sql`SELECT value FROM dialer_settings WHERE key = 'workspace' LIMIT 1`;
-  const settings = (settingsRows[0]?.value || {}) as { callWindowStart?: string; callWindowEnd?: string; maxDailyAttempts?: number };
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: lead.timezone || "America/New_York",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
-  const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
-  const localMinutes = hour * 60 + minute;
-  const parseClock = (value: string | undefined, fallback: number) => {
-    if (!value) return fallback;
-    const [h, m] = value.split(":").map(Number);
-    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : fallback;
+  const settings = (settingsRows[0]?.value || {}) as {
+    callWindowStart?: string;
+    callWindowEnd?: string;
+    maxDailyAttempts?: number;
+    guardrailsEnabled?: boolean;
+    enforceCallingWindow?: boolean;
+    allowWeekendCalling?: boolean;
+    enforceDailyLimit?: boolean;
   };
-  if (
-    localMinutes < parseClock(settings.callWindowStart, 8 * 60) ||
-    localMinutes >= parseClock(settings.callWindowEnd, 20 * 60)
-  ) {
-    return { ok: false as const, error: "Outside the configured local calling window." };
+
+  const guardrailsActive = settings.guardrailsEnabled !== false;
+
+  if (guardrailsActive && settings.enforceCallingWindow !== false) {
+    let parts: Intl.DateTimeFormatPart[];
+    try {
+      parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: lead.timezone || "America/New_York",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        weekday: "short",
+      }).formatToParts(new Date());
+    } catch {
+      parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        weekday: "short",
+      }).formatToParts(new Date());
+    }
+
+    const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+    const weekday = parts.find((part) => part.type === "weekday")?.value || "";
+    const localMinutes = hour * 60 + minute;
+    const parseClock = (value: string | undefined, fallback: number) => {
+      if (!value) return fallback;
+      const [h, m] = value.split(":").map(Number);
+      return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : fallback;
+    };
+
+    if (
+      localMinutes < parseClock(settings.callWindowStart, 8 * 60) ||
+      localMinutes >= parseClock(settings.callWindowEnd, 20 * 60)
+    ) {
+      return { ok: false as const, error: "Outside the configured local calling window." };
+    }
+
+    if (settings.allowWeekendCalling === false && (weekday === "Sat" || weekday === "Sun")) {
+      return { ok: false as const, error: "Weekend calling is currently restricted by workspace guardrails." };
+    }
   }
 
-  const attempts = await sql`
-    SELECT COUNT(*)::int AS count FROM dialer_calls
-    WHERE lead_id = ${leadId} AND direction = 'outbound' AND started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
-  `;
-  if (Number(attempts[0]?.count || 0) >= Number(settings.maxDailyAttempts || 3)) {
-    return { ok: false as const, error: "Daily attempt limit reached for this lead." };
+  if (guardrailsActive && settings.enforceDailyLimit !== false) {
+    const attempts = await sql`
+      SELECT COUNT(*)::int AS count FROM dialer_calls
+      WHERE lead_id = ${leadId} AND direction = 'outbound' AND started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+    `;
+    if (Number(attempts[0]?.count || 0) >= Number(settings.maxDailyAttempts || 3)) {
+      return { ok: false as const, error: "Daily attempt limit reached for this lead." };
+    }
   }
+
   return { ok: true as const, lead };
 }
 

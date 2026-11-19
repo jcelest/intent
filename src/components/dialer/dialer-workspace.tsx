@@ -172,7 +172,7 @@ export function DialerWorkspace() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [modal, setModal] = useState<"lead" | "import" | "task" | "user" | "password" | "dialpad" | null>(null);
+  const [modal, setModal] = useState<"lead" | "import" | "task" | "user" | "password" | "dialpad" | "guardrails" | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [activeLead, setActiveLead] = useState<Row | null>(null);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
@@ -229,6 +229,8 @@ export function DialerWorkspace() {
   const counts = (overview.counts || {}) as Row;
   const metrics = (overview.metrics || {}) as Row;
   const twilio = (settings.twilio || {}) as Row;
+  const workspace = ((settings.settings as Row | undefined)?.workspace as Row | undefined) || {};
+  const guardrailsActive = workspace.guardrailsEnabled !== false && workspace.enforceCallingWindow !== false;
 
   useEffect(() => {
     if (Boolean(currentUser.mustChangePassword) && !passwordChanged && modal === null) setModal("password");
@@ -324,8 +326,8 @@ export function DialerWorkspace() {
           <DialerBrandMark />
           <div><div className="font-semibold tracking-tight text-[#0f172a]">Intent Dialer</div><div className="text-[10px] uppercase tracking-[.2em] text-[#64748b]">Private workspace</div></div>
         </div>
-        <div className="px-4 pt-5 text-[10px] font-semibold uppercase tracking-[.2em] text-[#64748b]">Workspace</div>
-        <div className="px-3 pt-2">
+        <div className="px-4 pt-5 text-[10px] font-semibold uppercase tracking-[.2em] text-[#64748b]">Dialing tools</div>
+        <div className="space-y-1.5 px-3 pt-2">
           <button
             type="button"
             onClick={() => setModal("dialpad")}
@@ -337,6 +339,24 @@ export function DialerWorkspace() {
             </span>
             <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1266c4] shadow-xs">
               Dial
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setModal("guardrails")}
+            className="flex w-full items-center justify-between rounded-xl border border-[#dce6f1] bg-white px-3.5 py-2 text-xs font-semibold text-[#1e293b] shadow-2xs transition hover:border-[#b8d0e6] hover:bg-[#f8fafc] active:scale-[.99]"
+          >
+            <span className="flex items-center gap-2.5">
+              <Icon name="sliders" className="h-4 w-4 text-[#1266c4]" />
+              <span>Guardrails</span>
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                guardrailsActive ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-amber-200 bg-amber-50 text-amber-700"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${guardrailsActive ? "bg-emerald-500" : "bg-amber-500"}`} />
+              {guardrailsActive ? "Active" : "Flexible"}
             </span>
           </button>
         </div>
@@ -357,7 +377,7 @@ export function DialerWorkspace() {
       </aside>
 
       <div className="lg:pl-60">
-        <MobileHeader view={view} navigate={navigate} logout={logout} onOpenDialpad={() => setModal("dialpad")} />
+        <MobileHeader view={view} navigate={navigate} logout={logout} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} guardrailsActive={guardrailsActive} />
         {error && <div className="mx-auto mt-5 max-w-7xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {!Boolean(twilio.configured) && view !== "settings" && (
           <button onClick={() => navigate("settings")} className="mx-auto mt-5 flex max-w-7xl items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
@@ -366,7 +386,7 @@ export function DialerWorkspace() {
         )}
         <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-6 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
           {view === "dashboard" && <Dashboard counts={counts} metrics={metrics} recentCalls={(overview.recentCalls || []) as Row[]} conversations={(overview.conversations || []) as Row[]} outcomeBreakdown={(overview.outcomeBreakdown || []) as Row[]} tasks={(overview.tasks || []) as Row[]} repStats={(overview.repStats || []) as Row[]} onNavigate={navigate} onOpenDialpad={() => setModal("dialpad")} />}
-          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} />}
+          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} />}
           {view === "calls" && <ResponsiveCallsView calls={calls} onOpenDialpad={() => setModal("dialpad")} />}
           {view === "tasks" && <TasksView tasks={tasks} onCreate={() => setModal("task")} onRefresh={refresh} />}
           {view === "sequences" && <SequencesView sequences={sequences} onRefresh={refresh} />}
@@ -384,6 +404,7 @@ export function DialerWorkspace() {
       {modal === "user" && <UserModal onClose={() => setModal(null)} onDone={() => { setModal(null); setToast("Setter account created"); void refresh(); }} />}
       {modal === "password" && <PasswordModal onClose={() => setModal(null)} onDone={() => { setPasswordChanged(true); setModal(null); setToast("Password updated"); void refresh(); }} />}
       {modal === "dialpad" && <ManualDialModal onClose={() => setModal(null)} onDial={(lead) => { setModal(null); void refresh(); void placeCall(lead); }} />}
+      {modal === "guardrails" && <GuardrailsModal workspace={workspace} onClose={() => setModal(null)} onRefresh={refresh} onNotify={(msg) => setToast(msg)} />}
       {activeLead && <CallDock lead={activeLead} phase={callPhase} error={callError} disposition={disposition} setDisposition={setDisposition} notes={callNotes} setNotes={setCallNotes} callbackAt={callbackAt} setCallbackAt={setCallbackAt} autoDial={autoDial} setAutoDial={setAutoDial} onEnd={endCall} onSendDigit={sendDigit} onSave={saveDisposition} onClose={() => { if (callRef.current) endCall(); setActiveLead(null); setCallPhase("idle"); }} />}
       {incomingCall && <IncomingCall call={incomingCall} onClose={() => setIncomingCall(null)} />}
     </div>
@@ -409,6 +430,8 @@ function Icon({ name, className = "h-4 w-4" }: { name: string; className?: strin
     plus: <path d="M12 5v14M5 12h14"/>, search: <><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></>,
     upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></>,
     dialpad: <><circle cx="6" cy="5" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="18" cy="5" r="1"/><circle cx="6" cy="11" r="1"/><circle cx="12" cy="11" r="1"/><circle cx="18" cy="11" r="1"/><circle cx="6" cy="17" r="1"/><circle cx="12" cy="17" r="1"/><circle cx="18" cy="17" r="1"/><circle cx="12" cy="22" r="1"/></>,
+    sliders: <><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></>,
+    clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
     close: <path d="M18 6L6 18M6 6l12 12"/>, menu: <path d="M4 6h16M4 12h16M4 18h16"/>,
   };
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name] || paths.grid}</svg>;
@@ -426,18 +449,19 @@ function LoadingScreen() {
   return <div className="grid min-h-screen place-items-center bg-[#f8fafc]"><div className="text-center"><div className="flex justify-center"><DialerBrandMark large/></div><div className="mx-auto mt-5 h-8 w-8 animate-spin rounded-full border-4 border-[#d8e8f8] border-t-[#1266c4]"/><p className="mt-4 text-sm text-[#64748b]">Opening Intent Dialer…</p></div></div>;
 }
 
-function MobileHeader({ view, navigate, logout, onOpenDialpad }: { view: View; navigate: (view: View) => void; logout: () => void; onOpenDialpad: () => void }) {
+function MobileHeader({ view, navigate, logout, onOpenDialpad, onOpenGuardrails, guardrailsActive }: { view: View; navigate: (view: View) => void; logout: () => void; onOpenDialpad: () => void; onOpenGuardrails: () => void; guardrailsActive: boolean }) {
   const [open, setOpen] = useState(false);
   return <>
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#e2e8f0]/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl lg:hidden">
       <button aria-label="Open navigation" onClick={() => setOpen(true)} className="grid h-11 w-11 place-items-center rounded-xl text-[#1e293b] transition hover:bg-[#f1f5f9]"><Icon name="menu" className="h-5 w-5"/></button>
       <div className="flex items-center gap-2.5"><DialerBrandMark/><div><div className="text-sm font-bold leading-none text-[#0f172a]">Intent Dialer</div><div className="mt-1 text-[9px] font-bold uppercase tracking-[.18em] text-[#64748b]">Private workspace</div></div></div>
       <div className="flex items-center gap-1.5">
+        <button onClick={onOpenGuardrails} className={`grid h-11 w-11 place-items-center rounded-xl border transition ${guardrailsActive ? "border-[#dce6f1] bg-white text-[#1266c4] hover:bg-[#edf5fc]" : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"}`} aria-label="Open calling guardrails" title="Calling guardrails"><Icon name="sliders" className="h-5 w-5"/></button>
         <button onClick={onOpenDialpad} className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf5fc] text-[#1266c4] transition hover:bg-[#e1effb]" aria-label="Open dial keypad"><Icon name="dialpad" className="h-5 w-5"/></button>
         <button onClick={() => navigate("leads")} className="grid h-11 w-11 place-items-center rounded-xl bg-[#1266c4] text-white transition hover:bg-[#0f57aa]" aria-label="Open calling queue"><Icon name="phone" className="h-5 w-5"/></button>
       </div>
     </header>
-    {open && <div className="fixed inset-0 z-[85] bg-[#0f172a]/50 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)}><div className="h-full w-[min(86vw,340px)] overflow-y-auto bg-[#f8fafc] p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-4 flex items-center justify-between rounded-2xl bg-gradient-to-br from-[#123b70] via-[#14579a] to-[#1266c4] p-4 text-white"><div className="flex items-center gap-3"><DialerBrandMark/><div><div className="font-bold">Intent Dialer</div><div className="mt-1 text-[10px] uppercase tracking-[.16em] text-white/70">Workspace menu</div></div></div><button aria-label="Close navigation" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><Icon name="close"/></button></div><button onClick={() => { onOpenDialpad(); setOpen(false); }} className="mb-3 flex w-full items-center justify-between rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-4 py-3 text-sm font-bold text-[#1266c4] shadow-sm"><span className="flex items-center gap-2.5"><Icon name="dialpad" className="h-5 w-5"/><span>Keypad</span></span><span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1266c4]">Dial</span></button><div className="space-y-1">{[...VIEWS, { id: "dnc" as View, label: "Do not call", icon: "shield" }, { id: "settings" as View, label: "Settings & team", icon: "settings" }].map((item) => <NavButton key={item.id} {...item} active={view === item.id} onClick={() => { navigate(item.id); setOpen(false); }}/>)}</div><button onClick={logout} className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700"><Icon name="logout"/>Log out</button></div></div>}
+    {open && <div className="fixed inset-0 z-[85] bg-[#0f172a]/50 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)}><div className="h-full w-[min(86vw,340px)] overflow-y-auto bg-[#f8fafc] p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-4 flex items-center justify-between rounded-2xl bg-gradient-to-br from-[#123b70] via-[#14579a] to-[#1266c4] p-4 text-white"><div className="flex items-center gap-3"><DialerBrandMark/><div><div className="font-bold">Intent Dialer</div><div className="mt-1 text-[10px] uppercase tracking-[.16em] text-white/70">Workspace menu</div></div></div><button aria-label="Close navigation" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><Icon name="close"/></button></div><div className="space-y-2 mb-3"><button onClick={() => { onOpenDialpad(); setOpen(false); }} className="flex w-full items-center justify-between rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-4 py-3 text-sm font-bold text-[#1266c4] shadow-sm"><span className="flex items-center gap-2.5"><Icon name="dialpad" className="h-5 w-5"/><span>Keypad</span></span><span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1266c4]">Dial</span></button><button onClick={() => { onOpenGuardrails(); setOpen(false); }} className="flex w-full items-center justify-between rounded-xl border border-[#dce6f1] bg-white px-4 py-3 text-sm font-semibold text-[#1e293b] shadow-2xs"><span className="flex items-center gap-2.5"><Icon name="sliders" className="h-5 w-5 text-[#1266c4]"/><span>Calling guardrails</span></span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${guardrailsActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>{guardrailsActive ? "Active" : "Flexible"}</span></button></div><div className="space-y-1">{[...VIEWS, { id: "dnc" as View, label: "Do not call", icon: "shield" }, { id: "settings" as View, label: "Settings & team", icon: "settings" }].map((item) => <NavButton key={item.id} {...item} active={view === item.id} onClick={() => { navigate(item.id); setOpen(false); }}/>)}</div><button onClick={logout} className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700"><Icon name="logout"/>Log out</button></div></div>}
   </>;
 }
 
@@ -525,10 +549,10 @@ function DailyRecap({ metrics, conversations, outcomeBreakdown }: { metrics: Row
   </section>;
 }
 
-type LeadsViewProps = { leads: Row[]; allLeads: Row[]; counts: Row; users: Row[]; lists: Row[]; statusFilter: string; setStatusFilter: (value: string) => void; search: string; setSearch: (value: string) => void; selectedIds: string[]; setSelectedIds: (value: string[]) => void; onDial: (lead: Row) => void; onOpenDialpad: () => void; onAdd: () => void; onImport: () => void; onRefresh: () => Promise<void> };
+type LeadsViewProps = { leads: Row[]; allLeads: Row[]; counts: Row; users: Row[]; lists: Row[]; statusFilter: string; setStatusFilter: (value: string) => void; search: string; setSearch: (value: string) => void; selectedIds: string[]; setSelectedIds: (value: string[]) => void; onDial: (lead: Row) => void; onOpenDialpad: () => void; onOpenGuardrails?: () => void; onAdd: () => void; onImport: () => void; onRefresh: () => Promise<void> };
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onAdd, onImport, onRefresh } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
   const changeAssignment = async (userId: string) => {
@@ -541,7 +565,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   };
   return <>
     <div className="lg:hidden">
-      <PageHeader eyebrow="Your sheet" title="Leads" description="Your calling queue, optimized for one-handed dialing." action={<><SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></>}/>
+      <PageHeader eyebrow="Your sheet" title="Leads" description="Your calling queue, optimized for one-handed dialing." action={<>{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></>}/>
       <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-[104px] snap-start rounded-2xl border p-3 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="text-xl font-bold">{count}</div><div className={`mt-1 text-xs font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
       <section className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
         <div className="space-y-3 border-b border-[#e2e8f0] p-3"><div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>{selectedIds.length > 0 ? <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} selected...</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select> : <div className="px-1 text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>}</div>
@@ -552,7 +576,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   </>;
 }
 
-function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onAdd, onImport, onRefresh }: LeadsViewProps) {
+function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
@@ -565,7 +589,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
     ["try_again", "Try again", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")],
   ];
   return <>
-    <PageHeader eyebrow="Your sheet" title="Leads" description="Everyone you're calling, where each contact stands, and what needs attention next." action={<div className="flex gap-2"><SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import CSV</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></div>}/>
+    <PageHeader eyebrow="Your sheet" title="Leads" description="Everyone you're calling, where each contact stands, and what needs attention next." action={<div className="flex gap-2">{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import CSV</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></div>}/>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
@@ -624,16 +648,12 @@ function SettingsView({ settings, currentUser, onCreateUser, onChangePassword, o
   const workspace = (settings.settings as Row | undefined)?.workspace as Row | undefined || {};
   const twilio = settings.twilio as Row | undefined || {};
   const users = settings.users as Row[] | undefined || [];
-  const [name, setName] = useState(text(workspace, "name") || "Intent Dialer");
-  const [start, setStart] = useState(text(workspace, "callWindowStart") || "08:00");
-  const [end, setEnd] = useState(text(workspace, "callWindowEnd") || "20:00");
-  const [attempts, setAttempts] = useState(number(workspace, "maxDailyAttempts") || 3);
-  const [message, setMessage] = useState("");
-  const save = async () => { await api("/api/dialer/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "workspace", value: { ...workspace, name, callWindowStart: start, callWindowEnd: end, maxDailyAttempts: attempts } }) }); setMessage("Workspace settings saved."); await onRefresh(); };
   return <><PageHeader eyebrow="Workspace" title="Settings & team" description="Manage calling guardrails, Twilio connection details, and the people who can access this dialer." action={<SecondaryButton onClick={onChangePassword}>Change my password</SecondaryButton>}/><div className="grid gap-6 xl:grid-cols-2">
     <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-[#0f172a]">Team accounts</h2><p className="mt-1 text-xs text-[#64748b]">Separate logins keep assignments, calls, and tasks attributable.</p></div>{text(currentUser, "role") === "owner" && <PrimaryButton onClick={onCreateUser}><Icon name="plus"/>Add setter</PrimaryButton>}</div><div className="mt-5 divide-y divide-[#e2e8f0]">{users.map((user) => <div key={text(user, "id")} className="flex items-center gap-3 py-3"><Avatar name={text(user, "display_name")}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{text(user, "display_name")}</div><div className="text-xs text-[#64748b]">@{text(user, "username")} · {text(user, "last_login_at") ? `last active ${formatDate(user.last_login_at)}` : "never signed in"}</div></div><span className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-[10px] font-bold uppercase text-[#475569]">{text(user, "role")}</span><span className={`h-2.5 w-2.5 rounded-full ${Boolean(user.active) ? "bg-emerald-500" : "bg-slate-300"}`}/></div>)}</div></section>
     <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xs"><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-full ${Boolean(twilio.configured) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Icon name={Boolean(twilio.configured) ? "check" : "alert"}/></div><div><h2 className="font-semibold text-[#0f172a]">Twilio connection</h2><p className="text-xs text-[#64748b]">{Boolean(twilio.configured) ? `Ready on ${formatPhone(twilio.phoneNumber)}` : "Environment variables still required"}</p></div></div><div className="mt-5 space-y-4 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] p-4 text-xs"><div><div className="font-semibold text-[#475569]">TwiML App voice URL</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "voiceUrl")}</code></div><div><div className="font-semibold text-[#475569]">Phone number inbound webhook</div><code className="mt-1 block overflow-x-auto rounded bg-white p-2 text-[#1266c4] border border-[#e2e8f0]">{text(twilio, "inboundUrl")}</code></div></div><p className="mt-4 text-xs leading-relaxed text-[#64748b]">Use HTTP POST for both URLs. Outbound calls use your Twilio number and inbound callbacks ring every active dialer account.</p></section>
-    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 xl:col-span-2 shadow-xs"><h2 className="font-semibold text-[#0f172a]">Calling guardrails</h2><p className="mt-1 text-xs text-[#64748b]">These checks run server-side before every call and cannot be bypassed in the browser.</p>{message && <p className="mt-3 text-xs font-semibold text-emerald-700">{message}</p>}<div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Workspace name"><input value={name} onChange={(event) => setName(event.target.value)} className={inputClass}/></Field><Field label="Local start time"><input type="time" value={start} onChange={(event) => setStart(event.target.value)} className={inputClass}/></Field><Field label="Local end time"><input type="time" value={end} onChange={(event) => setEnd(event.target.value)} className={inputClass}/></Field><Field label="Max attempts / 24h"><input type="number" min={1} max={10} value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} className={inputClass}/></Field></div>{text(currentUser, "role") === "owner" && <div className="mt-5"><PrimaryButton onClick={() => void save()}>Save workspace settings</PrimaryButton></div>}</section>
+    <section className="rounded-2xl border border-[#e2e8f0] bg-white p-6 xl:col-span-2 shadow-xs">
+      <CallingGuardrailsEditor workspace={workspace} onRefresh={onRefresh} />
+    </section>
   </div></>;
 }
 
@@ -643,6 +663,525 @@ function Modal({ title, description, onClose, children }: { title: string; descr
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-xs font-semibold text-[#475569]">{label}</span>{children}</label>; }
 const inputClass = "w-full rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]";
+
+function formatClockTime(clock?: string) {
+  if (!clock) return "";
+  const [hStr, mStr] = clock.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return clock;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${displayH}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+type GuardrailValues = {
+  name: string;
+  guardrailsEnabled: boolean;
+  enforceCallingWindow: boolean;
+  callWindowStart: string;
+  callWindowEnd: string;
+  allowWeekendCalling: boolean;
+  enforceDailyLimit: boolean;
+  maxDailyAttempts: number;
+};
+
+const GUARDRAIL_PRESETS: {
+  id: string;
+  name: string;
+  badge: string;
+  desc: string;
+  values: Partial<GuardrailValues>;
+}[] = [
+  {
+    id: "tcpa",
+    name: "TCPA Standard",
+    badge: "8am – 8pm",
+    desc: "Compliant 8am–8pm local window, max 3 dials/24h, weekdays only",
+    values: {
+      guardrailsEnabled: true,
+      enforceCallingWindow: true,
+      callWindowStart: "08:00",
+      callWindowEnd: "20:00",
+      enforceDailyLimit: true,
+      maxDailyAttempts: 3,
+      allowWeekendCalling: false,
+    },
+  },
+  {
+    id: "extended",
+    name: "Extended Hours",
+    badge: "7am – 9pm",
+    desc: "Early 7am start + late 9pm evening window, max 4 dials/24h, weekends enabled",
+    values: {
+      guardrailsEnabled: true,
+      enforceCallingWindow: true,
+      callWindowStart: "07:00",
+      callWindowEnd: "21:00",
+      enforceDailyLimit: true,
+      maxDailyAttempts: 4,
+      allowWeekendCalling: true,
+    },
+  },
+  {
+    id: "business",
+    name: "B2B Daylight",
+    badge: "9am – 5pm",
+    desc: "Office hours only, max 3 dials/24h, strictly weekdays",
+    values: {
+      guardrailsEnabled: true,
+      enforceCallingWindow: true,
+      callWindowStart: "09:00",
+      callWindowEnd: "17:00",
+      enforceDailyLimit: true,
+      maxDailyAttempts: 3,
+      allowWeekendCalling: false,
+    },
+  },
+  {
+    id: "flexible",
+    name: "24/7 Sandbox",
+    badge: "Testing Mode",
+    desc: "Calling window bypassed, weekends allowed, max 10 dials/24h",
+    values: {
+      guardrailsEnabled: true,
+      enforceCallingWindow: false,
+      callWindowStart: "00:00",
+      callWindowEnd: "23:59",
+      enforceDailyLimit: false,
+      maxDailyAttempts: 10,
+      allowWeekendCalling: true,
+    },
+  },
+];
+
+function Switch({
+  checked,
+  onChange,
+  disabled = false,
+  label,
+  description,
+  badge,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  label: string;
+  description?: string;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[#0f172a]">{label}</span>
+          {badge}
+        </div>
+        {description && <p className="mt-0.5 text-xs leading-relaxed text-[#64748b]">{description}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1266c4] focus:ring-offset-2 ${
+          checked ? "bg-[#1266c4]" : "bg-[#cbd5e1]"
+        } disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function CallingGuardrailsEditor({
+  workspace,
+  onRefresh,
+  onNotify,
+}: {
+  workspace: Row;
+  onRefresh: () => Promise<void>;
+  onNotify?: (message: string) => void;
+}) {
+  const [name, setName] = useState(text(workspace, "name") || "Intent Dialer");
+  const [guardrailsEnabled, setGuardrailsEnabled] = useState(workspace.guardrailsEnabled !== false);
+  const [enforceCallingWindow, setEnforceCallingWindow] = useState(workspace.enforceCallingWindow !== false);
+  const [callWindowStart, setCallWindowStart] = useState(text(workspace, "callWindowStart") || "08:00");
+  const [callWindowEnd, setCallWindowEnd] = useState(text(workspace, "callWindowEnd") || "20:00");
+  const [allowWeekendCalling, setAllowWeekendCalling] = useState(workspace.allowWeekendCalling !== false);
+  const [enforceDailyLimit, setEnforceDailyLimit] = useState(workspace.enforceDailyLimit !== false);
+  const [maxDailyAttempts, setMaxDailyAttempts] = useState(number(workspace, "maxDailyAttempts") || 3);
+
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (workspace.name !== undefined) setName(text(workspace, "name") || "Intent Dialer");
+    if (workspace.guardrailsEnabled !== undefined) setGuardrailsEnabled(workspace.guardrailsEnabled !== false);
+    if (workspace.enforceCallingWindow !== undefined) setEnforceCallingWindow(workspace.enforceCallingWindow !== false);
+    if (workspace.callWindowStart !== undefined) setCallWindowStart(text(workspace, "callWindowStart") || "08:00");
+    if (workspace.callWindowEnd !== undefined) setCallWindowEnd(text(workspace, "callWindowEnd") || "20:00");
+    if (workspace.allowWeekendCalling !== undefined) setAllowWeekendCalling(workspace.allowWeekendCalling !== false);
+    if (workspace.enforceDailyLimit !== undefined) setEnforceDailyLimit(workspace.enforceDailyLimit !== false);
+    if (workspace.maxDailyAttempts !== undefined) setMaxDailyAttempts(number(workspace, "maxDailyAttempts") || 3);
+  }, [workspace]);
+
+  const saveImmediate = useCallback(
+    async (overrides?: Partial<GuardrailValues>) => {
+      setSaveStatus("saving");
+      setErrorMessage("");
+      const payload: GuardrailValues = {
+        name,
+        guardrailsEnabled,
+        enforceCallingWindow,
+        callWindowStart,
+        callWindowEnd,
+        allowWeekendCalling,
+        enforceDailyLimit,
+        maxDailyAttempts,
+        ...overrides,
+      };
+
+      try {
+        await api("/api/dialer/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "workspace", value: { ...workspace, ...payload } }),
+        });
+        setSaveStatus("saved");
+        const timeStr = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date());
+        setLastSavedAt(timeStr);
+        onNotify?.("Guardrails saved immediately");
+        void onRefresh();
+      } catch (cause) {
+        setSaveStatus("error");
+        setErrorMessage(cause instanceof Error ? cause.message : "Failed to save guardrails.");
+      }
+    },
+    [workspace, name, guardrailsEnabled, enforceCallingWindow, callWindowStart, callWindowEnd, allowWeekendCalling, enforceDailyLimit, maxDailyAttempts, onRefresh, onNotify]
+  );
+
+  const applyPreset = (preset: typeof GUARDRAIL_PRESETS[number]) => {
+    if (preset.values.guardrailsEnabled !== undefined) setGuardrailsEnabled(preset.values.guardrailsEnabled);
+    if (preset.values.enforceCallingWindow !== undefined) setEnforceCallingWindow(preset.values.enforceCallingWindow);
+    if (preset.values.callWindowStart !== undefined) setCallWindowStart(preset.values.callWindowStart);
+    if (preset.values.callWindowEnd !== undefined) setCallWindowEnd(preset.values.callWindowEnd);
+    if (preset.values.allowWeekendCalling !== undefined) setAllowWeekendCalling(preset.values.allowWeekendCalling);
+    if (preset.values.enforceDailyLimit !== undefined) setEnforceDailyLimit(preset.values.enforceDailyLimit);
+    if (preset.values.maxDailyAttempts !== undefined) setMaxDailyAttempts(preset.values.maxDailyAttempts);
+
+    void saveImmediate(preset.values);
+  };
+
+  const handleToggle = (key: keyof GuardrailValues, value: boolean) => {
+    if (key === "guardrailsEnabled") setGuardrailsEnabled(value);
+    if (key === "enforceCallingWindow") setEnforceCallingWindow(value);
+    if (key === "allowWeekendCalling") setAllowWeekendCalling(value);
+    if (key === "enforceDailyLimit") setEnforceDailyLimit(value);
+    void saveImmediate({ [key]: value });
+  };
+
+  const handleAttemptsChange = (nextAttempts: number) => {
+    const clamped = Math.max(1, Math.min(20, nextAttempts));
+    setMaxDailyAttempts(clamped);
+    void saveImmediate({ maxDailyAttempts: clamped });
+  };
+
+  const triggerDebouncedSave = (updates: Partial<GuardrailValues>) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void saveImmediate(updates);
+    }, 450);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#e2e8f0] pb-4">
+        <div>
+          <h2 className="text-base font-bold text-[#0f172a] sm:text-lg">Calling guardrails</h2>
+          <p className="mt-0.5 text-xs text-[#64748b]">
+            Enforced server-side before outbound calls bridge. Changes save immediately.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {saveStatus === "saving" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              <span className="h-1.5 w-1.5 animate-ping rounded-full bg-amber-500" />
+              Saving immediately…
+            </span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition">
+              <Icon name="check" className="h-3 w-3" />
+              Saved immediately{lastSavedAt ? ` (${lastSavedAt})` : ""}
+            </span>
+          )}
+          {saveStatus === "error" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+              <Icon name="alert" className="h-3 w-3" />
+              {errorMessage || "Save failed"}
+            </span>
+          )}
+          {saveStatus === "idle" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dce6f1] bg-[#edf5fc] px-2.5 py-1 text-xs font-semibold text-[#1266c4]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#1266c4]" />
+              Auto-save active
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2.5 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-[.14em] text-[#64748b]">Quick presets</span>
+          <span className="text-[11px] text-[#94a3b8]">Clicking a preset applies &amp; saves instantly</span>
+        </div>
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {GUARDRAIL_PRESETS.map((preset) => {
+            const isMatch =
+              guardrailsEnabled === preset.values.guardrailsEnabled &&
+              enforceCallingWindow === preset.values.enforceCallingWindow &&
+              callWindowStart === preset.values.callWindowStart &&
+              callWindowEnd === preset.values.callWindowEnd &&
+              maxDailyAttempts === preset.values.maxDailyAttempts &&
+              allowWeekendCalling === preset.values.allowWeekendCalling;
+
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className={`group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                  isMatch
+                    ? "border-[#1266c4] bg-[#edf5fc] shadow-xs ring-2 ring-[#1266c4]"
+                    : "border-[#e2e8f0] bg-white hover:border-[#b8d0e6] hover:bg-[#f8fafc]"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-sm font-bold text-[#0f172a]">{preset.name}</span>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                        isMatch ? "bg-[#1266c4] text-white" : "bg-[#f1f5f9] text-[#475569]"
+                      }`}
+                    >
+                      {preset.badge}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-[#64748b]">{preset.desc}</p>
+                </div>
+                <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#e2e8f0]/60 text-[11px]">
+                  <span className={`font-semibold ${isMatch ? "text-[#1266c4]" : "text-[#64748b]"}`}>
+                    {isMatch ? "✓ Current preset" : "Apply preset"}
+                  </span>
+                  <span className="text-[10px] text-[#94a3b8]">Saves instantly</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4 sm:p-5">
+        <Switch
+          label="Master guardrail enforcement"
+          description="When active, dialing windows and attempt limits are strictly enforced. When disabled (Flexible Sandbox), all hours and attempts are unlocked for testing or sprint calling."
+          checked={guardrailsEnabled}
+          onChange={(checked) => handleToggle("guardrailsEnabled", checked)}
+          badge={
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                guardrailsEnabled ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {guardrailsEnabled ? "Strict mode" : "Flexible mode"}
+            </span>
+          }
+        />
+      </div>
+
+      <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+        <Switch
+          label="Enforce local prospect time window"
+          description="Checks the prospect's local timezone before dialing to ensure you only call during permissible hours."
+          checked={enforceCallingWindow}
+          onChange={(checked) => handleToggle("enforceCallingWindow", checked)}
+        />
+
+        <div className={`grid gap-4 sm:grid-cols-2 pt-2 border-t border-[#f1f5f9] transition ${!enforceCallingWindow ? "opacity-50 pointer-events-none" : ""}`}>
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">
+              Local start time
+            </label>
+            <div className="relative">
+              <input
+                type="time"
+                value={callWindowStart}
+                onChange={(event) => {
+                  setCallWindowStart(event.target.value);
+                  triggerDebouncedSave({ callWindowStart: event.target.value });
+                }}
+                onBlur={() => void saveImmediate({ callWindowStart })}
+                className={inputClass}
+              />
+              <span className="mt-1 block text-[11px] text-[#64748b]">
+                Starts at {formatClockTime(callWindowStart)} local
+              </span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">
+              Local end time
+            </label>
+            <div className="relative">
+              <input
+                type="time"
+                value={callWindowEnd}
+                onChange={(event) => {
+                  setCallWindowEnd(event.target.value);
+                  triggerDebouncedSave({ callWindowEnd: event.target.value });
+                }}
+                onBlur={() => void saveImmediate({ callWindowEnd })}
+                className={inputClass}
+              />
+              <span className="mt-1 block text-[11px] text-[#64748b]">
+                Ends at {formatClockTime(callWindowEnd)} local
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 sm:p-5 shadow-2xs">
+          <Switch
+            label="Allow weekend dialing"
+            description="Permit outbound dials on Saturday and Sunday within the configured time window."
+            checked={allowWeekendCalling}
+            onChange={(checked) => handleToggle("allowWeekendCalling", checked)}
+            badge={
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  allowWeekendCalling ? "bg-blue-50 text-[#1266c4] border border-blue-200" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {allowWeekendCalling ? "Weekends allowed" : "Weekdays only"}
+              </span>
+            }
+          />
+        </div>
+
+        <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 sm:p-5 shadow-2xs">
+          <Switch
+            label="Enforce daily attempt limit"
+            description="Caps the number of outbound dials to any single lead in a rolling 24-hour window."
+            checked={enforceDailyLimit}
+            onChange={(checked) => handleToggle("enforceDailyLimit", checked)}
+          />
+
+          <div className={`mt-3 pt-3 border-t border-[#f1f5f9] transition ${!enforceDailyLimit ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#475569]">Max dials / 24 hours:</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleAttemptsChange(maxDailyAttempts - 1)}
+                  disabled={maxDailyAttempts <= 1}
+                  className="grid h-7 w-7 place-items-center rounded-lg border border-[#d0dbe7] bg-white text-sm font-bold text-[#0f172a] hover:bg-[#f8fafc] disabled:opacity-40"
+                >
+                  -
+                </button>
+                <span className="min-w-6 text-center text-sm font-bold text-[#0f172a]">{maxDailyAttempts}</span>
+                <button
+                  type="button"
+                  onClick={() => handleAttemptsChange(maxDailyAttempts + 1)}
+                  disabled={maxDailyAttempts >= 20}
+                  className="grid h-7 w-7 place-items-center rounded-lg border border-[#d0dbe7] bg-white text-sm font-bold text-[#0f172a] hover:bg-[#f8fafc] disabled:opacity-40"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {[1, 2, 3, 4, 5, 8, 10].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleAttemptsChange(num)}
+                  className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+                    maxDailyAttempts === num
+                      ? "bg-[#1266c4] text-white"
+                      : "bg-[#edf5fc] text-[#1266c4] hover:bg-[#e1effb]"
+                  }`}
+                >
+                  {num}x
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5">
+            Workspace name
+          </label>
+          <input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              triggerDebouncedSave({ name: event.target.value });
+            }}
+            onBlur={() => void saveImmediate({ name })}
+            placeholder="e.g. Intent Dialer"
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-[#edf5fc]/60 p-3 text-xs leading-relaxed text-[#1e3a62]">
+          <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-[#1266c4]" />
+          <div>
+            <span className="font-bold">Permanent DNC suppression:</span> Numbers on your Do-Not-Call suppression list are strictly blocked server-side before Twilio receives a call request, regardless of guardrail overrides or time presets.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuardrailsModal({
+  workspace,
+  onClose,
+  onRefresh,
+  onNotify,
+}: {
+  workspace: Row;
+  onClose: () => void;
+  onRefresh: () => Promise<void>;
+  onNotify?: (message: string) => void;
+}) {
+  return (
+    <Modal
+      title="Calling guardrails"
+      description="Configure compliance boundaries and dialing rules. Changes save immediately to the server."
+      onClose={onClose}
+    >
+      <CallingGuardrailsEditor
+        workspace={workspace}
+        onRefresh={onRefresh}
+        onNotify={onNotify}
+      />
+    </Modal>
+  );
+}
 
 const DIALPAD_KEYS = [
   ["1", ""], ["2", "ABC"], ["3", "DEF"],
