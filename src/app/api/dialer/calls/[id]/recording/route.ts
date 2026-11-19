@@ -36,8 +36,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
       const config = getTwilioConfig();
       if (config.accountSid && config.authToken) {
         const client = twilio(config.accountSid, config.authToken);
-        const sidToQuery = (call.twilio_call_sid || call.twilio_parent_call_sid) as string;
-        const twilioRecordings = await client.recordings.list({ callSid: sidToQuery, limit: 1 });
+        let twilioRecordings: Array<{ sid: string }> = [];
+        if (call.twilio_call_sid) {
+          twilioRecordings = await client.recordings.list({ callSid: call.twilio_call_sid as string, limit: 1 });
+        }
+        if (!twilioRecordings.length && call.twilio_parent_call_sid && call.twilio_parent_call_sid !== call.twilio_call_sid) {
+          twilioRecordings = await client.recordings.list({ callSid: call.twilio_parent_call_sid as string, limit: 1 });
+        }
         if (twilioRecordings.length > 0) {
           const rec = twilioRecordings[0];
           recordingSid = rec.sid;
@@ -153,8 +158,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       const config = getTwilioConfig();
       if (config.accountSid && config.authToken) {
         const client = twilio(config.accountSid, config.authToken);
-        const sidToQuery = (call.twilio_call_sid || call.twilio_parent_call_sid) as string;
-        const twilioRecordings = await client.recordings.list({ callSid: sidToQuery, limit: 1 });
+        let twilioRecordings: Array<{ sid: string }> = [];
+        if (call.twilio_call_sid) {
+          twilioRecordings = await client.recordings.list({ callSid: call.twilio_call_sid as string, limit: 1 });
+        }
+        if (!twilioRecordings.length && call.twilio_parent_call_sid && call.twilio_parent_call_sid !== call.twilio_call_sid) {
+          twilioRecordings = await client.recordings.list({ callSid: call.twilio_parent_call_sid as string, limit: 1 });
+        }
         if (twilioRecordings.length > 0) {
           recordingSid = twilioRecordings[0].sid;
           recordingUrl = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Recordings/${recordingSid}`;
