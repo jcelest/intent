@@ -7,12 +7,14 @@ const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL or POSTGRES_URL is required.");
 
 const sql = neon(databaseUrl);
-const migration = await readFile(new URL("../migrations/002_power_dialer.sql", import.meta.url), "utf8");
-const statements = migration
-  .split(/;\s*(?:\r?\n|$)/)
-  .map((statement) => statement.trim())
-  .filter(Boolean);
-for (const statement of statements) await sql.query(statement);
+for (const migrationFile of ["002_power_dialer.sql", "003_power_dialer_queue.sql"]) {
+  const migration = await readFile(new URL(`../migrations/${migrationFile}`, import.meta.url), "utf8");
+  const statements = migration
+    .split(/;\s*(?:\r?\n|$)/)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  for (const statement of statements) await sql.query(statement);
+}
 console.log("Power dialer schema is current.");
 
 if (process.argv.includes("--bootstrap-users")) {

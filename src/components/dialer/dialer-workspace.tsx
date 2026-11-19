@@ -8,6 +8,7 @@ import { Logo } from "@/components/ui/logo";
 type Row = Record<string, unknown>;
 type View = "dashboard" | "leads" | "calls" | "tasks" | "sequences" | "pipeline" | "dnc" | "settings";
 type CallPhase = "idle" | "connecting" | "ringing" | "open" | "completed" | "error";
+type DialSessionState = "idle" | "running" | "paused";
 
 const VIEWS: { id: View; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
@@ -184,9 +185,14 @@ export function DialerWorkspace() {
   const [disposition, setDisposition] = useState("contacted");
   const [callNotes, setCallNotes] = useState("");
   const [callbackAt, setCallbackAt] = useState("");
-  const [autoDial, setAutoDial] = useState(true);
+  const [autoDial, setAutoDial] = useState(false);
+  const [dialSessionState, setDialSessionState] = useState<DialSessionState>("idle");
   const deviceRef = useRef<VoiceDevice | null>(null);
   const callRef = useRef<VoiceCall | null>(null);
+  const activeLeadRef = useRef<Row | null>(null);
+  const autoDialRef = useRef(false);
+  const dialSessionStateRef = useRef<DialSessionState>("idle");
+  const placeCallRef = useRef<(lead: Row) => Promise<void>>(async () => undefined);
 
   const refresh = useCallback(async () => {
     setError("");
@@ -219,6 +225,10 @@ export function DialerWorkspace() {
     const timer = setTimeout(() => setToast(""), 3500);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => { activeLeadRef.current = activeLead; }, [activeLead]);
+  useEffect(() => { autoDialRef.current = autoDial; }, [autoDial]);
+  useEffect(() => { dialSessionStateRef.current = dialSessionState; }, [dialSessionState]);
 
   const visibleLeads = useMemo(() => leads.filter((lead) => {
     const matchesStatus = statusFilter === "all" || text(lead, "status") === statusFilter;
@@ -270,26 +280,138 @@ export function DialerWorkspace() {
     deviceRef.current = null;
   }, []);
 
-  const placeCall = useCallback(async (lead: Row) => {
+  const advanceToNextLead = useCallback(async (excludeLeadId?: string | null) => {
     if (callRef.current) return;
-    setActiveLead(lead); setCallError(""); setCallNotes(""); setCallbackAt(""); setDisposition("contacted");
-    setCallPhase("connecting");
-    const localCallId = crypto.randomUUID();
-    setActiveCallId(localCallId);
     try {
+      const result = await api<{ lead: Row | null }>("/api/dialer/queue", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "next", excludeLeadId: excludeLeadId || null }),
+      });
+      if (!result.lead) {
+        dialSessionStateRef.current = "paused";
+        autoDialRef.current = false;
+        setDialSessionState("paused");
+        setAutoDial(false);
+        setToast("Queue complete — no eligible leads are due right now");
+        return;
+      }
+      await placeCallRef.current(result.lead);
+    } catch (cause) {
+      dialSessionStateRef.current = "paused";
+      autoDialRef.current = false;
+      setDialSessionState("paused");
+      setAutoDial(false);
+      setToast(cause instanceof Error ? cause.message : "Unable to reserve the next lead.");
+    }
+  }, []);
+
+  const reconcileAutomaticOutcome = useCallback(async (callId: string, leadId: string) => {
+    const automaticOutcomes = new Set(["no_answer", "busy", "failed"]);
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 650));
+      try {
+        const result = await api<{ call: Row }>(`/api/dialer/calls/${callId}`);
+        const automaticDisposition = text(result.call, "disposition");
+        if (automaticOutcomes.has(automaticDisposition)) {
+          setDisposition(automaticDisposition);
+          setToast(`${STATUS_LABELS[automaticDisposition]} — moving to the next lead`);
+          activeLeadRef.current = null;
+          setActiveLead(null); setActiveCallId(null); setCallPhase("idle");
+          await refresh();
+          if (dialSessionStateRef.current === "running" && autoDialRef.current) {
+            await advanceToNextLead(leadId);
+          }
+          return;
+        }
+        if (["completed", "busy", "failed", "no-answer", "canceled"].includes(text(result.call, "status"))) return;
+      } catch {
+        // The Twilio voice/status webhooks can arrive just after the browser disconnect event.
+      }
+    }
+  }, [advanceToNextLead, refresh]);
+
+  const placeCall = useCallback(async (lead: Row) => {
+    if (callRef.current || activeLeadRef.current) return;
+    const requestedLeadId = text(lead, "id");
+    let claimedLead = lead;
+    let hasReservation = false;
+    try {
+      const claimed = await api<{ lead: Row }>("/api/dialer/queue", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "claim", leadId: requestedLeadId }),
+      });
+      claimedLead = claimed.lead;
+      hasReservation = true;
+      activeLeadRef.current = claimedLead;
+      setActiveLead(claimedLead); setCallError(""); setCallNotes(""); setCallbackAt(""); setDisposition("contacted");
+      setCallPhase("connecting");
+      const localCallId = crypto.randomUUID();
+      setActiveCallId(localCallId);
       const device = await ensureDevice();
-      const call = await device.connect({ params: { leadId: text(lead, "id"), dialerCallId: localCallId } });
+      const call = await device.connect({ params: { leadId: text(claimedLead, "id"), dialerCallId: localCallId } });
       callRef.current = call;
+      let finished = false;
       call.on("ringing", () => setCallPhase("ringing"));
       call.on("accept", () => setCallPhase("open"));
-      const finish = () => { callRef.current = null; setCallPhase("completed"); };
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        callRef.current = null;
+        setCallPhase("completed");
+        void reconcileAutomaticOutcome(localCallId, text(claimedLead, "id"));
+      };
       call.on("disconnect", finish); call.on("cancel", finish); call.on("reject", finish);
-      call.on("error", (event) => { callRef.current = null; setCallError(event.message || "Call failed."); setCallPhase("error"); });
+      call.on("error", (event) => {
+        if (finished) return;
+        finished = true;
+        callRef.current = null;
+        const message = event.message || "Call failed.";
+        setCallError(message); setToast(message); setCallPhase("error");
+        dialSessionStateRef.current = "paused"; autoDialRef.current = false;
+        setDialSessionState("paused"); setAutoDial(false);
+        void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(claimedLead, "id") }) }).catch(() => undefined);
+      });
     } catch (cause) {
-      setCallError(cause instanceof Error ? cause.message : "Unable to start call.");
+      activeLeadRef.current = hasReservation ? claimedLead : null;
+      setActiveLead(hasReservation ? claimedLead : null);
+      const message = cause instanceof Error ? cause.message : "Unable to start call.";
+      setCallError(message); setToast(message);
       setCallPhase("error");
+      dialSessionStateRef.current = "paused"; autoDialRef.current = false;
+      setDialSessionState("paused"); setAutoDial(false);
+      if (hasReservation && text(claimedLead, "id")) {
+        void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(claimedLead, "id") }) }).catch(() => undefined);
+      }
     }
-  }, [ensureDevice]);
+  }, [ensureDevice, reconcileAutomaticOutcome]);
+  placeCallRef.current = placeCall;
+
+  useEffect(() => {
+    if (!activeLead || !["connecting", "ringing", "open"].includes(callPhase)) return;
+    const heartbeat = () => void api("/api/dialer/queue", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "heartbeat", leadId: text(activeLead, "id") }),
+    }).catch(() => undefined);
+    heartbeat();
+    const timer = setInterval(heartbeat, 2 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [activeLead, callPhase]);
+
+  const startPowerDial = useCallback(async () => {
+    if (callRef.current || activeLeadRef.current) {
+      setToast("Finish the current call before starting another dialing session");
+      return;
+    }
+    dialSessionStateRef.current = "running"; autoDialRef.current = true;
+    setDialSessionState("running"); setAutoDial(true);
+    await advanceToNextLead();
+  }, [advanceToNextLead]);
+
+  const pausePowerDial = useCallback(() => {
+    dialSessionStateRef.current = "paused"; autoDialRef.current = false;
+    setDialSessionState("paused"); setAutoDial(false);
+    setToast(callRef.current ? "Dialing will pause after this call" : "Power dialing paused");
+  }, []);
 
   const endCall = () => callRef.current?.disconnect();
 
@@ -301,14 +423,21 @@ export function DialerWorkspace() {
   const saveDisposition = async () => {
     if (!activeLead) return;
     try {
+      const reserveNext = dialSessionStateRef.current === "running" && autoDialRef.current;
       const result = await api<{ nextLead: Row | null }>("/api/dialer/disposition", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: text(activeLead, "id"), callId: activeCallId, disposition, notes: callNotes, callbackAt: callbackAt || null }),
+        body: JSON.stringify({ leadId: text(activeLead, "id"), callId: activeCallId, disposition, notes: callNotes, callbackAt: callbackAt || null, reserveNext }),
       });
       setToast("Outcome saved");
+      activeLeadRef.current = null;
       setActiveLead(null); setActiveCallId(null); setCallPhase("idle");
       await refresh();
-      if (autoDial && result.nextLead) setTimeout(() => void placeCall(result.nextLead as Row), 450);
+      if (reserveNext && result.nextLead) setTimeout(() => void placeCallRef.current(result.nextLead as Row), 450);
+      if (reserveNext && !result.nextLead) {
+        dialSessionStateRef.current = "paused"; autoDialRef.current = false;
+        setDialSessionState("paused"); setAutoDial(false);
+        setToast("Outcome saved — queue complete for now");
+      }
     } catch (cause) { setCallError(cause instanceof Error ? cause.message : "Unable to save outcome."); }
   };
 
@@ -414,7 +543,7 @@ export function DialerWorkspace() {
         )}
         <main className="mx-auto min-w-0 max-w-[1500px] overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
           {view === "dashboard" && <Dashboard counts={counts} metrics={metrics} recentCalls={(overview.recentCalls || []) as Row[]} conversations={(overview.conversations || []) as Row[]} outcomeBreakdown={(overview.outcomeBreakdown || []) as Row[]} tasks={(overview.tasks || []) as Row[]} repStats={(overview.repStats || []) as Row[]} onNavigate={navigate} onOpenDialpad={() => setModal("dialpad")} />}
-          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
+          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} dialSessionState={dialSessionState} onStartPowerDial={startPowerDial} onPausePowerDial={pausePowerDial} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
           {view === "calls" && <ResponsiveCallsView calls={calls} users={users} onRefresh={refresh} onOpenDialpad={() => setModal("dialpad")} onNotify={(msg) => setToast(msg)} />}
           {view === "tasks" && <TasksView tasks={tasks} onCreate={() => setModal("task")} onRefresh={refresh} />}
           {view === "sequences" && <SequencesView sequences={sequences} onRefresh={refresh} />}
@@ -461,7 +590,7 @@ export function DialerWorkspace() {
       {modal === "password" && <PasswordModal onClose={() => setModal(null)} onDone={() => { setPasswordChanged(true); setModal(null); setToast("Password updated"); void refresh(); }} />}
       {modal === "dialpad" && <ManualDialModal onClose={() => setModal(null)} onDial={(lead) => { setModal(null); void refresh(); void placeCall(lead); }} />}
       {modal === "guardrails" && <GuardrailsModal workspace={workspace} onClose={() => setModal(null)} onRefresh={refresh} onNotify={(msg) => setToast(msg)} />}
-      {activeLead && <CallDock lead={activeLead} phase={callPhase} error={callError} disposition={disposition} setDisposition={setDisposition} notes={callNotes} setNotes={setCallNotes} callbackAt={callbackAt} setCallbackAt={setCallbackAt} autoDial={autoDial} setAutoDial={setAutoDial} onEnd={endCall} onSendDigit={sendDigit} onSave={saveDisposition} onClose={() => { if (callRef.current) endCall(); setActiveLead(null); setCallPhase("idle"); }} />}
+      {activeLead && <CallDock lead={activeLead} phase={callPhase} error={callError} disposition={disposition} setDisposition={setDisposition} notes={callNotes} setNotes={setCallNotes} callbackAt={callbackAt} setCallbackAt={setCallbackAt} autoDial={autoDial} setAutoDial={(value) => { autoDialRef.current = value; dialSessionStateRef.current = value ? "running" : "paused"; setAutoDial(value); setDialSessionState(value ? "running" : "paused"); }} onEnd={endCall} onSendDigit={sendDigit} onSave={saveDisposition} onClose={() => { const hadActiveCall = Boolean(callRef.current); dialSessionStateRef.current = "paused"; autoDialRef.current = false; setDialSessionState("paused"); setAutoDial(false); if (hadActiveCall) endCall(); if (!hadActiveCall) void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(activeLead, "id") }) }).catch(() => undefined); activeLeadRef.current = null; setActiveLead(null); setCallPhase("idle"); }} />}
       {incomingCall && <IncomingCall call={incomingCall} onClose={() => setIncomingCall(null)} />}
     </div>
   );
@@ -620,6 +749,9 @@ type LeadsViewProps = {
   selectedIds: string[];
   setSelectedIds: (value: string[]) => void;
   onDial: (lead: Row) => void;
+  dialSessionState: DialSessionState;
+  onStartPowerDial: () => void;
+  onPausePowerDial: () => void;
   onOpenDialpad: () => void;
   onOpenGuardrails?: () => void;
   onAdd: () => void;
@@ -631,10 +763,9 @@ type LeadsViewProps = {
 };
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
-  const nextEligibleLead = allLeads.find((lead) => !Boolean(lead.do_not_call) && text(lead, "status") !== "closed");
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
     setAssigning(true);
@@ -649,11 +780,11 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
       <section className="mb-4 min-w-0 rounded-2xl border border-[#b8d0e6] bg-gradient-to-br from-[#edf5fc] to-white p-3 shadow-[0_8px_24px_rgba(18,102,196,.08)]">
         <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0"><div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1266c4]">Outbound dialing</div><p className="mt-0.5 truncate text-xs text-[#64748b]">Key in a number or call the next eligible lead.</p></div>
-          <span className="shrink-0 rounded-full border border-[#c9def1] bg-white px-2 py-1 text-[10px] font-bold text-[#1266c4]">1 at a time</span>
+          <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold ${dialSessionState === "running" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : dialSessionState === "paused" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-[#c9def1] bg-white text-[#1266c4]"}`}>{dialSessionState === "running" ? "Running" : dialSessionState === "paused" ? "Paused" : "Ready"}</span>
         </div>
         <div className="grid min-w-0 grid-cols-2 gap-2">
           <button type="button" onClick={onOpenDialpad} className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-[#b8d0e6] bg-white px-2 text-sm font-bold text-[#1266c4] shadow-xs transition hover:bg-[#f8fbfe]"><Icon name="dialpad" className="h-4 w-4 shrink-0"/><span className="truncate">Keypad</span></button>
-          <button type="button" disabled={!nextEligibleLead} onClick={() => nextEligibleLead && onDial(nextEligibleLead)} className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-[#1266c4] px-2 text-sm font-bold text-white shadow-sm shadow-blue-700/15 transition hover:bg-[#0f57aa] disabled:cursor-not-allowed disabled:opacity-45"><Icon name="phone" className="h-4 w-4 shrink-0"/><span className="truncate">Start outbound</span></button>
+          <button type="button" onClick={dialSessionState === "running" ? onPausePowerDial : onStartPowerDial} className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold shadow-sm transition ${dialSessionState === "running" ? "border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" : "bg-[#1266c4] text-white shadow-blue-700/15 hover:bg-[#0f57aa]"}`}><Icon name={dialSessionState === "running" ? "pause" : "phone"} className="h-4 w-4 shrink-0"/><span className="truncate">{dialSessionState === "running" ? "Pause session" : dialSessionState === "paused" ? "Resume dialing" : "Start outbound"}</span></button>
         </div>
       </section>
       <div className="mb-4 grid min-w-0 grid-cols-6 gap-2">{filters.map(([id, label, count], index) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${index < 3 ? "col-span-2" : "col-span-3"} ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="truncate text-lg font-bold">{count}</div><div className={`mt-0.5 truncate text-[11px] font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
@@ -681,7 +812,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   </>;
 }
 
-function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk }: LeadsViewProps) {
+function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
@@ -694,7 +825,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
     ["try_again", "Try again", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")],
   ];
   return <>
-    <PageHeader eyebrow="Your sheet" title="Leads" description="Everyone you're calling, where each contact stands, and what needs attention next." action={<div className="flex gap-2">{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import CSV</SecondaryButton><PrimaryButton onClick={onAdd}><Icon name="plus"/>Add lead</PrimaryButton></div>}/>
+    <PageHeader eyebrow="Your sheet" title="Leads" description="Everyone you're calling, where each contact stands, and what needs attention next." action={<div className="flex flex-wrap gap-2">{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import CSV</SecondaryButton><PrimaryButton onClick={dialSessionState === "running" ? onPausePowerDial : onStartPowerDial}><Icon name={dialSessionState === "running" ? "pause" : "phone"}/>{dialSessionState === "running" ? "Pause dialing" : dialSessionState === "paused" ? "Resume dialing" : "Start power dial"}</PrimaryButton><SecondaryButton onClick={onAdd}><Icon name="plus"/>Add lead</SecondaryButton></div>}/>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
@@ -2061,7 +2192,7 @@ function CallDock({ lead, phase, error, disposition, setDisposition, notes, setN
       </div>
       {active && <div className="mt-3 grid min-w-0 grid-cols-2 gap-2">
         <button type="button" onClick={() => setKeypadOpen((current) => !current)} className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-2 text-xs font-bold shadow-sm transition ${keypadOpen ? "bg-white text-[#1266c4]" : "bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25"}`} aria-label="Toggle in-call keypad"><Icon name="dialpad" className="h-4 w-4 shrink-0"/><span>Keypad</span>{sentDigits.length > 0 && <span className="max-w-12 truncate rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-[#1266c4]">{sentDigits.slice(-4)}</span>}</button>
-        <button onClick={onEnd} className="min-h-10 min-w-0 rounded-xl bg-red-500 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-600">End call</button>
+        <button onClick={onEnd} className="min-h-10 min-w-0 rounded-xl bg-red-500 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-600">{phase === "open" ? "End call" : "Skip lead"}</button>
       </div>}
     </div>
     {keypadOpen && active && (

@@ -13,6 +13,7 @@
     "dialer:bootstrap-users": "node --env-file=.env.production scripts/migrate-dialer.mjs --bootstrap-users",
     "dialer:import-leadnet": "node --env-file=.env.production scripts/import-leadnet-dialer.mjs",
     "test:trade-demand": "node --experimental-strip-types --test tests/trade-demand.test.mjs",
+    "test:dialer": "node --experimental-strip-types --test tests/dialer-outcomes.test.mjs",
     "test:matrix": "node --env-file=.env.development.local scripts/phase-h-test-matrix.mjs"
   },
   "dependencies": {

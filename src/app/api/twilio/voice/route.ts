@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leadIsCallable } from "@/lib/dialer";
+import { claimLead, releaseLeadReservation } from "@/lib/dialer-queue";
 import { sql } from "@/lib/db";
 import { absoluteCallbackUrl, assertTwilioConfigured, twilio, validateTwilioWebhook } from "@/lib/twilio-server";
 
@@ -11,6 +12,8 @@ export async function POST(request: Request) {
   if (!validateTwilioWebhook(request, params)) return new NextResponse("Invalid signature", { status: 403 });
 
   const response = new twilio.twiml.VoiceResponse();
+  let claimedLeadId: string | null = null;
+  let claimedUserId: string | null = null;
   try {
     const config = assertTwilioConfigured();
     const leadId = params.leadId || params.LeadId;
@@ -20,16 +23,23 @@ export async function POST(request: Request) {
       response.say("The dial request is missing required information.");
       return xml(response);
     }
+    const userRows = await sql`SELECT id, role FROM dialer_users WHERE id = ${userId} AND active = TRUE LIMIT 1`;
+    if (!userRows[0]) {
+      response.say("Your dialer account is not active.");
+      return xml(response);
+    }
     const allowed = await leadIsCallable(leadId);
     if (!allowed.ok) {
       response.say(allowed.error);
       return xml(response);
     }
-    const userRows = await sql`SELECT id FROM dialer_users WHERE id = ${userId} AND active = TRUE LIMIT 1`;
-    if (!userRows[0]) {
-      response.say("Your dialer account is not active.");
+    const claimed = await claimLead({ userId, role: String(userRows[0].role || "agent"), leadId });
+    if (!claimed) {
+      response.say("This lead is already being called by another representative.");
       return xml(response);
     }
+    claimedLeadId = leadId;
+    claimedUserId = userId;
     const validCallId = /^[0-9a-f-]{36}$/i.test(requestedCallId || "") ? requestedCallId : null;
     const callRows = validCallId
       ? await sql`
@@ -69,6 +79,9 @@ export async function POST(request: Request) {
     return xml(response);
   } catch (error) {
     console.error("Twilio voice route failed", error);
+    if (claimedLeadId && claimedUserId) {
+      await releaseLeadReservation({ userId: claimedUserId, leadId: claimedLeadId }).catch(() => undefined);
+    }
     response.say("The call could not be started. Please check the dialer settings.");
     return xml(response);
   }
@@ -77,4 +90,3 @@ export async function POST(request: Request) {
 function xml(response: InstanceType<typeof twilio.twiml.VoiceResponse>) {
   return new NextResponse(response.toString(), { headers: { "Content-Type": "text/xml; charset=utf-8" } });
 }
-
