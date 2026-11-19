@@ -55,7 +55,8 @@ export async function reserveNextLead(input: {
               AND attempts.started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
           ) < COALESCE((workspace_settings.value->>'maxDailyAttempts')::integer, 3)
         )
-      ORDER BY CASE WHEN l.status = 'to_call' THEN 0 ELSE 1 END,
+      ORDER BY CASE WHEN l.assigned_user_id = ${input.userId} THEN 0 ELSE 1 END,
+        CASE WHEN l.status = 'to_call' THEN 0 ELSE 1 END,
         l.priority DESC, l.next_call_at ASC NULLS LAST, l.created_at ASC
       FOR UPDATE OF l SKIP LOCKED
       LIMIT 1

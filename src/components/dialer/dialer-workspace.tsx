@@ -663,7 +663,7 @@ export function DialerWorkspace() {
     }
   }, []);
 
-  const reconcileAutomaticOutcome = useCallback(async (callId: string, leadId: string) => {
+  const reconcileAutomaticOutcome = useCallback(async (callId: string) => {
     const automaticOutcomes = new Set(["no_answer", "busy", "failed"]);
     for (let attempt = 0; attempt < 6; attempt += 1) {
       if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 650));
@@ -672,21 +672,16 @@ export function DialerWorkspace() {
         const automaticDisposition = text(result.call, "disposition");
         if (automaticOutcomes.has(automaticDisposition)) {
           setDisposition(automaticDisposition);
-          setToast(`${STATUS_LABELS[automaticDisposition]} — moving to the next lead`);
-          activeLeadRef.current = null;
-          setActiveLead(null); setActiveCallId(null); setCallPhase("idle");
-          await refresh();
-          if (dialSessionStateRef.current === "running" && autoDialRef.current) {
-            await advanceToNextLead(leadId);
-          }
+          setToast(`${STATUS_LABELS[automaticDisposition]} — save the outcome to dial the next lead`);
           return;
         }
-        if (["completed", "busy", "failed", "no-answer", "canceled"].includes(text(result.call, "status"))) return;
+        // A terminal status can be visible just before its automatic disposition update.
+        // Keep polling briefly so the outcome selector is populated before the rep saves.
       } catch {
         // The Twilio voice/status webhooks can arrive just after the browser disconnect event.
       }
     }
-  }, [advanceToNextLead, refresh]);
+  }, []);
 
   const placeCall = useCallback(async (lead: Row) => {
     if (callRef.current || activeLeadRef.current || placingCallRef.current) return;
@@ -720,7 +715,7 @@ export function DialerWorkspace() {
         callRef.current = null;
         setCallPhase("completed");
         if (dialSessionStateRef.current !== "running") void releaseWakeLock();
-        void reconcileAutomaticOutcome(localCallId, text(claimedLead, "id"));
+        void reconcileAutomaticOutcome(localCallId);
       };
       call.on("disconnect", finish); call.on("cancel", finish); call.on("reject", finish);
       call.on("error", (event) => {
@@ -729,10 +724,8 @@ export function DialerWorkspace() {
         callRef.current = null;
         const message = event.message || "Call failed.";
         setCallError(message); setToast(message); setCallPhase("error");
-        dialSessionStateRef.current = "paused"; autoDialRef.current = false;
-        setDialSessionState("paused"); setAutoDial(false);
-        void releaseWakeLock();
-        void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(claimedLead, "id") }) }).catch(() => undefined);
+        setDisposition("failed");
+        if (dialSessionStateRef.current !== "running") void releaseWakeLock();
       });
     } catch (cause) {
       placingCallRef.current = false;
@@ -741,18 +734,20 @@ export function DialerWorkspace() {
       const message = cause instanceof Error ? cause.message : "Unable to start call.";
       setCallError(message); setToast(message);
       setCallPhase("error");
-      dialSessionStateRef.current = "paused"; autoDialRef.current = false;
-      setDialSessionState("paused"); setAutoDial(false);
-      void releaseWakeLock();
-      if (hasReservation && text(claimedLead, "id")) {
-        void api("/api/dialer/queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", leadId: text(claimedLead, "id") }) }).catch(() => undefined);
+      if (hasReservation) {
+        setDisposition("failed");
+        if (dialSessionStateRef.current !== "running") void releaseWakeLock();
+      } else {
+        dialSessionStateRef.current = "paused"; autoDialRef.current = false;
+        setDialSessionState("paused"); setAutoDial(false);
+        void releaseWakeLock();
       }
     }
   }, [prepareMobileCalling, reconcileAutomaticOutcome, releaseWakeLock, requestWakeLock]);
   placeCallRef.current = placeCall;
 
   useEffect(() => {
-    if (!activeLead || !["connecting", "ringing", "open"].includes(callPhase)) return;
+    if (!activeLead || !["connecting", "ringing", "open", "completed", "error"].includes(callPhase)) return;
     const heartbeat = () => void api("/api/dialer/queue", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "heartbeat", leadId: text(activeLead, "id") }),
