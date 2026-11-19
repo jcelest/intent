@@ -2201,7 +2201,7 @@ function Modal({ title, description, onClose, children }: { title: string; descr
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-xs font-semibold text-[#475569]">{label}</span>{children}</label>; }
-const inputClass = "min-w-0 max-w-full w-full rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]";
+const inputClass = "min-w-0 max-w-full w-full rounded-xl border border-[#d0dbe7] bg-white px-3 py-2.5 text-base sm:text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]";
 
 function formatClockTime(clock?: string) {
   if (!clock) return "";
@@ -2909,56 +2909,56 @@ function CallDock({
   const allCsvFields = (meta.all_csv_fields || {}) as Record<string, string>;
   const rawCsvKeys = Object.keys(allCsvFields);
 
-  // Minimized bottom dock view
+  // Minimized bottom dock view (floats above mobile bottom navigation)
   if (isDocked) {
     return (
-      <div className="fixed inset-x-3 bottom-3 z-[70] mx-auto max-w-4xl rounded-2xl border border-[#9ebbd6] bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] p-3 sm:p-4 text-white shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${phase === "open" ? "animate-pulse bg-emerald-500 text-white" : "bg-white/15"}`}>
-            <Icon name="phone" className="h-5 w-5" />
+      <div className="fixed inset-x-2 sm:inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] lg:bottom-4 z-[70] mx-auto max-w-4xl rounded-2xl border border-[#9ebbd6] bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] p-3 sm:p-4 text-white shadow-2xl flex items-center justify-between gap-2.5 animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className={`grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-full ${phase === "open" ? "animate-pulse bg-emerald-500 text-white" : "bg-white/15"}`}>
+            <Icon name="phone" className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {company ? (
                 <a
                   href={googleSearchUrl(company, city, state)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-bold text-white hover:underline truncate max-w-xs flex items-center gap-1"
+                  className="font-bold text-white hover:underline truncate max-w-[150px] sm:max-w-xs flex items-center gap-1 text-xs sm:text-sm"
                   title={`Search "${company}" on Google`}
                 >
                   <span className="truncate">{company}</span>
                   <Icon name="external" className="h-3 w-3 text-white/80 shrink-0" />
                 </a>
               ) : (
-                <span className="font-bold text-white truncate">{ownerName || leadName(lead)}</span>
+                <span className="font-bold text-white truncate text-xs sm:text-sm">{ownerName || leadName(lead)}</span>
               )}
               {ownerName && company && (
-                <span className="text-xs text-white/80 truncate">({ownerName})</span>
+                <span className="text-[11px] text-white/80 truncate">({ownerName})</span>
               )}
-              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                 {phase === "open" ? `Live ${formatDuration(callSeconds)}` : phase}
               </span>
             </div>
-            <div className="text-xs text-white/75 truncate mt-0.5">
+            <div className="text-[11px] text-white/75 truncate mt-0.5">
               {phone} · {localTime(lead)} local
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => setIsDocked(false)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 px-3 py-2 text-xs font-bold text-white transition border border-white/20 shadow-xs"
+            className="inline-flex min-h-9 items-center gap-1 rounded-xl bg-white/15 hover:bg-white/25 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white transition border border-white/20 shadow-xs active:scale-95"
             title="Expand Active Call Screen"
           >
-            <Icon name="maximize" className="h-4 w-4" />
-            <span className="hidden sm:inline">Active Call Screen</span>
+            <Icon name="maximize" className="h-3.5 w-3.5" />
+            <span className="hidden xs:inline sm:inline">Active Call</span>
           </button>
           {active && (
             <button
               onClick={onEnd}
-              className="rounded-xl bg-red-500 hover:bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition"
+              className="min-h-9 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 px-3 sm:px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition"
             >
               {phase === "open" ? "End" : "Skip"}
             </button>
@@ -2975,15 +2975,16 @@ function CallDock({
     );
   }
 
-  // Full Active Call Screen
+  // Full Active Call Screen (Full-height sheet on mobile, centered modal on desktop)
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[95dvh] bg-white rounded-3xl shadow-[0_25px_80px_rgba(18,59,112,.35)] flex flex-col border border-[#b8d0e6] overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[70] bg-slate-950/75 backdrop-blur-xs flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 md:p-6 overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full sm:max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[94dvh] bg-white rounded-t-3xl sm:rounded-3xl flex flex-col border-t sm:border border-[#b8d0e6] shadow-[0_25px_80px_rgba(18,59,112,.35)] overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Dynamic Top Banner */}
-        <div className="bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-4 py-3.5 sm:px-6 text-white shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+        <div className="bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-3.5 py-3 sm:px-6 sm:py-3.5 text-white shrink-0 shadow-md">
+          <div className="sm:hidden mx-auto w-10 h-1 rounded-full bg-white/35 mb-2.5" />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider shrink-0 ${
                 phase === "open"
                   ? "bg-emerald-500 text-white animate-pulse"
                   : phase === "connecting"
@@ -2993,47 +2994,47 @@ function CallDock({
                   : "bg-white/20 text-white"
               }`}>
                 <span className="h-2 w-2 rounded-full bg-current" />
-                {phase === "open" ? `Live Call · ${formatDuration(callSeconds)}` : phase === "connecting" ? "Connecting…" : phase === "ringing" ? "Ringing…" : "Call Ended"}
+                <span>{phase === "open" ? `Live · ${formatDuration(callSeconds)}` : phase === "connecting" ? "Connecting…" : phase === "ringing" ? "Ringing…" : "Call Ended"}</span>
               </span>
-              <span className="hidden sm:inline-block text-xs text-white/80">
+              <span className="hidden md:inline-block text-xs text-white/80 truncate">
                 {localTime(lead)} local
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {active && (
                 <button
                   type="button"
                   onClick={() => setKeypadOpen((current) => !current)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-xs ${
+                  className={`inline-flex min-h-8 sm:min-h-9 items-center gap-1 sm:gap-1.5 rounded-xl px-2.5 sm:px-3 py-1 text-xs font-bold transition shadow-xs active:scale-95 ${
                     keypadOpen ? "bg-white text-[#1266c4]" : "bg-white/15 text-white hover:bg-white/25 border border-white/20"
                   }`}
                 >
                   <Icon name="dialpad" className="h-3.5 w-3.5" />
-                  <span>Keypad</span>
+                  <span className="hidden xs:inline sm:inline">Keypad</span>
                   {sentDigits && <span className="rounded-full bg-blue-100 text-[#1266c4] px-1 text-[10px] font-mono">{sentDigits.slice(-3)}</span>}
                 </button>
               )}
               {active && (
                 <button
                   onClick={onEnd}
-                  className="rounded-xl bg-red-500 hover:bg-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-xs transition"
+                  className="min-h-8 sm:min-h-9 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 px-3 sm:px-4 py-1 text-xs font-black text-white shadow-xs transition"
                 >
-                  {phase === "open" ? "End Call" : "Skip Lead"}
+                  {phase === "open" ? "End Call" : "Skip"}
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setIsDocked(true)}
                 title="Minimize to bottom dock"
-                className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
+                className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
               >
                 <Icon name="minimize" className="h-4 w-4" />
               </button>
               <button
                 onClick={onClose}
                 title="Close active call screen"
-                className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
+                className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
               >
                 <Icon name="close" className="h-4 w-4" />
               </button>
@@ -3042,74 +3043,87 @@ function CallDock({
         </div>
 
         {/* Scrollable Intelligence Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-[#f8fafc] to-white">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-6 space-y-3.5 bg-gradient-to-b from-[#f8fafc] to-white">
           {/* Header Card: Company with Google Search & Business Owner */}
-          <div className="rounded-2xl border border-[#d5e3f1] bg-white p-4 sm:p-5 shadow-xs">
+          <div className="rounded-2xl border border-[#d5e3f1] bg-white p-3.5 sm:p-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] mb-1">
-                  Active Prospect
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-[#64748b]">
+                    Active Prospect
+                  </span>
+                  {state && (
+                    <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-bold text-slate-600">
+                      {state}
+                    </span>
+                  )}
                 </div>
                 {company ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <a
-                      href={googleSearchUrl(company, city, state)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`Open Google search for ${company}`}
-                      className="text-xl sm:text-2xl font-black text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1.5 group transition"
-                    >
-                      <span>{company}</span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#edf5fc] px-2.5 py-0.5 text-xs font-bold text-[#1266c4] border border-[#b8d0e6] group-hover:bg-[#e1effb] transition ml-1">
-                        <Icon name="search" className="h-3 w-3" />
+                  <div className="space-y-1.5">
+                    <h1 className="text-lg sm:text-2xl font-black text-[#0f172a] leading-tight break-words">
+                      {company}
+                    </h1>
+                    <div>
+                      <a
+                        href={googleSearchUrl(company, city, state)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Search "${company}" on Google`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-2.5 py-1 text-xs font-bold text-[#1266c4] border border-[#b8d0e6] hover:bg-[#e1effb] active:scale-95 transition"
+                      >
+                        <Icon name="search" className="h-3 w-3 shrink-0" />
                         <span>Search Google</span>
-                        <Icon name="external" className="h-3 w-3" />
-                      </span>
-                    </a>
+                        <Icon name="external" className="h-3 w-3 shrink-0 opacity-70" />
+                      </a>
+                    </div>
                   </div>
                 ) : (
-                  <h1 className="text-xl sm:text-2xl font-black text-[#0f172a]">{ownerName || leadName(lead)}</h1>
+                  <h1 className="text-lg sm:text-2xl font-black text-[#0f172a] break-words leading-tight">
+                    {ownerName || leadName(lead)}
+                  </h1>
                 )}
 
-                {/* Business Owner Highlight */}
-                <div className="mt-3 flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Avatar name={ownerName || leadName(lead)} />
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-bold text-[#0f172a]">
-                          {ownerName || "Business Owner name not listed"}
+                {/* Business Owner Highlight Card */}
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-2.5 sm:p-3">
+                  <Avatar name={ownerName || leadName(lead)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        Business Owner:
+                      </span>
+                      <span className="text-sm font-black text-[#0f172a] break-words">
+                        {ownerName || "Not listed on file"}
+                      </span>
+                      {ownerName && (
+                        <span className="rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                          Verified
                         </span>
-                        {ownerName && (
-                          <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                            Business Owner
-                          </span>
-                        )}
-                        {title && (
-                          <span className="text-xs text-[#64748b]">({title})</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-[#64748b]">
-                        Direct phone: <a href={`tel:${text(lead, "phone_e164")}`} className="font-bold text-[#1266c4] hover:underline">{phone}</a>
-                        {city || state ? ` · ${[city, state].filter(Boolean).join(", ")}` : ""}
-                      </div>
+                      )}
+                      {title && <span className="text-xs text-[#64748b]">({title})</span>}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#475569]">
+                      <a href={`tel:${text(lead, "phone_e164")}`} className="font-bold text-[#1266c4] hover:underline inline-flex items-center gap-1">
+                        <Icon name="phone" className="h-3 w-3" />
+                        {phone}
+                      </a>
+                      {city || state ? <span>· {[city, state].filter(Boolean).join(", ")}</span> : null}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Direct Website and Google Links */}
-              <div className="flex sm:flex-col items-start gap-2 shrink-0">
+              <div className="flex flex-wrap sm:flex-col items-stretch gap-2 shrink-0 w-full sm:w-auto">
                 {website && (
                   <a
                     href={website.startsWith("http") ? website : `https://${website}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-3 py-1.5 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition shadow-2xs"
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-3 py-1.5 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] active:scale-95 transition flex-1 sm:flex-initial"
                   >
-                    <Icon name="globe" className="h-3.5 w-3.5" />
+                    <Icon name="globe" className="h-3.5 w-3.5 shrink-0" />
                     <span>Company Website</span>
-                    <Icon name="external" className="h-3 w-3" />
+                    <Icon name="external" className="h-3 w-3 shrink-0 opacity-70" />
                   </a>
                 )}
                 {googlePlaceUrl && (
@@ -3117,11 +3131,11 @@ function CallDock({
                     href={googlePlaceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] hover:border-[#b8d0e6] transition shadow-2xs"
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] hover:border-[#b8d0e6] active:scale-95 transition flex-1 sm:flex-initial"
                   >
-                    <Icon name="search" className="h-3.5 w-3.5 text-[#1266c4]" />
-                    <span>Google Maps / Reviews</span>
-                    <Icon name="external" className="h-3 w-3" />
+                    <Icon name="search" className="h-3.5 w-3.5 text-[#1266c4] shrink-0" />
+                    <span>Google Reviews</span>
+                    <Icon name="external" className="h-3 w-3 shrink-0 opacity-70" />
                   </a>
                 )}
               </div>
@@ -3130,25 +3144,25 @@ function CallDock({
 
           {/* Sales Hook & Paid Ad Pain Point Callout (from CSV) */}
           {(painPoint || operatingHours || runningAds || leadNotes) && (
-            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-amber-50/70 p-4 shadow-xs">
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 p-3.5 sm:p-4 shadow-2xs">
               <div className="flex items-start gap-2.5">
                 <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500 text-white font-black text-xs shadow-xs">
                   ★
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
                     Lead Intelligence & Sales Angle (from CSV)
                   </div>
                   {painPoint && (
-                    <div className="mt-1 text-sm font-semibold text-[#0f172a] leading-snug">
+                    <div className="mt-1 text-sm font-semibold text-[#0f172a] leading-snug break-words">
                       {painPoint}
                     </div>
                   )}
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-amber-950/80">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-amber-950/85">
                     {operatingHours && (
                       <span className="inline-flex items-center gap-1">
-                        <Icon name="clock" className="h-3 w-3 text-amber-700" />
-                        <strong>Hours:</strong> {operatingHours}
+                        <Icon name="clock" className="h-3 w-3 text-amber-700 shrink-0" />
+                        <span><strong>Hours:</strong> {operatingHours}</span>
                       </span>
                     )}
                     {runningAds && (
@@ -3158,7 +3172,7 @@ function CallDock({
                     )}
                   </div>
                   {leadNotes && !leadNotes.startsWith("Hook:") && (
-                    <div className="mt-2 text-xs text-[#334155] border-t border-amber-200/60 pt-2 font-medium">
+                    <div className="mt-2 text-xs text-[#334155] border-t border-amber-200/60 pt-2 font-medium break-words">
                       <strong>Pitch Notes:</strong> {leadNotes}
                     </div>
                   )}
@@ -3168,17 +3182,17 @@ function CallDock({
           )}
 
           {/* Business & CSV Data Cards Grid */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2.5 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {/* Trade & DBPR License Card */}
             <div className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 shadow-2xs space-y-1.5">
               <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
                 Trade & Licensing (DBPR)
               </div>
-              <div className="text-sm font-bold text-[#0f172a]">
+              <div className="text-sm font-bold text-[#0f172a] break-words">
                 {trade || "Contractor"}
               </div>
               {licenseNumber && (
-                <div className="text-xs text-[#475569]">
+                <div className="text-xs text-[#475569] break-words">
                   License: <span className="font-mono font-semibold text-[#0f172a]">{licenseNumber}</span>
                 </div>
               )}
@@ -3199,10 +3213,10 @@ function CallDock({
               <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
                 Physical Address
               </div>
-              <div className="text-sm font-semibold text-[#0f172a]">
+              <div className="text-sm font-semibold text-[#0f172a] break-words">
                 {address || "Address not provided"}
               </div>
-              <div className="text-xs text-[#475569]">
+              <div className="text-xs text-[#475569] break-words">
                 {[city, state, postalCode].filter(Boolean).join(", ") || "Florida"}
               </div>
               {county && (
@@ -3246,18 +3260,18 @@ function CallDock({
               <button
                 type="button"
                 onClick={() => setShowAllCsv((prev) => !prev)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold text-[#475569] hover:bg-[#f8fafc] transition"
+                className="w-full min-h-11 flex items-center justify-between px-4 py-2.5 text-xs font-bold text-[#475569] hover:bg-[#f8fafc] active:bg-[#f1f5f9] transition"
               >
                 <span>All CSV Data Fields ({rawCsvKeys.length} columns imported)</span>
-                <span>{showAllCsv ? "▲ Hide" : "▼ Show"}</span>
+                <span className="text-[#1266c4]">{showAllCsv ? "▲ Hide" : "▼ Show"}</span>
               </button>
               {showAllCsv && (
-                <div className="border-t border-[#e2e8f0] p-3 max-h-52 overflow-y-auto bg-[#f8fafc]">
+                <div className="border-t border-[#e2e8f0] p-3 max-h-56 overflow-y-auto overscroll-contain bg-[#f8fafc]">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {rawCsvKeys.map((key) => (
-                      <div key={key} className="rounded-lg bg-white p-2 border border-[#e2e8f0] truncate">
+                      <div key={key} className="rounded-lg bg-white p-2.5 border border-[#e2e8f0]">
                         <span className="font-bold text-[#64748b] block text-[10px] uppercase truncate">{key}</span>
-                        <span className="text-[#0f172a] font-medium truncate block">{allCsvFields[key] || "—"}</span>
+                        <span className="text-[#0f172a] font-medium break-words block mt-0.5">{allCsvFields[key] || "—"}</span>
                       </div>
                     ))}
                   </div>
@@ -3288,13 +3302,13 @@ function CallDock({
         </div>
 
         {/* Action & Disposition Footer */}
-        <div className="border-t border-[#d5e3f1] bg-white p-4 sm:p-5 shrink-0 shadow-lg space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[200px_1fr_auto] items-end">
+        <div className="border-t border-[#d5e3f1] bg-white p-3.5 sm:p-5 shrink-0 shadow-lg space-y-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[200px_1fr_auto] items-end">
             <Field label="Call Outcome">
               <select
                 value={disposition}
                 onChange={(event) => setDisposition(event.target.value)}
-                className={inputClass}
+                className={`${inputClass} min-h-11 text-base sm:text-sm`}
               >
                 {DISPOSITIONS.map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -3306,38 +3320,43 @@ function CallDock({
               <input
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                className={inputClass}
+                className={`${inputClass} min-h-11 text-base sm:text-sm`}
                 placeholder="What happened on the call? Type notes here…"
               />
             </Field>
 
-            <PrimaryButton onClick={onSave} disabled={active}>
-              Save & {autoDial ? "Dial Next" : "Close"}
-            </PrimaryButton>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={active}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1266c4] px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#0f57aa] active:scale-95 transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 w-full sm:w-auto shrink-0"
+            >
+              Save &amp; {autoDial ? "Dial Next" : "Close"}
+            </button>
           </div>
 
           {(disposition === "callback" || disposition === "appointment") && (
-            <div className="border-t border-[#e2e8f0] pt-3">
+            <div className="border-t border-[#e2e8f0] pt-2.5">
               <Field label="Callback / Appointment Time">
                 <input
                   type="datetime-local"
                   value={callbackAt}
                   onChange={(event) => setCallbackAt(event.target.value)}
-                  className={`${inputClass} max-w-sm`}
+                  className={`${inputClass} min-h-11 text-base sm:text-sm max-w-sm`}
                 />
               </Field>
             </div>
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-[#f1f5f9]">
-            <label className="flex items-center gap-2 text-xs font-semibold text-[#475569] cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-semibold text-[#475569] cursor-pointer min-h-8">
               <input
                 type="checkbox"
                 checked={autoDial}
                 onChange={(event) => setAutoDial(event.target.checked)}
-                className="rounded border-[#cbd5e1] text-[#1266c4] focus:ring-[#1266c4]"
+                className="h-4 w-4 rounded border-[#cbd5e1] text-[#1266c4] focus:ring-[#1266c4]"
               />
-              Automatically dial the next eligible lead after saving outcome
+              <span>Automatically dial the next eligible lead after saving outcome</span>
             </label>
             {error && <span className="text-xs font-bold text-red-600">{error}</span>}
           </div>
