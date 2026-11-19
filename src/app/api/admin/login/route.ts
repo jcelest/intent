@@ -1,47 +1,43 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createHash } from "crypto";
+import { NextResponse } from "next/server";
+import {
+  authenticateDialerUser,
+  createDialerSession,
+  DIALER_SESSION_COOKIE,
+} from "@/lib/dialer-auth";
 
-const VALID_USER = "Intent";
-const VALID_PASS = "Tealtent477";
-const AUTH_COOKIE = "intent_auth";
-const DEVICE_COOKIE = "intent_auth_device";
-const MAX_AGE = 86400; // 24 hours
-
-function hashUserAgent(ua: string): string {
-  return createHash("sha256").update(ua || "").digest("hex").slice(0, 32);
-}
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const ua = request.headers.get("user-agent") || "";
-  const deviceHash = hashUserAgent(ua);
-
   try {
-    const body = await request.json();
-    const { username, password } = body;
-
-    if (username !== VALID_USER || password !== VALID_PASS) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    const body = (await request.json()) as { username?: string; password?: string };
+    const username = body.username?.trim() || "";
+    const password = body.password || "";
+    if (!username || !password) {
+      return NextResponse.json({ error: "Username and password are required." }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set(AUTH_COOKIE, "1", {
-      path: "/",
-      maxAge: MAX_AGE,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-    });
-    cookieStore.set(DEVICE_COOKIE, deviceHash, {
-      path: "/",
-      maxAge: MAX_AGE,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-    });
+    const user = await authenticateDialerUser(username, password);
+    if (!user) return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
 
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    const session = await createDialerSession(user.id, request.headers.get("user-agent") || "");
+    const cookieStore = await cookies();
+    cookieStore.set(DIALER_SESSION_COOKIE, session.token, {
+      path: "/",
+      maxAge: session.maxAge,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+    });
+    cookieStore.set("intent_auth", "", { path: "/", maxAge: 0 });
+    cookieStore.set("intent_auth_device", "", { path: "/", maxAge: 0 });
+
+    return NextResponse.json({ success: true, user });
+  } catch (error) {
+    console.error("Admin login failed", error);
+    return NextResponse.json(
+      { error: "Account database is not ready. Run the dialer migration first." },
+      { status: 503 },
+    );
   }
 }

@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/sections/header";
-import { Footer } from "@/components/sections/footer";
+import { Logo } from "@/components/ui/logo";
+
+function workspacePath() {
+  if (typeof window === "undefined") return "/admin/dialer";
+  const host = window.location.hostname;
+  return host === "call.intentrev.net" || host.startsWith("call.localhost") ? "/" : "/admin/dialer";
+}
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
@@ -15,32 +19,29 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     fetch("/api/admin/session")
-      .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as { ok?: boolean };
-        if (data.ok) router.replace("/admin/analytics");
+      .then(async (response) => {
+        const data = (await response.json().catch(() => ({}))) as { ok?: boolean };
+        if (data.ok) router.replace(workspacePath());
       })
       .catch(() => {});
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const res = await fetch("/api/admin/login", {
+      const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
-      if (res.ok) {
-        router.replace("/admin/analytics");
+      if (response.ok) {
+        router.replace(workspacePath());
         return;
       }
-
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Invalid username or password");
+      const data = await response.json().catch(() => ({}));
+      setError(data.error || "Invalid username or password.");
     } catch {
       setError("Connection error. Please try again.");
     } finally {
@@ -49,80 +50,34 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative z-10 min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1 flex items-center justify-center px-4 py-24">
-        <div className="w-full max-w-md">
-          <div className="rounded-xl border border-border bg-card p-8 shadow-[0_0_40px_rgba(0,0,0,0.2)]">
-            <h1 className="text-2xl font-display font-semibold text-center mb-2 text-accent">
-              Intent
-            </h1>
-            <p className="text-muted text-sm text-center mb-8 font-mono">
-              Admin access
-            </p>
+    <main className="relative grid min-h-[100dvh] overflow-hidden bg-[#f4f6f3] px-4 py-8 text-[#17211d] sm:place-items-center sm:px-6">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-[#bde2da]/45 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-[#dbe9d2]/70 blur-3xl" />
+      <div className="relative mx-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_30px_90px_rgba(24,48,39,.12)] sm:min-h-[650px] lg:grid lg:grid-cols-[1.05fr_.95fr]">
+        <section className="relative hidden overflow-hidden bg-[#173e38] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="absolute -right-20 top-20 h-64 w-64 rounded-full border border-white/10" />
+          <div className="absolute -right-6 top-36 h-64 w-64 rounded-full border border-white/10" />
+          <div className="relative flex items-center gap-3"><Logo className="h-12 sm:h-12"/><div><div className="font-bold">Intent Dialer</div><div className="text-[10px] uppercase tracking-[.2em] text-white/50">Private workspace</div></div></div>
+          <div className="relative"><div className="mb-5 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.18em] text-[#aee0d5]">Built for focused conversations</div><h1 className="max-w-md text-5xl font-bold leading-[1.04] tracking-[-.05em]">Move through your list. Keep every follow-up.</h1><p className="mt-5 max-w-md text-base leading-7 text-white/60">One call at a time, with the context and guardrails your team needs.</p></div>
+          <div className="relative grid grid-cols-3 gap-3">{[["1", "call at a time"], ["Live", "team activity"], ["Built-in", "DNC controls"]].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[.06] p-4"><div className="font-bold text-[#bce5dd]">{value}</div><div className="mt-1 text-xs text-white/45">{label}</div></div>)}</div>
+        </section>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="username"
-                  className="block font-mono text-xs text-slate-400 uppercase tracking-wider mb-2"
-                >
-                  Username
-                </label>
-                <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-lg border-2 border-border bg-slate-900/90 px-4 py-3 font-display text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 transition-colors"
-                  placeholder="Enter username"
-                  required
-                  autoComplete="username"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block font-mono text-xs text-slate-400 uppercase tracking-wider mb-2"
-                >
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border-2 border-border bg-slate-900/90 px-4 py-3 font-display text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 transition-colors"
-                  placeholder="Enter password"
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-red-400 font-mono">{error}</p>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg bg-accent text-black font-semibold py-3 px-4 hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Signing in..." : "Sign in"}
-              </button>
+        <section className="flex flex-1 items-center p-5 sm:p-10 lg:p-14">
+          <div className="mx-auto w-full max-w-sm">
+            <div className="mb-10 flex items-center gap-3 lg:hidden"><Logo className="h-12 sm:h-12"/><div><div className="font-bold">Intent Dialer</div><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#83908a]">Private workspace</div></div></div>
+            <div className="text-[10px] font-bold uppercase tracking-[.22em] text-[#0e766e]">Welcome back</div>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Sign in to call.</h1>
+            <p className="mt-3 text-sm leading-6 text-[#748079]">Use your private Intent workspace credentials.</p>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              <label className="block"><span className="mb-2 block text-xs font-semibold text-[#53615a]">Username</span><input autoFocus id="username" type="text" value={username} onChange={(event) => setUsername(event.target.value)} className="min-h-12 w-full rounded-xl border border-[#d7ddd8] bg-[#fafbf9] px-4 text-base outline-none transition placeholder:text-[#a3aaa6] focus:border-[#5b9f95] focus:bg-white focus:ring-4 focus:ring-[#d7ece8]/70" placeholder="Enter username" required autoComplete="username" /></label>
+              <label className="block"><span className="mb-2 block text-xs font-semibold text-[#53615a]">Password</span><input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="min-h-12 w-full rounded-xl border border-[#d7ddd8] bg-[#fafbf9] px-4 text-base outline-none transition placeholder:text-[#a3aaa6] focus:border-[#5b9f95] focus:bg-white focus:ring-4 focus:ring-[#d7ece8]/70" placeholder="Enter password" required autoComplete="current-password" /></label>
+              {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
+              <button type="submit" disabled={loading} className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#17211d] px-4 text-sm font-bold text-white shadow-lg shadow-[#173e38]/15 transition hover:bg-[#0e766e] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Signing in..." : "Open workspace"}</button>
             </form>
-
-            <Link
-              href="/"
-              className="mt-6 block text-center text-sm text-muted hover:text-accent transition-colors font-mono"
-            >
-              ← Back to Intent
-            </Link>
+            <p className="mt-8 text-center text-[11px] leading-5 text-[#919a95]">Authorized team members only. Calling activity is logged to your workspace.</p>
           </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+        </section>
+      </div>
+    </main>
   );
 }

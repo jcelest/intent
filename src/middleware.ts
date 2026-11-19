@@ -1,52 +1,33 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const AUTH_COOKIE = "intent_auth";
-const DEVICE_COOKIE = "intent_auth_device";
+const DIALER_SESSION_COOKIE = "intent_dialer_session";
 
-async function hashUserAgent(ua: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(ua || "");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 32);
-}
-
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = (request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.hostname).split(":")[0].toLowerCase();
+  const isDialerHost = hostname === "call.intentrev.net" || hostname.startsWith("call.localhost");
+  const hasSession = Boolean(request.cookies.get(DIALER_SESSION_COOKIE)?.value);
 
-  if (pathname === "/admin/login") {
-    return NextResponse.next();
+  if (isDialerHost && pathname === "/login") {
+    if (hasSession) return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.rewrite(new URL("/admin/login", request.url));
   }
 
-  if (pathname.startsWith("/admin")) {
-    const auth = request.cookies.get(AUTH_COOKIE)?.value;
-    const deviceHash = request.cookies.get(DEVICE_COOKIE)?.value;
-
-    if (!auth || !deviceHash) {
-      const res = NextResponse.redirect(new URL("/admin/login", request.url));
-      res.cookies.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
-      res.cookies.set(DEVICE_COOKIE, "", { path: "/", maxAge: 0 });
-      return res;
-    }
-
-    const ua = request.headers.get("user-agent") || "";
-    const currentHash = await hashUserAgent(ua);
-
-    if (deviceHash !== currentHash) {
-      const res = NextResponse.redirect(new URL("/admin/login", request.url));
-      res.cookies.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
-      res.cookies.set(DEVICE_COOKIE, "", { path: "/", maxAge: 0 });
-      return res;
-    }
+  if (isDialerHost && pathname === "/") {
+    if (!hasSession) return NextResponse.redirect(new URL("/login", request.url));
+    const dialerUrl = new URL("/admin/dialer", request.url);
+    dialerUrl.search = request.nextUrl.search;
+    return NextResponse.rewrite(dialerUrl);
   }
 
+  if (pathname === "/admin/login") return NextResponse.next();
+  if (pathname.startsWith("/admin") && !hasSession) {
+    const loginUrl = new URL(isDialerHost ? "/login" : "/admin/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: "/admin/:path*",
-};
+export const config = { matcher: ["/", "/login", "/admin/:path*"] };

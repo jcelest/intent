@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LogoutLink } from "@/components/admin/logout-link";
 
 const NAV = [
+  { href: "/admin/dialer", label: "Intent Dialer", match: (p: string) => p.includes("/dialer") },
   {
     href: "/admin/analytics",
     label: "Intent Analytics",

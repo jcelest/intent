@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { destroyDialerSession } from "@/lib/dialer-auth";
 
-const AUTH_COOKIE = "intent_auth";
-const DEVICE_COOKIE = "intent_auth_device";
+export const runtime = "nodejs";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
-  cookieStore.set(DEVICE_COOKIE, "", { path: "/", maxAge: 0 });
-
+  await destroyDialerSession();
   return NextResponse.json({ success: true });
 }

@@ -1,26 +1,13 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createHash } from "crypto";
+import { getDialerSession } from "@/lib/dialer-auth";
 
-const AUTH_COOKIE = "intent_auth";
-const DEVICE_COOKIE = "intent_auth_device";
-
-function hashUserAgent(ua: string): string {
-  return createHash("sha256").update(ua || "").digest("hex").slice(0, 32);
-}
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const ua = request.headers.get("user-agent") || "";
-  const currentHash = hashUserAgent(ua);
-
-  const cookieStore = await cookies();
-  const auth = cookieStore.get(AUTH_COOKIE)?.value;
-  const deviceHash = cookieStore.get(DEVICE_COOKIE)?.value;
-
-  if (!auth || !deviceHash || deviceHash !== currentHash) {
-    // 200 + ok:false avoids noisy "failed to load" console noise on the login page
-    return NextResponse.json({ ok: false });
+  try {
+    const user = await getDialerSession(request);
+    return NextResponse.json({ ok: Boolean(user), user });
+  } catch {
+    return NextResponse.json({ ok: false, user: null });
   }
-
-  return NextResponse.json({ ok: true });
 }
