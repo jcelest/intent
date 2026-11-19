@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function DialerPage() {
   return (
-    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f7f7f5] text-sm text-[#66716b]">Opening Intent Dialer…</div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f8fafc] text-sm text-[#64748b]">Opening Intent Dialer…</div>}>
       <DialerWorkspace />
     </Suspense>
   );
