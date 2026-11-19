@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 
 const NAV_LINKS = [
+  { href: "/content", label: "Intent Content" },
+  { href: "/ads", label: "Intent Ads" },
   { href: "/leadnet", label: "LeadNet" },
   { href: "/b2b", label: "Intent B2B" },
   { href: "/#about", label: "About" },

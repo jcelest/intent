@@ -55,6 +55,28 @@ function number(row: Row | null | undefined, key: string) {
   return Number(row?.[key] || 0);
 }
 
+function getBusinessOwner(lead: Row | null | undefined): string {
+  if (!lead) return "";
+  const first = text(lead, "first_name").trim();
+  const last = text(lead, "last_name").trim();
+  const combined = `${first} ${last}`.trim();
+  if (combined) return combined;
+
+  const meta = (lead.metadata || {}) as Record<string, unknown>;
+  const fromMeta = text(meta, "owner_name")
+    || text(meta, "business_owner")
+    || text(meta, "raw_contractor_name")
+    || text(meta, "contractor_name")
+    || text(meta, "licensee_owner")
+    || text(meta, "contact");
+  return fromMeta.trim();
+}
+
+function googleSearchUrl(company: string, city?: string, state?: string): string {
+  const query = [company, city, state].filter(Boolean).join(" ").trim();
+  return `https://www.google.com/search?q=${encodeURIComponent(query || "business")}`;
+}
+
 function leadName(lead: Row | null | undefined) {
   const name = `${text(lead, "first_name")} ${text(lead, "last_name")}`.trim();
   return name || text(lead, "company") || "Unnamed lead";
@@ -104,7 +126,7 @@ function csvRows(input: string) {
   return rows;
 }
 
-type ParsedLead = Record<string, string | boolean | undefined>;
+type ParsedLead = Record<string, unknown>;
 
 function csvCategory(value: string) {
   const category = value.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
@@ -127,34 +149,195 @@ function csvCategory(value: string) {
   return {};
 }
 
+function parseOwnerName(raw: string): { firstName: string; lastName: string; fullName: string; rawOwner: string; title?: string } {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return { firstName: "", lastName: "", fullName: "", rawOwner: "" };
+
+  const primaryPart = trimmed.split("/")[0].trim();
+  const titleMatch = primaryPart.match(/\(([^)]+)\)/);
+  const title = titleMatch ? titleMatch[1].trim() : undefined;
+  const cleanName = primaryPart.replace(/\([^)]*\)/g, "").replace(/\b(P:|MGR:|AMBR:|Mana:|AR:|VP:|PRES:|DIR:|OFFI:)\b/gi, "").trim();
+
+  const toTitleCase = (s: string) => {
+    if (!s) return "";
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  };
+
+  let firstName = "";
+  let lastName = "";
+
+  if (cleanName.includes(",")) {
+    const [lPart, fPart] = cleanName.split(",").map((s) => s.trim());
+    const fTokens = fPart.split(/\s+/).filter(Boolean);
+    const lTokens = lPart.split(/\s+/).filter(Boolean);
+    firstName = fTokens.map(toTitleCase).join(" ");
+    lastName = lTokens.map(toTitleCase).join(" ");
+  } else {
+    const tokens = cleanName.split(/\s+/).filter(Boolean);
+    if (tokens.length === 1) {
+      firstName = toTitleCase(tokens[0]);
+    } else if (tokens.length > 1) {
+      firstName = toTitleCase(tokens[0]);
+      lastName = tokens.slice(1).map(toTitleCase).join(" ");
+    }
+  }
+
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || cleanName;
+  return { firstName, lastName, fullName, rawOwner: trimmed, title };
+}
+
 function parseLeadCsv(input: string): ParsedLead[] {
   const rows = csvRows(input);
   if (rows.length < 2) return [];
+  const rawHeaders = rows[0].map((h) => h.trim());
   const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const headers = rows[0].map(normalize);
+  const headers = rawHeaders.map(normalize);
   const get = (row: string[], ...names: string[]) => {
-    const index = headers.findIndex((header) => names.map(normalize).includes(header));
-    return index >= 0 ? row[index] || "" : "";
+    const normalizedNames = names.map(normalize);
+    const index = headers.findIndex((header) => normalizedNames.includes(header));
+    return index >= 0 ? (row[index] || "").trim() : "";
   };
+
   return rows.slice(1).map((row) => {
-    const outcome = get(row, "disposition", "outcome", "result", "call result", "call status", "lead status", "status", "stage", "category");
-    const note = get(row, "notes", "note", "your note", "call notes", "comments", "comment");
-    const reviews = get(row, "google reviews", "review count", "reviews");
-    const licenseAge = get(row, "license age", "license age days", "license days", "days licensed");
-    const context = [note, reviews ? `${reviews} Google reviews` : "", licenseAge ? `license ${licenseAge} days old` : ""].filter(Boolean).join(" · ");
+    const rawOwner = get(row,
+      "verified licensee / owner (dbpr & sunbiz)",
+      "contractor_name",
+      "contractor name",
+      "licensee / owner",
+      "licensee owner",
+      "business owner",
+      "business owner name",
+      "owner",
+      "owner name",
+      "contact name",
+      "contact",
+      "full name",
+      "name"
+    );
+    const explicitFirst = get(row, "first name", "firstname", "contact first name");
+    const explicitLast = get(row, "last name", "lastname", "contact last name");
+
+    let firstName = explicitFirst;
+    let lastName = explicitLast;
+    let title = get(row, "title", "job title");
+    let ownerFullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    if (rawOwner && (!firstName || !lastName)) {
+      const parsed = parseOwnerName(rawOwner);
+      if (!firstName && parsed.firstName) firstName = parsed.firstName;
+      if (!lastName && parsed.lastName) lastName = parsed.lastName;
+      if (!title && parsed.title) title = parsed.title;
+      ownerFullName = parsed.fullName;
+    }
+
+    const company = get(row,
+      "google business profile name",
+      "dba business name",
+      "company name",
+      "company",
+      "business name",
+      "business",
+      "sunbiz entity name"
+    );
+
+    const phone = get(row,
+      "direct / cell phone",
+      "direct phone",
+      "cell phone",
+      "verified business phone",
+      "phone",
+      "phone number",
+      "mobile",
+      "telephone",
+      "office / lsa phone",
+      "office phone"
+    );
+
+    const email = get(row, "email", "email address", "contact email");
+
+    let city = get(row, "city");
+    let state = get(row, "state");
+    const cityMetro = get(row, "city / metro", "city metro", "metro");
+    if (cityMetro && (!city || !state)) {
+      const parts = cityMetro.split(",");
+      if (!city && parts[0]) city = parts[0].split("/")[0].trim();
+      if (!state && parts[1]) state = parts[1].trim().slice(0, 2);
+    }
+    const postalCode = get(row, "zip", "zipcode", "postal code", "postal_code");
+    const address = get(row, "business address", "address", "street address", "street");
+    const county = get(row, "county");
+
+    const website = get(row, "website", "google website uri", "url", "web");
+    const trade = get(row, "trade", "industry", "license type");
+    const licenseNumber = get(row, "state license # (cac / cfc / cmc)", "dbpr license number", "license number", "license", "state license");
+    const licenseStatus = get(row, "license status");
+    const licenseAge = get(row, "license age days", "license age", "license days", "days licensed");
+
+    const reviews = get(row, "google rating / reviews", "google review count", "google reviews", "reviews", "rating");
+    const googlePlaceUrl = get(row, "google business profile url or place id", "place id", "google maps");
+
+    const sunbizEntity = get(row, "sunbiz entity name");
+    const sunbizDocNumber = get(row, "sunbiz document number");
+    const sunbizOfficer = get(row, "sunbiz officer manager match", "officer match");
+
+    const painPoint = get(row, "speed to lead hook / paid ad pain point", "pain point", "hook");
+    const operatingHours = get(row, "store / operating hours", "operating hours", "hours");
+    const runningAds = get(row, "running google ads?", "running google ads", "google ads");
+
+    const note = get(row, "notes / next action", "notes", "note", "call notes", "comments", "comment");
+    const contextParts = [
+      painPoint ? `Hook: ${painPoint}` : "",
+      operatingHours ? `Hours: ${operatingHours}` : "",
+      note,
+      reviews ? `${reviews} Google reviews` : "",
+      licenseAge ? `license ${licenseAge} days old` : ""
+    ].filter(Boolean);
+    const context = contextParts.join(" · ");
+
+    const outcome = get(row, "disposition", "outcome", "result", "call result", "call status", "lead status", "status", "stage", "category", "dial 1 outcome");
+
+    const allCsvFields: Record<string, string> = {};
+    rawHeaders.forEach((header, idx) => {
+      if (header && row[idx]) allCsvFields[header] = row[idx].trim();
+    });
+
+    const metadata: Record<string, unknown> = {
+      owner_name: ownerFullName || rawOwner || undefined,
+      business_owner: ownerFullName || rawOwner || undefined,
+      raw_contractor_name: rawOwner || undefined,
+      trade: trade || undefined,
+      website: website || undefined,
+      address: address || undefined,
+      county: county || undefined,
+      license_number: licenseNumber || undefined,
+      license_type: trade || undefined,
+      license_status: licenseStatus || undefined,
+      license_age_days: licenseAge || undefined,
+      sunbiz_entity: sunbizEntity || undefined,
+      sunbiz_doc_number: sunbizDocNumber || undefined,
+      sunbiz_officer: sunbizOfficer || undefined,
+      google_reviews: reviews || undefined,
+      google_places_url: googlePlaceUrl || undefined,
+      operating_hours: operatingHours || undefined,
+      running_google_ads: runningAds || undefined,
+      speed_to_lead_hook: painPoint || undefined,
+      all_csv_fields: allCsvFields,
+    };
+
     return {
-      firstName: get(row, "first name", "firstname", "contact first name"),
-      lastName: get(row, "last name", "lastname", "contact last name"),
-      company: get(row, "company", "business", "business name", "company name"),
-      title: get(row, "title", "job title"),
-      phone: get(row, "phone", "phone number", "mobile", "telephone"),
-      email: get(row, "email", "email address"),
-      city: get(row, "city"),
-      state: get(row, "state"),
-      postalCode: get(row, "zip", "zipcode", "postal code"),
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      company: company || undefined,
+      title: title || undefined,
+      phone: phone || undefined,
+      email: email || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      postalCode: postalCode || undefined,
       source: get(row, "source", "list", "campaign") || "CSV import",
-      notes: context,
-      nextCallAt: get(row, "callback at", "callback date", "follow up date", "next call", "next call at", "due date"),
+      notes: context || undefined,
+      nextCallAt: get(row, "callback at", "callback date", "follow up date", "next call", "next call at", "due date") || undefined,
+      metadata,
       ...csvCategory(outcome),
     };
   }).filter((lead) => lead.phone);
@@ -814,6 +997,12 @@ function Icon({ name, className = "h-4 w-4" }: { name: string; className?: strin
     download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
     mic: <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></>,
     link: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>,
+    external: <><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></>,
+    minimize: <path d="M4 14h6v6m10-10h-6V4"/>,
+    maximize: <><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/><polyline points="9 21 3 21 3 15"/><line x1="14" y1="10" x2="3" y2="21"/></>,
+    building: <><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="18"/><line x1="15" y1="22" x2="15" y2="18"/><line x1="8" y1="6" x2="8.01" y2="6"/><line x1="16" y1="6" x2="16.01" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/></>,
+    user: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+    globe: <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
   };
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name] || paths.grid}</svg>;
 }
@@ -1008,7 +1197,81 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
             </div>
           ) : <div className="px-1 text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>}
         </div>
-        <div className="divide-y divide-[#e2e8f0]">{leads.map((lead) => { const leadId = text(lead, "id"); const disabled = Boolean(lead.do_not_call) || text(lead, "status") === "closed"; return <article key={leadId} className="p-4"><div className="flex items-start gap-3"><label className="flex min-h-11 items-center"><input aria-label={`Select ${leadName(lead)}`} type="checkbox" checked={selectedIds.includes(leadId)} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, leadId] : selectedIds.filter((id) => id !== leadId))}/></label><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(lead)}</h2><p className="truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "No company"}</p></div><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></div><a href={`tel:${text(lead, "phone_e164")}`} className="mt-3 block text-base font-bold tracking-tight text-[#1266c4]">{formatPhone(lead.phone_e164)}</a><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#64748b]"><span>{localTime(lead)} local</span><span>{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</span><span>{text(lead, "assigned_name") || "Unassigned"}</span></div></div></div><div className="mt-4 flex items-center gap-2"><button disabled={disabled} onClick={() => onDial(lead)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#edf5fc] text-sm font-bold text-[#1266c4] transition hover:bg-[#e1effb] active:scale-[.99] disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone"/>Dial {leadName(lead).split(" ")[0]}</button><button title="Delete lead" onClick={() => onRequestDeleteLead && onRequestDeleteLead(leadId, leadName(lead))} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition"><Icon name="trash" className="h-5 w-5" /></button></div></article>; })}{!leads.length && <Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/>}</div>
+        <div className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
+          const leadId = text(lead, "id");
+          const disabled = Boolean(lead.do_not_call) || text(lead, "status") === "closed";
+          const owner = getBusinessOwner(lead);
+          const comp = text(lead, "company");
+          return (
+            <article key={leadId} className="p-4">
+              <div className="flex items-start gap-3">
+                <label className="flex min-h-11 items-center">
+                  <input
+                    aria-label={`Select ${leadName(lead)}`}
+                    type="checkbox"
+                    checked={selectedIds.includes(leadId)}
+                    onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, leadId] : selectedIds.filter((id) => id !== leadId))}
+                  />
+                </label>
+                <Avatar name={owner || leadName(lead)}/>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {comp ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <a
+                            href={googleSearchUrl(comp, text(lead, "city"), text(lead, "state"))}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Search ${comp} on Google`}
+                            className="truncate text-sm font-bold text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1"
+                          >
+                            <span>{comp}</span>
+                            <Icon name="external" className="h-3 w-3 text-[#1266c4] shrink-0" />
+                          </a>
+                        </div>
+                      ) : (
+                        <h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(lead)}</h2>
+                      )}
+                      {owner ? (
+                        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[#334155]">
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#e0f2fe] text-[#0369a1]">Owner</span>
+                          <span className="font-semibold text-[#0f172a] truncate">{owner}</span>
+                        </div>
+                      ) : null}
+                      {text(lead, "title") && (
+                        <p className="truncate text-xs text-[#64748b]">{text(lead, "title")}</p>
+                      )}
+                    </div>
+                    <StatusBadge status={text(lead, "disposition") || text(lead, "status")}/>
+                  </div>
+                  <a href={`tel:${text(lead, "phone_e164")}`} className="mt-3 block text-base font-bold tracking-tight text-[#1266c4]">{formatPhone(lead.phone_e164)}</a>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#64748b]">
+                    <span>{localTime(lead)} local</span>
+                    <span>{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</span>
+                    <span>{text(lead, "assigned_name") || "Unassigned"}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  disabled={disabled}
+                  onClick={() => onDial(lead)}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#edf5fc] text-sm font-bold text-[#1266c4] transition hover:bg-[#e1effb] active:scale-[.99] disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"
+                >
+                  <Icon name="phone"/>Dial {owner ? owner.split(" ")[0] : leadName(lead).split(" ")[0]}
+                </button>
+                <button
+                  title="Delete lead"
+                  onClick={() => onRequestDeleteLead && onRequestDeleteLead(leadId, leadName(lead))}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition"
+                >
+                  <Icon name="trash" className="h-5 w-5" />
+                </button>
+              </div>
+            </article>
+          );
+        })}{!leads.length && <Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/>}</div>
       </section>
     </div>
     <div className="hidden lg:block"><LeadsView {...props}/></div>
@@ -1058,7 +1321,79 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
         )}
         <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>
       </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input type="checkbox" checked={leads.length > 0 && leads.every((lead) => selectedIds.includes(text(lead, "id")))} onChange={(event) => setSelectedIds(event.target.checked ? leads.map((lead) => text(lead, "id")) : [])}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => <tr key={text(lead, "id")} className="group hover:bg-[#f8fafc]"><td className="px-4 py-3"><input type="checkbox" checked={selectedIds.includes(text(lead, "id"))} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, text(lead, "id")] : selectedIds.filter((id) => id !== text(lead, "id")))}/></td><td className="px-3 py-3"><div className="flex items-center gap-3"><Avatar name={leadName(lead)}/><div><div className="text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="max-w-[240px] truncate text-xs text-[#64748b]">{text(lead, "company") || text(lead, "title") || "—"}</div></div></div></td><td className="px-3 py-3"><div className="text-sm font-semibold text-[#0f172a]">{formatPhone(lead.phone_e164)}</div><div className="mt-0.5 text-[11px] text-[#64748b]">{localTime(lead)} local</div></td><td className="px-3 py-3"><StatusBadge status={text(lead, "disposition") || text(lead, "status")}/></td><td className="px-3 py-3"><div className="text-xs font-medium text-[#0f172a]">{formatDate(lead.last_call_at)}</div><div className="text-[11px] text-[#64748b]">{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</div></td><td className="px-3 py-3 text-xs text-[#475569]">{text(lead, "assigned_name") || "Unassigned"}</td><td className="px-3 py-3 text-right"><div className="flex items-center justify-end gap-1.5"><button disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"} onClick={() => onDial(lead)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"><Icon name="phone" className="h-3.5 w-3.5"/>Dial</button><button title="Delete lead" onClick={(e) => { e.stopPropagation(); if (onRequestDeleteLead) onRequestDeleteLead(text(lead, "id"), leadName(lead)); }} className="grid h-8 w-8 place-items-center rounded-lg text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition"><Icon name="trash" className="h-4 w-4" /></button></div></td></tr>)}{!leads.length && <tr><td colSpan={7}><Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/></td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input type="checkbox" checked={leads.length > 0 && leads.every((lead) => selectedIds.includes(text(lead, "id")))} onChange={(event) => setSelectedIds(event.target.checked ? leads.map((lead) => text(lead, "id")) : [])}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Setter</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
+        const owner = getBusinessOwner(lead);
+        const comp = text(lead, "company");
+        return (
+          <tr key={text(lead, "id")} className="group hover:bg-[#f8fafc]">
+            <td className="px-4 py-3">
+              <input type="checkbox" checked={selectedIds.includes(text(lead, "id"))} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, text(lead, "id")] : selectedIds.filter((id) => id !== text(lead, "id")))}/>
+            </td>
+            <td className="px-3 py-3">
+              <div className="flex items-center gap-3">
+                <Avatar name={owner || leadName(lead)}/>
+                <div className="min-w-0 max-w-[300px]">
+                  {comp ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <a
+                        href={googleSearchUrl(comp, text(lead, "city"), text(lead, "state"))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Search "${comp}" on Google`}
+                        className="font-bold text-sm text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1 truncate"
+                      >
+                        <span className="truncate">{comp}</span>
+                        <Icon name="external" className="h-3 w-3 text-[#1266c4] shrink-0" />
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-sm font-semibold text-[#0f172a] truncate">{leadName(lead)}</div>
+                  )}
+                  {owner ? (
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#334155]">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#e0f2fe] text-[#0369a1]">Owner</span>
+                      <span className="font-semibold text-[#0f172a] truncate">{owner}</span>
+                    </div>
+                  ) : null}
+                  {text(lead, "title") && (
+                    <div className="truncate text-[11px] text-[#64748b]">{text(lead, "title")}</div>
+                  )}
+                </div>
+              </div>
+            </td>
+            <td className="px-3 py-3">
+              <div className="text-sm font-semibold text-[#0f172a]">{formatPhone(lead.phone_e164)}</div>
+              <div className="mt-0.5 text-[11px] text-[#64748b]">{localTime(lead)} local</div>
+            </td>
+            <td className="px-3 py-3">
+              <StatusBadge status={text(lead, "disposition") || text(lead, "status")}/>
+            </td>
+            <td className="px-3 py-3">
+              <div className="text-xs font-medium text-[#0f172a]">{formatDate(lead.last_call_at)}</div>
+              <div className="text-[11px] text-[#64748b]">{number(lead, "call_attempts")} call{number(lead, "call_attempts") === 1 ? "" : "s"}</div>
+            </td>
+            <td className="px-3 py-3 text-xs text-[#475569]">{text(lead, "assigned_name") || "Unassigned"}</td>
+            <td className="px-3 py-3 text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"}
+                  onClick={() => onDial(lead)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"
+                >
+                  <Icon name="phone" className="h-3.5 w-3.5"/>Dial
+                </button>
+                <button
+                  title="Delete lead"
+                  onClick={(e) => { e.stopPropagation(); if (onRequestDeleteLead) onRequestDeleteLead(text(lead, "id"), leadName(lead)); }}
+                  className="grid h-8 w-8 place-items-center rounded-lg text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition"
+                >
+                  <Icon name="trash" className="h-4 w-4" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        );
+      })}{!leads.length && <tr><td colSpan={7}><Empty message={allLeads.length ? "No leads match these filters." : "Import a CSV or add your first lead to begin."}/></td></tr>}</tbody></table></div>
     </section>
   </>;
 }
@@ -1402,28 +1737,53 @@ function ResponsiveCallsView({
           </div>
         </div>
         <div className="divide-y divide-[#e2e8f0]">
-          {visible.map((call) => (
-            <article key={text(call, "id")} className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <Avatar name={leadName(call)}/>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(call)}</h2>
-                      <p className="truncate text-xs text-[#64748b]">{text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}</p>
+          {visible.map((call) => {
+            const owner = getBusinessOwner(call);
+            const comp = text(call, "company");
+            return (
+              <article key={text(call, "id")} className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Avatar name={owner || leadName(call)}/>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        {comp ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <a
+                              href={googleSearchUrl(comp, text(call, "city"), text(call, "state"))}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Search "${comp}" on Google`}
+                              className="truncate text-sm font-bold text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1"
+                            >
+                              <span>{comp}</span>
+                              <Icon name="external" className="h-3 w-3 text-[#1266c4] shrink-0" />
+                            </a>
+                          </div>
+                        ) : (
+                          <h2 className="truncate text-sm font-bold text-[#0f172a]">{leadName(call)}</h2>
+                        )}
+                        {owner ? (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-[#334155]">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#e0f2fe] text-[#0369a1]">Owner</span>
+                            <span className="font-semibold text-[#0f172a] truncate">{owner}</span>
+                          </div>
+                        ) : (
+                          <p className="truncate text-xs text-[#64748b]">{formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}</p>
+                        )}
+                      </div>
+                      <StatusBadge status={text(call, "disposition") || text(call, "status")}/>
                     </div>
-                    <StatusBadge status={text(call, "disposition") || text(call, "status")}/>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</span>
-                    {text(call, "user_role") === "owner" ? (
-                      <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">Owner</span>
-                    ) : text(call, "user_role") === "agent" ? (
-                      <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-700 border border-teal-200">Setter</span>
-                    ) : null}
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</span>
+                      {text(call, "user_role") === "owner" ? (
+                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">Owner</span>
+                      ) : text(call, "user_role") === "agent" ? (
+                        <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-700 border border-teal-200">Setter</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
 
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#f8fafc] p-3 text-xs">
                 <div>
@@ -1454,7 +1814,8 @@ function ResponsiveCallsView({
                 />
               </div>
             </article>
-          ))}
+          );
+        })}
           {!visible.length && <Empty message="No call records found."/>}
         </div>
       </section>
@@ -1610,14 +1971,44 @@ function CallsView({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e2e8f0]">
-            {visible.map((call) => (
-              <tr key={text(call, "id")} className="hover:bg-[#f8fafc]">
-                <td className="px-5 py-3.5">
-                  <div className="text-sm font-semibold text-[#0f172a]">{leadName(call)}</div>
-                  <div className="text-xs text-[#64748b]">
-                    {text(call, "company") || formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}
-                  </div>
-                </td>
+            {visible.map((call) => {
+              const owner = getBusinessOwner(call);
+              const comp = text(call, "company");
+              return (
+                <tr key={text(call, "id")} className="hover:bg-[#f8fafc]">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={owner || leadName(call)}/>
+                      <div className="min-w-0 max-w-[260px]">
+                        {comp ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <a
+                              href={googleSearchUrl(comp, text(call, "city"), text(call, "state"))}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Search "${comp}" on Google`}
+                              className="text-sm font-semibold text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1 truncate"
+                            >
+                              <span className="truncate">{comp}</span>
+                              <Icon name="external" className="h-3 w-3 text-[#1266c4] shrink-0" />
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="text-sm font-semibold text-[#0f172a] truncate">{leadName(call)}</div>
+                        )}
+                        {owner ? (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-[#334155]">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#e0f2fe] text-[#0369a1]">Owner</span>
+                            <span className="font-semibold text-[#0f172a] truncate">{owner}</span>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-[#64748b]">
+                            {formatPhone(text(call, "direction") === "inbound" ? call.from_number : call.to_number)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-[#0f172a]">{text(call, "user_name") || "Unclaimed"}</span>
@@ -1649,7 +2040,8 @@ function CallsView({
                 </td>
                 <td className="px-5 py-3.5 text-right text-xs text-[#64748b]">{formatDate(call.started_at)}</td>
               </tr>
-            ))}
+            );
+          })}
             {!visible.length && (
               <tr>
                 <td colSpan={7}><Empty message="No call records found."/></td>
@@ -1689,7 +2081,54 @@ function SequencesView({ sequences, onRefresh }: { sequences: Row[]; onRefresh: 
 
 function PipelineView({ leads, onDial, onOpenDialpad, onDeleteLead }: { leads: Row[]; onDial: (lead: Row) => void; onOpenDialpad?: () => void; onDeleteLead?: (id: string, name: string) => void }) {
   const columns = [["to_call", "To call"], ["try_again", "Try again"], ["follow_up", "Follow up"], ["closed", "Closed"]] as const;
-  return <><PageHeader eyebrow="Pipeline" title="Lead pipeline" description="A compact board organized by the next action your team needs to take." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><div className="grid gap-4 lg:grid-cols-4">{columns.map(([status, label]) => { const items = leads.filter((lead) => text(lead, "status") === status); return <section key={status} className="rounded-2xl border border-[#e2e8f0] bg-[#f1f5f9]/70 p-3"><div className="mb-3 flex items-center justify-between px-1"><h2 className="text-sm font-bold text-[#0f172a]">{label}</h2><span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#64748b] border border-[#e2e8f0]">{items.length}</span></div><div className="space-y-3">{items.slice(0, 100).map((lead) => <div key={text(lead, "id")} className="rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-xs"><div className="flex items-start gap-2"><Avatar name={leadName(lead)}/><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div><div className="truncate text-xs text-[#64748b]">{text(lead, "company") || formatPhone(lead.phone_e164)}</div></div></div><div className="mt-3 flex items-center justify-between"><StatusBadge status={text(lead, "disposition") || status}/><div className="flex items-center gap-1">{status !== "closed" && <button onClick={() => onDial(lead)} className="rounded-full bg-[#edf5fc] p-2 text-[#1266c4] hover:bg-[#e1effb] transition"><Icon name="phone" className="h-3.5 w-3.5"/></button>}<button title="Delete lead" onClick={() => onDeleteLead && onDeleteLead(text(lead, "id"), leadName(lead))} className="rounded-full p-2 text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition"><Icon name="trash" className="h-3.5 w-3.5"/></button></div></div></div>)}</div></section>; })}</div></>;
+  return <><PageHeader eyebrow="Pipeline" title="Lead pipeline" description="A compact board organized by the next action your team needs to take." action={onOpenDialpad ? <SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton> : undefined}/><div className="grid gap-4 lg:grid-cols-4">{columns.map(([status, label]) => { const items = leads.filter((lead) => text(lead, "status") === status); return <section key={status} className="rounded-2xl border border-[#e2e8f0] bg-[#f1f5f9]/70 p-3"><div className="mb-3 flex items-center justify-between px-1"><h2 className="text-sm font-bold text-[#0f172a]">{label}</h2><span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#64748b] border border-[#e2e8f0]">{items.length}</span></div><div className="space-y-3">{items.slice(0, 100).map((lead) => {
+  const owner = getBusinessOwner(lead);
+  const comp = text(lead, "company");
+  return (
+    <div key={text(lead, "id")} className="rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-xs">
+      <div className="flex items-start gap-2">
+        <Avatar name={owner || leadName(lead)}/>
+        <div className="min-w-0 flex-1">
+          {comp ? (
+            <a
+              href={googleSearchUrl(comp, text(lead, "city"), text(lead, "state"))}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Search "${comp}" on Google`}
+              className="truncate text-sm font-bold text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1 max-w-full"
+            >
+              <span className="truncate">{comp}</span>
+              <Icon name="external" className="h-3 w-3 text-[#1266c4] shrink-0" />
+            </a>
+          ) : (
+            <div className="truncate text-sm font-semibold text-[#0f172a]">{leadName(lead)}</div>
+          )}
+          {owner ? (
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-[#334155]">
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#e0f2fe] text-[#0369a1]">Owner</span>
+              <span className="font-semibold text-[#0f172a] truncate">{owner}</span>
+            </div>
+          ) : (
+            <div className="truncate text-xs text-[#64748b]">{formatPhone(lead.phone_e164)}</div>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <StatusBadge status={text(lead, "disposition") || status}/>
+        <div className="flex items-center gap-1">
+          {status !== "closed" && (
+            <button onClick={() => onDial(lead)} className="rounded-full bg-[#edf5fc] p-2 text-[#1266c4] hover:bg-[#e1effb] transition">
+              <Icon name="phone" className="h-3.5 w-3.5"/>
+            </button>
+          )}
+          <button title="Delete lead" onClick={() => onDeleteLead && onDeleteLead(text(lead, "id"), leadName(lead))} className="rounded-full p-2 text-[#94a3b8] hover:bg-red-50 hover:text-red-600 transition">
+            <Icon name="trash" className="h-3.5 w-3.5"/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+})}</div></section>; })}</div></>;
 }
 
 function DncView({ entries, onRefresh }: { entries: Row[]; onRefresh: () => Promise<void> }) {
@@ -2364,10 +2803,61 @@ function PasswordModal({ onClose, onDone }: { onClose: () => void; onDone: () =>
   return <Modal title="Change password" description="Use at least 10 characters." onClose={onClose}><form onSubmit={submit} className="space-y-4"><Field label="Current password"><input required type="password" className={inputClass} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)}/></Field><Field label="New password"><input required minLength={10} type="password" className={inputClass} value={newPassword} onChange={(event) => setNewPassword(event.target.value)}/></Field>{error && <p className="text-sm text-red-600">{error}</p>}<div className="flex justify-end gap-2"><SecondaryButton onClick={onClose}>Cancel</SecondaryButton><PrimaryButton type="submit">Update password</PrimaryButton></div></form></Modal>;
 }
 
-function CallDock({ lead, phase, error, disposition, setDisposition, notes, setNotes, callbackAt, setCallbackAt, autoDial, setAutoDial, onEnd, onSendDigit, onSave, onClose }: { lead: Row; phase: CallPhase; error: string; disposition: string; setDisposition: (value: string) => void; notes: string; setNotes: (value: string) => void; callbackAt: string; setCallbackAt: (value: string) => void; autoDial: boolean; setAutoDial: (value: boolean) => void; onEnd: () => void; onSendDigit: (digit: string) => void; onSave: () => void; onClose: () => void }) {
+function CallDock({
+  lead,
+  phase,
+  error,
+  disposition,
+  setDisposition,
+  notes,
+  setNotes,
+  callbackAt,
+  setCallbackAt,
+  autoDial,
+  setAutoDial,
+  onEnd,
+  onSendDigit,
+  onSave,
+  onClose,
+}: {
+  lead: Row;
+  phase: CallPhase;
+  error: string;
+  disposition: string;
+  setDisposition: (value: string) => void;
+  notes: string;
+  setNotes: (value: string) => void;
+  callbackAt: string;
+  setCallbackAt: (value: string) => void;
+  autoDial: boolean;
+  setAutoDial: (value: boolean) => void;
+  onEnd: () => void;
+  onSendDigit: (digit: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const [isDocked, setIsDocked] = useState(false);
+  const [showAllCsv, setShowAllCsv] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [sentDigits, setSentDigits] = useState("");
+  const [callSeconds, setCallSeconds] = useState(0);
+
   const active = ["connecting", "ringing", "open"].includes(phase);
+
+  useEffect(() => {
+    if (phase !== "open") {
+      if (phase === "connecting" || phase === "ringing") setCallSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => setCallSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  const formatDuration = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
 
   const handleDigit = useCallback((digit: string) => {
     onSendDigit(digit);
@@ -2391,73 +2881,470 @@ function CallDock({ lead, phase, error, disposition, setDisposition, notes, setN
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [phase, handleDigit]);
 
-  return <div className="fixed inset-x-0 bottom-0 z-[60] mx-auto max-h-[95dvh] max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl border border-[#9ebbd6] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_25px_80px_rgba(18,59,112,.28)] sm:inset-x-3 sm:bottom-3 sm:max-w-5xl sm:rounded-2xl lg:left-[252px]">
-    <div className="min-w-0 bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-4 py-4 text-white sm:px-5">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full sm:h-12 sm:w-12 ${phase === "open" ? "animate-pulse bg-white/25 text-white" : "bg-white/10"}`}><Icon name="phone" className="h-5 w-5"/></div>
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2"><div className="truncate font-semibold">{leadName(lead)}</div><span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider sm:text-[10px]">{phase === "open" ? "Connected" : phase}</span></div>
-          <div className="mt-1 truncate text-xs text-white/75 sm:text-sm">{text(lead, "company")} · {formatPhone(lead.phone_e164)} · {localTime(lead)} local</div>
-        </div>
-        <button onClick={onClose} aria-label="Close call dock" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"><Icon name="close" className="h-5 w-5"/></button>
-      </div>
-      {active && <div className="mt-3 grid min-w-0 grid-cols-2 gap-2">
-        <button type="button" onClick={() => setKeypadOpen((current) => !current)} className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-2 text-xs font-bold shadow-sm transition ${keypadOpen ? "bg-white text-[#1266c4]" : "bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25"}`} aria-label="Toggle in-call keypad"><Icon name="dialpad" className="h-4 w-4 shrink-0"/><span>Keypad</span>{sentDigits.length > 0 && <span className="max-w-12 truncate rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-[#1266c4]">{sentDigits.slice(-4)}</span>}</button>
-        <button onClick={onEnd} className="min-h-10 min-w-0 rounded-xl bg-red-500 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-600">{phase === "open" ? "End call" : "Skip lead"}</button>
-      </div>}
-    </div>
-    {keypadOpen && active && (
-      <div className="min-w-0 border-b border-[#dce8f3] bg-[#f5f9fd] px-3 py-4 sm:px-4 sm:py-5">
-        <div className="mb-3 text-center">
-          <div className="text-sm font-bold text-[#173d6b]">In-call keypad (DTMF)</div>
-          <div className="mt-1 text-xs text-[#64748b]">
-            {phase === "open"
-              ? "Press on-screen keys or type numbers to navigate automated phone trees (e.g. press 1 to continue)."
-              : "Keypad activates as soon as the call connects."}
+  const company = text(lead, "company");
+  const ownerName = getBusinessOwner(lead);
+  const title = text(lead, "title");
+  const phone = formatPhone(lead.phone_e164);
+  const city = text(lead, "city");
+  const state = text(lead, "state");
+  const postalCode = text(lead, "postal_code");
+
+  const meta = (lead.metadata || {}) as Record<string, unknown>;
+  const address = text(meta, "address");
+  const county = text(meta, "county");
+  const trade = text(meta, "trade") || text(meta, "license_type");
+  const website = text(meta, "website");
+  const licenseNumber = text(meta, "license_number");
+  const licenseStatus = text(meta, "license_status");
+  const licenseAge = text(meta, "license_age_days");
+  const sunbizEntity = text(meta, "sunbiz_entity");
+  const sunbizDoc = text(meta, "sunbiz_doc_number");
+  const sunbizOfficer = text(meta, "sunbiz_officer");
+  const googleReviews = text(meta, "google_reviews");
+  const googlePlaceUrl = text(meta, "google_places_url");
+  const operatingHours = text(meta, "operating_hours");
+  const runningAds = text(meta, "running_google_ads");
+  const painPoint = text(meta, "speed_to_lead_hook");
+  const leadNotes = text(lead, "notes");
+  const allCsvFields = (meta.all_csv_fields || {}) as Record<string, string>;
+  const rawCsvKeys = Object.keys(allCsvFields);
+
+  // Minimized bottom dock view
+  if (isDocked) {
+    return (
+      <div className="fixed inset-x-3 bottom-3 z-[70] mx-auto max-w-4xl rounded-2xl border border-[#9ebbd6] bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] p-3 sm:p-4 text-white shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${phase === "open" ? "animate-pulse bg-emerald-500 text-white" : "bg-white/15"}`}>
+            <Icon name="phone" className="h-5 w-5" />
           </div>
-          {sentDigits.length > 0 && (
-            <div className="mt-2.5 inline-flex max-w-full min-w-0 flex-wrap items-center justify-center gap-2 rounded-lg border border-[#d5e3f1] bg-white px-3 py-1 text-xs shadow-xs">
-              <span className="text-[#64748b]">Sent:</span>
-              <span className="max-w-40 truncate font-mono text-sm font-bold tracking-wider text-[#1266c4]">{sentDigits}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {company ? (
+                <a
+                  href={googleSearchUrl(company, city, state)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-white hover:underline truncate max-w-xs flex items-center gap-1"
+                  title={`Search "${company}" on Google`}
+                >
+                  <span className="truncate">{company}</span>
+                  <Icon name="external" className="h-3 w-3 text-white/80 shrink-0" />
+                </a>
+              ) : (
+                <span className="font-bold text-white truncate">{ownerName || leadName(lead)}</span>
+              )}
+              {ownerName && company && (
+                <span className="text-xs text-white/80 truncate">({ownerName})</span>
+              )}
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                {phase === "open" ? `Live ${formatDuration(callSeconds)}` : phase}
+              </span>
+            </div>
+            <div className="text-xs text-white/75 truncate mt-0.5">
+              {phone} · {localTime(lead)} local
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsDocked(false)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 px-3 py-2 text-xs font-bold text-white transition border border-white/20 shadow-xs"
+            title="Expand Active Call Screen"
+          >
+            <Icon name="maximize" className="h-4 w-4" />
+            <span className="hidden sm:inline">Active Call Screen</span>
+          </button>
+          {active && (
+            <button
+              onClick={onEnd}
+              className="rounded-xl bg-red-500 hover:bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition"
+            >
+              {phase === "open" ? "End" : "Skip"}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close call dock"
+            className="grid h-9 w-9 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition"
+          >
+            <Icon name="close" className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full Active Call Screen
+  return (
+    <div className="fixed inset-0 z-[70] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[95dvh] bg-white rounded-3xl shadow-[0_25px_80px_rgba(18,59,112,.35)] flex flex-col border border-[#b8d0e6] overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Dynamic Top Banner */}
+        <div className="bg-gradient-to-r from-[#123b70] via-[#14579a] to-[#1266c4] px-4 py-3.5 sm:px-6 text-white shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                phase === "open"
+                  ? "bg-emerald-500 text-white animate-pulse"
+                  : phase === "connecting"
+                  ? "bg-amber-400 text-slate-900"
+                  : phase === "ringing"
+                  ? "bg-cyan-400 text-slate-900 animate-pulse"
+                  : "bg-white/20 text-white"
+              }`}>
+                <span className="h-2 w-2 rounded-full bg-current" />
+                {phase === "open" ? `Live Call · ${formatDuration(callSeconds)}` : phase === "connecting" ? "Connecting…" : phase === "ringing" ? "Ringing…" : "Call Ended"}
+              </span>
+              <span className="hidden sm:inline-block text-xs text-white/80">
+                {localTime(lead)} local
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {active && (
+                <button
+                  type="button"
+                  onClick={() => setKeypadOpen((current) => !current)}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-xs ${
+                    keypadOpen ? "bg-white text-[#1266c4]" : "bg-white/15 text-white hover:bg-white/25 border border-white/20"
+                  }`}
+                >
+                  <Icon name="dialpad" className="h-3.5 w-3.5" />
+                  <span>Keypad</span>
+                  {sentDigits && <span className="rounded-full bg-blue-100 text-[#1266c4] px-1 text-[10px] font-mono">{sentDigits.slice(-3)}</span>}
+                </button>
+              )}
+              {active && (
+                <button
+                  onClick={onEnd}
+                  className="rounded-xl bg-red-500 hover:bg-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-xs transition"
+                >
+                  {phase === "open" ? "End Call" : "Skip Lead"}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setSentDigits("")}
-                className="text-[11px] font-medium text-[#94a3b8] hover:text-[#1266c4]"
+                onClick={() => setIsDocked(true)}
+                title="Minimize to bottom dock"
+                className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
               >
-                Clear
+                <Icon name="minimize" className="h-4 w-4" />
               </button>
+              <button
+                onClick={onClose}
+                title="Close active call screen"
+                className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition"
+              >
+                <Icon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Intelligence Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-[#f8fafc] to-white">
+          {/* Header Card: Company with Google Search & Business Owner */}
+          <div className="rounded-2xl border border-[#d5e3f1] bg-white p-4 sm:p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] mb-1">
+                  Active Prospect
+                </div>
+                {company ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={googleSearchUrl(company, city, state)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Open Google search for ${company}`}
+                      className="text-xl sm:text-2xl font-black text-[#0f172a] hover:text-[#1266c4] hover:underline inline-flex items-center gap-1.5 group transition"
+                    >
+                      <span>{company}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#edf5fc] px-2.5 py-0.5 text-xs font-bold text-[#1266c4] border border-[#b8d0e6] group-hover:bg-[#e1effb] transition ml-1">
+                        <Icon name="search" className="h-3 w-3" />
+                        <span>Search Google</span>
+                        <Icon name="external" className="h-3 w-3" />
+                      </span>
+                    </a>
+                  </div>
+                ) : (
+                  <h1 className="text-xl sm:text-2xl font-black text-[#0f172a]">{ownerName || leadName(lead)}</h1>
+                )}
+
+                {/* Business Owner Highlight */}
+                <div className="mt-3 flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={ownerName || leadName(lead)} />
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-[#0f172a]">
+                          {ownerName || "Business Owner name not listed"}
+                        </span>
+                        {ownerName && (
+                          <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                            Business Owner
+                          </span>
+                        )}
+                        {title && (
+                          <span className="text-xs text-[#64748b]">({title})</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-[#64748b]">
+                        Direct phone: <a href={`tel:${text(lead, "phone_e164")}`} className="font-bold text-[#1266c4] hover:underline">{phone}</a>
+                        {city || state ? ` · ${[city, state].filter(Boolean).join(", ")}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct Website and Google Links */}
+              <div className="flex sm:flex-col items-start gap-2 shrink-0">
+                {website && (
+                  <a
+                    href={website.startsWith("http") ? website : `https://${website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#b8d0e6] bg-[#edf5fc] px-3 py-1.5 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition shadow-2xs"
+                  >
+                    <Icon name="globe" className="h-3.5 w-3.5" />
+                    <span>Company Website</span>
+                    <Icon name="external" className="h-3 w-3" />
+                  </a>
+                )}
+                {googlePlaceUrl && (
+                  <a
+                    href={googlePlaceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] hover:border-[#b8d0e6] transition shadow-2xs"
+                  >
+                    <Icon name="search" className="h-3.5 w-3.5 text-[#1266c4]" />
+                    <span>Google Maps / Reviews</span>
+                    <Icon name="external" className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Sales Hook & Paid Ad Pain Point Callout (from CSV) */}
+          {(painPoint || operatingHours || runningAds || leadNotes) && (
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-amber-50/70 p-4 shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500 text-white font-black text-xs shadow-xs">
+                  ★
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                    Lead Intelligence & Sales Angle (from CSV)
+                  </div>
+                  {painPoint && (
+                    <div className="mt-1 text-sm font-semibold text-[#0f172a] leading-snug">
+                      {painPoint}
+                    </div>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-amber-950/80">
+                    {operatingHours && (
+                      <span className="inline-flex items-center gap-1">
+                        <Icon name="clock" className="h-3 w-3 text-amber-700" />
+                        <strong>Hours:</strong> {operatingHours}
+                      </span>
+                    )}
+                    {runningAds && (
+                      <span>
+                        <strong>Google Ads:</strong> {runningAds}
+                      </span>
+                    )}
+                  </div>
+                  {leadNotes && !leadNotes.startsWith("Hook:") && (
+                    <div className="mt-2 text-xs text-[#334155] border-t border-amber-200/60 pt-2 font-medium">
+                      <strong>Pitch Notes:</strong> {leadNotes}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Business & CSV Data Cards Grid */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Trade & DBPR License Card */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 shadow-2xs space-y-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                Trade & Licensing (DBPR)
+              </div>
+              <div className="text-sm font-bold text-[#0f172a]">
+                {trade || "Contractor"}
+              </div>
+              {licenseNumber && (
+                <div className="text-xs text-[#475569]">
+                  License: <span className="font-mono font-semibold text-[#0f172a]">{licenseNumber}</span>
+                </div>
+              )}
+              {licenseStatus && (
+                <div className="text-xs text-[#475569]">
+                  Status: <span className="font-medium text-emerald-700">{licenseStatus}</span>
+                </div>
+              )}
+              {licenseAge && (
+                <div className="text-[11px] text-[#64748b]">
+                  License age: {licenseAge} days
+                </div>
+              )}
+            </div>
+
+            {/* Location & Contact Card */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 shadow-2xs space-y-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                Physical Address
+              </div>
+              <div className="text-sm font-semibold text-[#0f172a]">
+                {address || "Address not provided"}
+              </div>
+              <div className="text-xs text-[#475569]">
+                {[city, state, postalCode].filter(Boolean).join(", ") || "Florida"}
+              </div>
+              {county && (
+                <div className="text-[11px] text-[#64748b]">
+                  County: {county}
+                </div>
+              )}
+            </div>
+
+            {/* Online Presence & Sunbiz Corporate Match */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 shadow-2xs space-y-1.5 sm:col-span-2 lg:col-span-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                Sunbiz & Google Presence
+              </div>
+              {googleReviews && (
+                <div className="text-xs font-semibold text-[#0f172a]">
+                  ★ Reviews: <span className="text-[#1266c4] font-bold">{googleReviews} reviews</span>
+                </div>
+              )}
+              {sunbizEntity && (
+                <div className="text-xs text-[#475569] truncate" title={sunbizEntity}>
+                  Entity: <span className="font-semibold text-[#0f172a]">{sunbizEntity}</span>
+                </div>
+              )}
+              {sunbizOfficer && (
+                <div className="text-[11px] text-[#64748b] truncate" title={sunbizOfficer}>
+                  Officer: {sunbizOfficer}
+                </div>
+              )}
+              {sunbizDoc && (
+                <div className="text-[11px] text-[#64748b]">
+                  Doc #: {sunbizDoc}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Expandable Full CSV Raw Fields Drawer */}
+          {rawCsvKeys.length > 0 && (
+            <div className="rounded-xl border border-[#e2e8f0] bg-white overflow-hidden shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setShowAllCsv((prev) => !prev)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold text-[#475569] hover:bg-[#f8fafc] transition"
+              >
+                <span>All CSV Data Fields ({rawCsvKeys.length} columns imported)</span>
+                <span>{showAllCsv ? "▲ Hide" : "▼ Show"}</span>
+              </button>
+              {showAllCsv && (
+                <div className="border-t border-[#e2e8f0] p-3 max-h-52 overflow-y-auto bg-[#f8fafc]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {rawCsvKeys.map((key) => (
+                      <div key={key} className="rounded-lg bg-white p-2 border border-[#e2e8f0] truncate">
+                        <span className="font-bold text-[#64748b] block text-[10px] uppercase truncate">{key}</span>
+                        <span className="text-[#0f172a] font-medium truncate block">{allCsvFields[key] || "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* DTMF In-Call Keypad (if toggled) */}
+          {keypadOpen && active && (
+            <div className="rounded-2xl border border-[#b8d0e6] bg-[#f5f9fd] p-4 text-center animate-in fade-in duration-150">
+              <div className="text-xs font-bold text-[#173d6b] uppercase tracking-wider mb-1">
+                In-call Keypad (DTMF Phone Trees)
+              </div>
+              <p className="text-[11px] text-[#64748b] mb-3">
+                Tap numbers to navigate automated phone options (e.g. press 1 for dispatch).
+              </p>
+              {sentDigits && (
+                <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-white border border-[#d5e3f1] px-3 py-1 text-xs">
+                  <span className="text-[#64748b]">Sent:</span>
+                  <span className="font-mono font-bold text-[#1266c4] tracking-widest">{sentDigits}</span>
+                  <button type="button" onClick={() => setSentDigits("")} className="text-[10px] text-[#94a3b8] hover:text-[#1266c4]">Clear</button>
+                </div>
+              )}
+              <PhoneKeypad onPress={handleDigit} disabled={phase !== "open"} />
             </div>
           )}
         </div>
-        <PhoneKeypad onPress={handleDigit} disabled={phase !== "open"}/>
+
+        {/* Action & Disposition Footer */}
+        <div className="border-t border-[#d5e3f1] bg-white p-4 sm:p-5 shrink-0 shadow-lg space-y-3">
+          <div className="grid gap-3 sm:grid-cols-[200px_1fr_auto] items-end">
+            <Field label="Call Outcome">
+              <select
+                value={disposition}
+                onChange={(event) => setDisposition(event.target.value)}
+                className={inputClass}
+              >
+                {DISPOSITIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Live Call Notes">
+              <input
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                className={inputClass}
+                placeholder="What happened on the call? Type notes here…"
+              />
+            </Field>
+
+            <PrimaryButton onClick={onSave} disabled={active}>
+              Save & {autoDial ? "Dial Next" : "Close"}
+            </PrimaryButton>
+          </div>
+
+          {(disposition === "callback" || disposition === "appointment") && (
+            <div className="border-t border-[#e2e8f0] pt-3">
+              <Field label="Callback / Appointment Time">
+                <input
+                  type="datetime-local"
+                  value={callbackAt}
+                  onChange={(event) => setCallbackAt(event.target.value)}
+                  className={`${inputClass} max-w-sm`}
+                />
+              </Field>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-[#f1f5f9]">
+            <label className="flex items-center gap-2 text-xs font-semibold text-[#475569] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoDial}
+                onChange={(event) => setAutoDial(event.target.checked)}
+                className="rounded border-[#cbd5e1] text-[#1266c4] focus:ring-[#1266c4]"
+              />
+              Automatically dial the next eligible lead after saving outcome
+            </label>
+            {error && <span className="text-xs font-bold text-red-600">{error}</span>}
+          </div>
+        </div>
       </div>
-    )}
-    <div className="grid min-w-0 gap-4 p-3 sm:p-4 lg:grid-cols-[240px_1fr_auto] lg:items-end">
-      <Field label="Outcome">
-        <select value={disposition} onChange={(event) => setDisposition(event.target.value)} className={inputClass}>
-          {DISPOSITIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </Field>
-      <Field label="Call notes">
-        <input value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} placeholder="What happened on the call?"/>
-      </Field>
-      <PrimaryButton onClick={onSave} disabled={active}>Save & {autoDial ? "dial next" : "close"}</PrimaryButton>
     </div>
-    {(disposition === "callback" || disposition === "appointment") && (
-      <div className="border-t border-[#e2e8f0] px-4 py-3">
-        <Field label="Callback / appointment time">
-          <input type="datetime-local" value={callbackAt} onChange={(event) => setCallbackAt(event.target.value)} className={`${inputClass} max-w-sm`}/>
-        </Field>
-      </div>
-    )}
-    <div className="flex flex-col gap-2 border-t border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <label className="flex items-start gap-2 text-xs leading-5 text-[#475569]">
-        <input className="mt-1" type="checkbox" checked={autoDial} onChange={(event) => setAutoDial(event.target.checked)}/>
-        Automatically dial the next eligible lead after saving
-      </label>
-      {error && <span className="text-xs font-semibold text-red-600">{error}</span>}
-    </div>
-  </div>;
+  );
 }
 
 function IncomingCall({ call, onAccept, onClose }: { call: VoiceCall; onAccept: () => void; onClose: () => void }) {

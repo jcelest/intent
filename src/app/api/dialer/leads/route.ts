@@ -25,6 +25,7 @@ type LeadInput = {
   doNotCall?: boolean;
   assignedUserId?: string | null;
   listId?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
 export async function GET(request: Request) {
@@ -101,10 +102,12 @@ export async function POST(request: Request) {
       let lead;
       if (duplicate[0]) {
         leadId = duplicate[0].id as string;
+        const metadataJson = JSON.stringify(input.metadata || {});
         const rows = await sql`
           UPDATE dialer_leads SET
             first_name = COALESCE(${input.firstName?.trim() || null}, first_name),
             last_name = COALESCE(${input.lastName?.trim() || null}, last_name),
+            company = COALESCE(${input.company?.trim() || null}, company),
             title = COALESCE(${input.title?.trim() || null}, title),
             email = COALESCE(${input.email?.trim() || null}, email),
             city = COALESCE(${input.city?.trim() || null}, city),
@@ -117,23 +120,29 @@ export async function POST(request: Request) {
             next_call_at = COALESCE(${nextCallAt}, next_call_at),
             do_not_call = CASE WHEN ${doNotCall} THEN TRUE ELSE do_not_call END,
             assigned_user_id = COALESCE(${input.assignedUserId || null}, assigned_user_id),
+            metadata = CASE
+              WHEN ${metadataJson}::jsonb <> '{}'::jsonb
+              THEN COALESCE(dialer_leads.metadata, '{}'::jsonb) || ${metadataJson}::jsonb
+              ELSE dialer_leads.metadata
+            END,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = ${leadId} RETURNING *
         `;
         lead = rows[0];
       } else {
+        const metadataJson = JSON.stringify(input.metadata || {});
         const rows = await sql`
           INSERT INTO dialer_leads (
             first_name, last_name, company, title, phone_e164, phone_raw, email, city, state,
             postal_code, timezone, source, notes, status, disposition, next_call_at, do_not_call,
-            assigned_user_id, created_by
+            assigned_user_id, metadata, created_by
           ) VALUES (
             ${input.firstName?.trim() || null}, ${input.lastName?.trim() || null}, ${input.company?.trim() || null},
             ${input.title?.trim() || null}, ${phone}, ${input.phone || phone}, ${input.email?.trim() || null},
             ${input.city?.trim() || null}, ${input.state?.trim() || null}, ${input.postalCode?.trim() || null},
             ${input.timezone || timezoneForState(input.state)}, ${input.source?.trim() || "manual"},
             ${input.notes?.trim() || null}, ${status}, ${disposition}, ${nextCallAt}, ${doNotCall},
-            ${input.assignedUserId || null}, ${auth.user.id}
+            ${input.assignedUserId || null}, ${metadataJson}::jsonb, ${auth.user.id}
           ) RETURNING *
         `;
         lead = rows[0];

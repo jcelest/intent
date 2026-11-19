@@ -68,7 +68,7 @@ export function InquiryFormSection({
   mode = "default",
 }: {
   id?: string;
-  mode?: "default" | "contact" | "b2b";
+  mode?: "default" | "contact" | "b2b" | "ads" | "content";
 } = {}) {
   const [inquiryType, setInquiryType] = useState<InquiryType>("partnership");
   const [name, setName] = useState("");
@@ -151,6 +151,14 @@ export function InquiryFormSection({
             <>
               Request a <span className="text-accent">10-minute call</span>
             </>
+          ) : mode === "ads" ? (
+            <>
+              Build your <span className="text-accent">acquisition strategy</span>
+            </>
+          ) : mode === "content" ? (
+            <>
+              Build your <span className="text-accent">content engine</span>
+            </>
           ) : mode === "contact" ? (
             <>
               Contact <span className="text-accent">{BRAND_NAME}</span>
@@ -168,6 +176,10 @@ export function InquiryFormSection({
         <p className="mt-4 text-muted text-center">
           {mode === "b2b"
             ? "Tell Josh your trade, service area, and the kind of commercial account you want to pursue."
+            : mode === "ads"
+            ? "Tell us about your offer, market, current advertising, and growth goals. We’ll assess fit and the acquisition path before proposing scope."
+            : mode === "content"
+            ? "Tell us about your audience, current content operation, creative resources, and the production volume you want to build."
             : mode === "contact"
             ? "Send a message or call us directly. We typically respond within 24 hours."
             : inquiryType === "launchpad"
@@ -203,7 +215,7 @@ export function InquiryFormSection({
             onSubmit={handleSubmit}
             className="mt-10 space-y-5"
           >
-            {mode !== "b2b" && <div>
+            {mode !== "b2b" && mode !== "ads" && mode !== "content" && <div>
               <p className="font-mono text-xs text-muted uppercase tracking-wider mb-3">
                 I&apos;m applying for
               </p>
@@ -417,6 +429,10 @@ export function InquiryFormSection({
                 placeholder={
                   mode === "b2b"
                     ? "What kind of account or commercial work do you want more of?"
+                    : mode === "ads"
+                    ? "What are you selling, who do you need to reach, and what would make paid acquisition successful for your business?"
+                    : mode === "content"
+                    ? "What should your market know about your business, and what is keeping you from publishing consistently today?"
                     : inquiryType === "launchpad"
                     ? "What's holding you back from full partnership today?"
                     : "Tell us about your business, territory, and growth goals..."
@@ -460,6 +476,10 @@ export function InquiryFormSection({
                 ? "Submitting..."
                 : mode === "b2b"
                   ? "Request a 10-minute call"
+                  : mode === "ads"
+                  ? "Request an acquisition consultation"
+                  : mode === "content"
+                  ? "Request a content consultation"
                   : inquiryType === "launchpad"
                   ? "Apply for Launchpad"
                   : "Apply for Partnership"}

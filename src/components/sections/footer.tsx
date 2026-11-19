@@ -25,6 +25,18 @@ export function Footer() {
             Contact
           </Link>
           <Link
+            href="/content"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Intent Content
+          </Link>
+          <Link
+            href="/ads"
+            className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
+          >
+            Intent Ads
+          </Link>
+          <Link
             href="/leadnet"
             className="text-muted/70 hover:text-accent text-sm font-mono transition-colors"
           >
