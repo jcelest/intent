@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDialerSession } from "@/lib/dialer-auth";
 import { sql } from "@/lib/db";
-import { getTwilioConfig, twilio } from "@/lib/twilio-server";
+import { getTwilioConfig, getTwilioRestAuthCandidates, getTwilioRestClient } from "@/lib/twilio-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,8 +34,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
   if (!recordingSid && (call.twilio_call_sid || call.twilio_parent_call_sid)) {
     try {
       const config = getTwilioConfig();
-      if (config.accountSid && config.authToken) {
-        const client = twilio(config.accountSid, config.authToken);
+      const client = getTwilioRestClient();
+      if (config.accountSid && client) {
         let twilioRecordings: Array<{ sid: string }> = [];
         if (call.twilio_call_sid) {
           twilioRecordings = await client.recordings.list({ callSid: call.twilio_call_sid as string, limit: 1 });
@@ -65,20 +65,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   const config = getTwilioConfig();
   let mediaUrl: string;
-  let authHeader: Record<string, string> = {};
 
-  if (recordingSid && config.accountSid && config.authToken) {
+  if (recordingSid && config.accountSid) {
     mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Recordings/${recordingSid}.${format}`;
-    const credentials = Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64");
-    authHeader = { Authorization: `Basic ${credentials}` };
   } else if (recordingUrl) {
     if (recordingUrl.includes("api.twilio.com")) {
       const base = recordingUrl.replace(/\.(mp3|wav|json)$/i, "");
       mediaUrl = `${base}.${format}`;
-      if (config.accountSid && config.authToken) {
-        const credentials = Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64");
-        authHeader = { Authorization: `Basic ${credentials}` };
-      }
     } else {
       mediaUrl = recordingUrl;
     }
@@ -86,16 +79,28 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unable to resolve recording media URL." }, { status: 404 });
   }
 
-  const forwardHeaders: Record<string, string> = { ...authHeader };
+  const forwardHeaders: Record<string, string> = {};
   const clientRange = request.headers.get("range");
   if (clientRange) {
     forwardHeaders["Range"] = clientRange;
   }
 
   try {
-    const upstreamRes = await fetch(mediaUrl, {
-      headers: forwardHeaders,
-    });
+    const authCandidates = mediaUrl.includes("api.twilio.com") ? getTwilioRestAuthCandidates() : [];
+    let upstreamRes: Response;
+    if (!authCandidates.length) {
+      upstreamRes = await fetch(mediaUrl, { headers: forwardHeaders });
+    } else {
+      let lastResponse: Response | null = null;
+      for (const candidate of authCandidates) {
+        const credentials = Buffer.from(`${candidate.username}:${candidate.password}`).toString("base64");
+        const response = await fetch(mediaUrl, { headers: { ...forwardHeaders, Authorization: `Basic ${credentials}` } });
+        lastResponse = response;
+        if (response.status !== 401 && response.status !== 403) break;
+        await response.body?.cancel();
+      }
+      upstreamRes = lastResponse as Response;
+    }
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {
       return NextResponse.json(
@@ -156,8 +161,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const call = rows[0];
     if (call?.twilio_call_sid || call?.twilio_parent_call_sid) {
       const config = getTwilioConfig();
-      if (config.accountSid && config.authToken) {
-        const client = twilio(config.accountSid, config.authToken);
+      const client = getTwilioRestClient();
+      if (config.accountSid && client) {
         let twilioRecordings: Array<{ sid: string }> = [];
         if (call.twilio_call_sid) {
           twilioRecordings = await client.recordings.list({ callSid: call.twilio_call_sid as string, limit: 1 });

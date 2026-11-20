@@ -12,6 +12,23 @@ export function getTwilioConfig() {
   };
 }
 
+export function getTwilioRestClient() {
+  const config = getTwilioConfig();
+  if (config.accountSid && config.apiKeySid && config.apiKeySecret) {
+    return twilio(config.apiKeySid, config.apiKeySecret, { accountSid: config.accountSid });
+  }
+  if (config.accountSid && config.authToken) return twilio(config.accountSid, config.authToken);
+  return null;
+}
+
+export function getTwilioRestAuthCandidates() {
+  const config = getTwilioConfig();
+  const candidates: Array<{ username: string; password: string }> = [];
+  if (config.accountSid && config.authToken) candidates.push({ username: config.accountSid, password: config.authToken });
+  if (config.apiKeySid && config.apiKeySecret) candidates.push({ username: config.apiKeySid, password: config.apiKeySecret });
+  return candidates;
+}
+
 export function assertTwilioConfigured() {
   const config = getTwilioConfig();
   const missing = Object.entries(config)
