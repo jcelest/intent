@@ -1,14 +1,22 @@
 import twilio from "twilio";
 
+function env(name: string) {
+  const value = process.env[name]?.trim() || "";
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
 export function getTwilioConfig() {
   return {
-    accountSid: process.env.TWILIO_ACCOUNT_SID || "",
-    authToken: process.env.TWILIO_AUTH_TOKEN || "",
-    apiKeySid: process.env.TWILIO_API_KEY_SID || "",
-    apiKeySecret: process.env.TWILIO_API_KEY_SECRET || "",
-    twimlAppSid: process.env.TWILIO_TWIML_APP_SID || "",
-    phoneNumber: process.env.TWILIO_PHONE_NUMBER || "",
-    siteUrl: (process.env.DIALER_PUBLIC_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, ""),
+    accountSid: env("TWILIO_ACCOUNT_SID"),
+    authToken: env("TWILIO_AUTH_TOKEN"),
+    apiKeySid: env("TWILIO_API_KEY_SID"),
+    apiKeySecret: env("TWILIO_API_KEY_SECRET"),
+    twimlAppSid: env("TWILIO_TWIML_APP_SID"),
+    phoneNumber: env("TWILIO_PHONE_NUMBER"),
+    siteUrl: (env("DIALER_PUBLIC_URL") || env("NEXT_PUBLIC_SITE_URL")).replace(/\/$/, ""),
   };
 }
 
