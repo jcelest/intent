@@ -12,10 +12,10 @@ export async function GET(request: Request) {
     const client = getTwilioRestClient();
     if (!client) throw new Error("Twilio REST credentials are not configured.");
     try {
-      await Promise.all([
-        client.api.accounts(config.accountSid).fetch(),
-        client.applications(config.twimlAppSid).fetch(),
-      ]);
+      // Standard Twilio API keys cannot read the Accounts resource. Fetching the
+      // configured TwiML App validates the key/secret and account relationship
+      // against an endpoint Standard keys are permitted to access.
+      await client.applications(config.twimlAppSid).fetch();
     } catch (cause) {
       const status = typeof cause === "object" && cause && "status" in cause ? Number(cause.status) : 0;
       if (status === 401 || status === 403) throw new Error("Twilio rejected the API Key SID or API Key Secret. Update that credential pair in Vercel.");
