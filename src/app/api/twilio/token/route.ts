@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireDialerSession } from "@/lib/dialer-auth";
-import { assertTwilioConfigured, twilio } from "@/lib/twilio-server";
+import { assertTwilioConfigured, getTwilioRestClient, twilio } from "@/lib/twilio-server";
 
 export const runtime = "nodejs";
 
@@ -9,6 +9,19 @@ export async function GET(request: Request) {
   if (auth.response || !auth.user) return auth.response;
   try {
     const config = assertTwilioConfigured();
+    const client = getTwilioRestClient();
+    if (!client) throw new Error("Twilio REST credentials are not configured.");
+    try {
+      await Promise.all([
+        client.api.accounts(config.accountSid).fetch(),
+        client.applications(config.twimlAppSid).fetch(),
+      ]);
+    } catch (cause) {
+      const status = typeof cause === "object" && cause && "status" in cause ? Number(cause.status) : 0;
+      if (status === 401 || status === 403) throw new Error("Twilio rejected the API Key SID or API Key Secret. Update that credential pair in Vercel.");
+      if (status === 404) throw new Error("Twilio could not find the configured TwiML App SID in this account.");
+      throw cause;
+    }
     const AccessToken = twilio.jwt.AccessToken;
     const VoiceGrant = AccessToken.VoiceGrant;
     const token = new AccessToken(config.accountSid, config.apiKeySid, config.apiKeySecret, {
@@ -24,4 +37,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

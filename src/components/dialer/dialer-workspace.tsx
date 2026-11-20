@@ -49,6 +49,23 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return data as T;
 }
 
+function readableError(cause: unknown, fallback: string) {
+  if (cause instanceof Error && cause.message) return cause.message;
+  if (typeof cause === "string" && cause.trim()) return cause.trim();
+  if (cause && typeof cause === "object") {
+    const error = cause as { message?: unknown; explanation?: unknown; code?: unknown };
+    const message = typeof error.message === "string" && error.message.trim()
+      ? error.message.trim()
+      : typeof error.explanation === "string" && error.explanation.trim()
+        ? error.explanation.trim()
+        : "";
+    const code = typeof error.code === "number" || typeof error.code === "string" ? String(error.code) : "";
+    if (message) return code && !message.includes(code) ? `${message} (Twilio ${code})` : message;
+    if (code) return `Twilio browser phone error ${code}.`;
+  }
+  return fallback;
+}
+
 function text(row: Row | null | undefined, key: string) {
   return row?.[key] == null ? "" : String(row[key]);
 }
@@ -389,6 +406,7 @@ export function DialerWorkspace() {
   const autoDialRef = useRef(false);
   const dialSessionStateRef = useRef<DialSessionState>("idle");
   const voicePreparedRef = useRef(false);
+  const deviceErrorRef = useRef("");
   const voiceEnabledRef = useRef(false);
   const placingCallRef = useRef(false);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
@@ -493,6 +511,7 @@ export function DialerWorkspace() {
       const { Device } = await import("@twilio/voice-sdk");
       if (!Device.isSupported) throw new Error("This browser cannot place web calls. Update Chrome or Safari and try again.");
       const device = new Device(tokenData.token, { closeProtection: true });
+      deviceErrorRef.current = "";
       device.on("incoming", (call) => setIncomingCall(call));
       device.on("registered", () => {
         voicePreparedRef.current = true;
@@ -520,7 +539,9 @@ export function DialerWorkspace() {
         try { device.updateToken((await api<{ token: string }>("/api/twilio/token")).token); } catch { setVoiceReadinessMessage("Phone session needs to reconnect before the next call."); }
       });
       device.on("error", (event) => {
-        const message = event.message || "Twilio device error.";
+        const code = "code" in event && event.code ? ` (Twilio ${event.code})` : "";
+        const message = `${event.message || "Twilio device error."}${code}`;
+        deviceErrorRef.current = message;
         setCallError(message);
         setVoiceReadinessMessage(message);
       });
@@ -534,7 +555,7 @@ export function DialerWorkspace() {
       const failedDevice = deviceRef.current as VoiceDevice | null;
       failedDevice?.destroy();
       deviceRef.current = null;
-      throw cause;
+      throw new Error(readableError(cause, deviceErrorRef.current || "Unable to register the Twilio browser phone."));
     } finally {
       devicePromiseRef.current = null;
     }
@@ -572,7 +593,7 @@ export function DialerWorkspace() {
       const denied = cause instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(cause.name);
       const message = denied
         ? "Microphone access is blocked. Allow it in this site's browser settings, then tap Enable phone."
-        : cause instanceof Error ? cause.message : "Unable to prepare browser calling.";
+        : readableError(cause, deviceErrorRef.current || "Unable to prepare browser calling.");
       voicePreparedRef.current = false;
       if (denied) voiceEnabledRef.current = false;
       setVoiceReadiness("blocked");
