@@ -32,6 +32,8 @@ const DISPOSITIONS = [
   ["dnc", "Do not call"], ["converted", "Converted"],
 ] as const;
 
+const RETRY_DISPOSITIONS = ["voicemail", "no_answer", "busy", "failed"] as const;
+
 const STATUS_LABELS: Record<string, string> = {
   to_call: "To call", try_again: "Try again", follow_up: "Follow up", closed: "Closed",
   no_answer: "No answer", voicemail: "Voicemail", busy: "Busy", failed: "Failed", contacted: "Contacted",
@@ -430,8 +432,12 @@ export function DialerWorkspace() {
   useEffect(() => { dialSessionStateRef.current = dialSessionState; }, [dialSessionState]);
 
   const visibleLeads = useMemo(() => leads.filter((lead) => {
-    const matchesStatus = statusFilter === "all" || text(lead, "status") === statusFilter;
-    const haystack = `${leadName(lead)} ${text(lead, "company")} ${text(lead, "phone_e164")} ${text(lead, "email")}`.toLowerCase();
+    const matchesStatus = statusFilter === "all" || (
+      (RETRY_DISPOSITIONS as readonly string[]).includes(statusFilter)
+        ? text(lead, "disposition") === statusFilter
+        : text(lead, "status") === statusFilter
+    );
+    const haystack = `${leadName(lead)} ${text(lead, "company")} ${text(lead, "phone_e164")} ${text(lead, "email")} ${text(lead, "disposition")} ${text(lead, "status")}`.toLowerCase();
     return matchesStatus && haystack.includes(search.toLowerCase());
   }), [leads, search, statusFilter]);
 
@@ -1179,16 +1185,40 @@ type LeadsViewProps = {
 };
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
+  const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
+  const shownIds = leads.map((lead) => text(lead, "id"));
+  const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selectedIds.includes(id));
+  const hasRetrySelection = allLeads.some((lead) => selectedIds.includes(text(lead, "id")) && (text(lead, "status") === "try_again" || (RETRY_DISPOSITIONS as readonly string[]).includes(text(lead, "disposition"))));
+  const toggleShown = () => setSelectedIds(allShownSelected
+    ? selectedIds.filter((id) => !shownIds.includes(id))
+    : Array.from(new Set([...selectedIds, ...shownIds])));
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
     setAssigning(true);
-    await api("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
-    setSelectedIds([]);
-    setAssigning(false);
-    await onRefresh();
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
+      setSelectedIds([]);
+      await onRefresh();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} ${userId ? "assigned" : "unassigned"}`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to assign leads.");
+    } finally { setAssigning(false); }
+  };
+  const requeueSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "requeue" }) });
+      setSelectedIds([]);
+      setStatusFilter("to_call");
+      await onRefresh();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} returned to Ready and unassigned`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to return leads to Ready.");
+    } finally { setAssigning(false); }
   };
   return <>
     <div className="lg:hidden">
@@ -1211,13 +1241,19 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
           {voiceReadiness !== "ready" && voiceReadiness !== "preparing" && <button type="button" disabled={!isOnline} onClick={onPrepareCalling} className="min-h-9 shrink-0 rounded-lg bg-[#edf5fc] px-2.5 text-[11px] font-bold text-[#1266c4] disabled:opacity-45">Enable phone</button>}
         </div>
       </section>
-      <div className="mb-4 grid min-w-0 grid-cols-6 gap-2">{filters.map(([id, label, count], index) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${index < 3 ? "col-span-2" : "col-span-3"} ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="truncate text-lg font-bold">{count}</div><div className={`mt-0.5 truncate text-[11px] font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
+      <div className="mb-3 grid min-w-0 grid-cols-6 gap-2">{filters.map(([id, label, count], index) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${index < 3 ? "col-span-2" : "col-span-3"} ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="truncate text-lg font-bold">{count}</div><div className={`mt-0.5 truncate text-[11px] font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
+      <div className="mb-4 flex min-w-0 gap-2 overflow-x-auto pb-1">{retryFilters.map(([id, label, count]) => <button key={id} onClick={() => { setStatusFilter(id); setSelectedIds([]); }} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold ${statusFilter === id ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#e2e8f0] bg-white text-[#64748b]"}`}>{label} ({count})</button>)}</div>
       <section className="min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_8px_30px_rgba(18,59,112,.05)]">
         <div className="space-y-3 border-b border-[#e2e8f0] p-3">
-          <div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+          <div className="relative"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => { setSearch(event.target.value); setSelectedIds([]); }} placeholder="Search leads..." className="min-h-11 w-full rounded-xl border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" disabled={!shownIds.length} onClick={toggleShown} className="min-h-10 rounded-lg border border-[#b8d0e6] bg-[#edf5fc] px-3 text-xs font-bold text-[#1266c4] disabled:opacity-50">{allShownSelected ? "Clear shown" : `Select all shown (${shownIds.length})`}</button>
+            {selectedIds.length > 0 && <button type="button" onClick={() => setSelectedIds([])} className="min-h-10 px-2 text-xs font-bold text-[#64748b]">Clear {selectedIds.length} selected</button>}
+          </div>
           {selectedIds.length > 0 ? (
             <div className="grid min-w-0 gap-2 sm:flex">
-              <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="" disabled>Assign {selectedIds.length} selected...</option><option value="">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
+              <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value === "__unassigned__" ? "" : event.target.value)} defaultValue="__choose__" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="__choose__" disabled>Assign {selectedIds.length} selected...</option><option value="__unassigned__">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
+              {hasRetrySelection && <button type="button" disabled={assigning} onClick={() => void requeueSelected()} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Ready + unassign</button>}
               <button
                 type="button"
                 onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
@@ -1315,13 +1351,39 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   </>;
 }
 
-function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk }: LeadsViewProps) {
+function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
+  const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
+  const shownIds = leads.map((lead) => text(lead, "id"));
+  const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selectedIds.includes(id));
+  const hasRetrySelection = allLeads.some((lead) => selectedIds.includes(text(lead, "id")) && (text(lead, "status") === "try_again" || (RETRY_DISPOSITIONS as readonly string[]).includes(text(lead, "disposition"))));
+  const toggleShown = () => setSelectedIds(allShownSelected
+    ? selectedIds.filter((id) => !shownIds.includes(id))
+    : Array.from(new Set([...selectedIds, ...shownIds])));
   const changeAssignment = async (userId: string) => {
     if (!selectedIds.length) return;
     setAssigning(true);
-    await api("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
-    setSelectedIds([]); setAssigning(false); await onRefresh();
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
+      setSelectedIds([]);
+      await onRefresh();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} ${userId ? "assigned" : "unassigned"}`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to assign leads.");
+    } finally { setAssigning(false); }
+  };
+  const requeueSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "requeue" }) });
+      setSelectedIds([]);
+      setStatusFilter("to_call");
+      await onRefresh();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} returned to Ready and unassigned`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to return leads to Ready.");
+    } finally { setAssigning(false); }
   };
   const filters = [
     ["all", "All leads", number(counts, "all_leads")], ["to_call", "To call", number(counts, "to_call")],
@@ -1335,17 +1397,21 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
       <span className="min-w-0 flex-1">{voiceReadinessMessage}</span>
       {voiceReadiness !== "ready" && voiceReadiness !== "preparing" && <SecondaryButton onClick={onPrepareCalling} disabled={!isOnline}>Enable phone</SecondaryButton>}
     </div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => setStatusFilter(String(id))} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, voicemail, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
+    <div className="mt-3 flex flex-wrap items-center gap-2"><span className="mr-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Retry outcomes</span>{retryFilters.map(([id, label, count]) => <button key={id} onClick={() => { setStatusFilter(id); setSelectedIds([]); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusFilter === id ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#b8d0e6]"}`}>{label} ({count})</button>)}</div>
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names, companies, phones…" className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+        <div className="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => { setSearch(event.target.value); setSelectedIds([]); }} placeholder="Search names, companies, phones…" className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+        <button type="button" disabled={!shownIds.length} onClick={toggleShown} className="rounded-lg border border-[#b8d0e6] bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] disabled:opacity-50">{allShownSelected ? "Clear shown" : `Select all shown (${shownIds.length})`}</button>
         {selectedIds.length > 0 && (
           <div className="flex items-center gap-2">
-            <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value)} defaultValue="" className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2 text-sm text-[#0f172a]">
-              <option value="" disabled>Assign {selectedIds.length} leads…</option>
-              <option value="">Unassigned</option>
+            <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value === "__unassigned__" ? "" : event.target.value)} defaultValue="__choose__" className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2 text-sm text-[#0f172a]">
+              <option value="__choose__" disabled>Assign {selectedIds.length} leads…</option>
+              <option value="__unassigned__">Unassigned</option>
               {users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}
             </select>
+            {hasRetrySelection && <button type="button" disabled={assigning} onClick={() => void requeueSelected()} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Ready + unassign</button>}
+            <button type="button" onClick={() => setSelectedIds([])} className="rounded-lg px-2 py-2 text-xs font-bold text-[#64748b]">Clear</button>
             <button
               type="button"
               onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
@@ -1358,7 +1424,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
         )}
         <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>
       </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input type="checkbox" checked={leads.length > 0 && leads.every((lead) => selectedIds.includes(text(lead, "id")))} onChange={(event) => setSelectedIds(event.target.checked ? leads.map((lead) => text(lead, "id")) : [])}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Setter</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
+      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input aria-label="Select all shown leads" type="checkbox" checked={allShownSelected} onChange={toggleShown}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Setter</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
         const owner = getBusinessOwner(lead);
         const comp = text(lead, "company");
         return (

@@ -180,19 +180,59 @@ export async function PATCH(request: Request) {
     assignedUserId?: string | null;
     status?: string;
     priority?: number;
+    action?: "requeue";
   };
   if (!body.ids?.length) return NextResponse.json({ error: "Lead ids are required." }, { status: 400 });
   if (body.ids.length > 1000) return NextResponse.json({ error: "Bulk updates are limited to 1,000 leads." }, { status: 400 });
+
+  if (body.action === "requeue") {
+    const updated = await sql`
+      UPDATE dialer_leads SET
+        assigned_user_id = NULL,
+        status = 'to_call',
+        disposition = NULL,
+        next_call_at = NULL,
+        reserved_by = NULL,
+        reserved_at = NULL,
+        reservation_expires_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ANY(${body.ids}::uuid[])
+        AND do_not_call = FALSE
+        AND NOT EXISTS (SELECT 1 FROM dialer_dnc d WHERE d.phone_e164 = dialer_leads.phone_e164)
+        AND (status = 'try_again' OR disposition = ANY(${["voicemail", "no_answer", "busy", "failed"]}::text[]))
+        AND (${auth.user.role} = 'owner' OR assigned_user_id = ${auth.user.id} OR assigned_user_id IS NULL)
+      RETURNING id
+    `;
+    await addActivity({
+      userId: auth.user.id,
+      type: "leads_requeued",
+      summary: `Returned ${updated.length} retry lead${updated.length === 1 ? "" : "s"} to the ready queue`,
+      metadata: { requested: body.ids.length, unassigned: true },
+    });
+    return NextResponse.json({ success: true, updated: updated.length });
+  }
+
   const status = ["to_call", "try_again", "follow_up", "closed"].includes(body.status || "") ? body.status : null;
-  await sql`
+  if (body.assignedUserId === undefined && !status && body.priority === undefined) {
+    return NextResponse.json({ error: "A bulk update action is required." }, { status: 400 });
+  }
+  const updated = await sql`
     UPDATE dialer_leads SET
       assigned_user_id = CASE WHEN ${body.assignedUserId === undefined} THEN assigned_user_id ELSE ${body.assignedUserId || null} END,
       status = COALESCE(${status}, status),
       priority = COALESCE(${body.priority ?? null}, priority),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ANY(${body.ids}::uuid[])
+      AND (${auth.user.role} = 'owner' OR assigned_user_id = ${auth.user.id} OR assigned_user_id IS NULL)
+    RETURNING id
   `;
-  return NextResponse.json({ success: true, updated: body.ids.length });
+  await addActivity({
+    userId: auth.user.id,
+    type: "leads_bulk_updated",
+    summary: `Updated ${updated.length} lead${updated.length === 1 ? "" : "s"}`,
+    metadata: { assignedUserId: body.assignedUserId, status, priority: body.priority },
+  });
+  return NextResponse.json({ success: true, updated: updated.length });
 }
 
 export async function DELETE(request: Request) {
