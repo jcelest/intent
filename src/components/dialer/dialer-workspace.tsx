@@ -1,7 +1,7 @@
 "use client";
 
 import type { Call as VoiceCall, Device as VoiceDevice } from "@twilio/voice-sdk";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/ui/logo";
 
@@ -1164,7 +1164,7 @@ type LeadsViewProps = {
   search: string;
   setSearch: (value: string) => void;
   selectedIds: string[];
-  setSelectedIds: (value: string[]) => void;
+  setSelectedIds: Dispatch<SetStateAction<string[]>>;
   onDial: (lead: Row) => void;
   dialSessionState: DialSessionState;
   voiceReadiness: VoiceReadiness;
@@ -1184,11 +1184,116 @@ type LeadsViewProps = {
   onNotify?: (msg: string) => void;
 };
 
+function useLeadSelectionController(leads: Row[], selectedIds: string[], setSelectedIds: Dispatch<SetStateAction<string[]>>) {
+  const anchorIdRef = useRef<string | null>(null);
+  const dragRef = useRef<{ active: boolean; selecting: boolean; visited: Set<string> }>({ active: false, selecting: true, visited: new Set() });
+
+  useEffect(() => {
+    const stopDragging = () => { dragRef.current.active = false; };
+    window.addEventListener("pointerup", stopDragging);
+    window.addEventListener("pointercancel", stopDragging);
+    return () => {
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
+    };
+  }, []);
+
+  const applySelection = useCallback((ids: string[], selecting: boolean) => {
+    const changedIds = new Set(ids);
+    setSelectedIds((current) => selecting
+      ? Array.from(new Set([...current, ...ids]))
+      : current.filter((id) => !changedIds.has(id)));
+  }, [setSelectedIds]);
+
+  const toggleLead = useCallback((leadId: string, shiftKey: boolean) => {
+    const selecting = !selectedIds.includes(leadId);
+    const anchorIndex = anchorIdRef.current ? leads.findIndex((lead) => text(lead, "id") === anchorIdRef.current) : -1;
+    const leadIndex = leads.findIndex((lead) => text(lead, "id") === leadId);
+    if (shiftKey && anchorIndex >= 0 && leadIndex >= 0) {
+      const start = Math.min(anchorIndex, leadIndex);
+      const end = Math.max(anchorIndex, leadIndex);
+      applySelection(leads.slice(start, end + 1).map((lead) => text(lead, "id")), selecting);
+    } else {
+      applySelection([leadId], selecting);
+    }
+    anchorIdRef.current = leadId;
+  }, [applySelection, leads, selectedIds]);
+
+  const startDragging = useCallback((leadId: string, shiftKey: boolean) => {
+    if (shiftKey) {
+      toggleLead(leadId, true);
+      return;
+    }
+    const selecting = !selectedIds.includes(leadId);
+    dragRef.current = { active: true, selecting, visited: new Set([leadId]) };
+    anchorIdRef.current = leadId;
+    applySelection([leadId], selecting);
+  }, [applySelection, selectedIds, toggleLead]);
+
+  const enterWhileDragging = useCallback((leadId: string) => {
+    const drag = dragRef.current;
+    if (!drag.active || drag.visited.has(leadId)) return;
+    drag.visited.add(leadId);
+    applySelection([leadId], drag.selecting);
+  }, [applySelection]);
+
+  return { toggleLead, startDragging, enterWhileDragging };
+}
+
+function LeadSelectionCheckbox({
+  checked,
+  label,
+  className = "",
+  onToggle,
+  onDragStart,
+  onDragEnter,
+}: {
+  checked: boolean;
+  label: string;
+  className?: string;
+  onToggle: (shiftKey: boolean) => void;
+  onDragStart: (shiftKey: boolean) => void;
+  onDragEnter: () => void;
+}) {
+  const suppressClickUntilRef = useRef(0);
+  return (
+    <span
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      tabIndex={0}
+      className={`cursor-pointer select-none ${className}`}
+      onPointerDown={(event) => {
+        if (event.pointerType !== "mouse" || event.button !== 0) return;
+        event.preventDefault();
+        suppressClickUntilRef.current = Date.now() + 700;
+        onDragStart(event.shiftKey);
+      }}
+      onPointerEnter={onDragEnter}
+      onClick={(event) => {
+        if (Date.now() < suppressClickUntilRef.current) {
+          event.preventDefault();
+          return;
+        }
+        onToggle(event.shiftKey);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== " " && event.key !== "Enter") return;
+        event.preventDefault();
+        onToggle(event.shiftKey);
+      }}
+    >
+      <input aria-hidden="true" tabIndex={-1} type="checkbox" checked={checked} readOnly className="pointer-events-none" />
+    </span>
+  );
+}
+
 function ResponsiveLeadsView(props: LeadsViewProps) {
   const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify } = props;
   const [assigning, setAssigning] = useState(false);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
   const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
+  const selection = useLeadSelectionController(leads, selectedIds, setSelectedIds);
   const shownIds = leads.map((lead) => text(lead, "id"));
   const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selectedIds.includes(id));
   const hasRetrySelection = allLeads.some((lead) => selectedIds.includes(text(lead, "id")) && (text(lead, "status") === "try_again" || (RETRY_DISPOSITIONS as readonly string[]).includes(text(lead, "disposition"))));
@@ -1250,6 +1355,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
             <button type="button" disabled={!shownIds.length} onClick={toggleShown} className="min-h-10 rounded-lg border border-[#b8d0e6] bg-[#edf5fc] px-3 text-xs font-bold text-[#1266c4] disabled:opacity-50">{allShownSelected ? "Clear shown" : `Select all shown (${shownIds.length})`}</button>
             {selectedIds.length > 0 && <button type="button" onClick={() => setSelectedIds([])} className="min-h-10 px-2 text-xs font-bold text-[#64748b]">Clear {selectedIds.length} selected</button>}
           </div>
+          <p className="px-1 text-[10px] text-[#64748b]">Tap individual leads for a random selection. On desktop, drag down the checkboxes or Shift-click to select a range.</p>
           {selectedIds.length > 0 ? (
             <div className="grid min-w-0 gap-2 sm:flex">
               <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value === "__unassigned__" ? "" : event.target.value)} defaultValue="__choose__" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="__choose__" disabled>Assign {selectedIds.length} selected...</option><option value="__unassigned__">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
@@ -1273,14 +1379,14 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
           return (
             <article key={leadId} className="p-4">
               <div className="flex items-start gap-3">
-                <label className="flex min-h-11 items-center">
-                  <input
-                    aria-label={`Select ${leadName(lead)}`}
-                    type="checkbox"
-                    checked={selectedIds.includes(leadId)}
-                    onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, leadId] : selectedIds.filter((id) => id !== leadId))}
-                  />
-                </label>
+                <LeadSelectionCheckbox
+                  checked={selectedIds.includes(leadId)}
+                  label={`Select ${leadName(lead)}`}
+                  className="flex min-h-11 items-center"
+                  onToggle={(shiftKey) => selection.toggleLead(leadId, shiftKey)}
+                  onDragStart={(shiftKey) => selection.startDragging(leadId, shiftKey)}
+                  onDragEnter={() => selection.enterWhileDragging(leadId)}
+                />
                 <Avatar name={owner || leadName(lead)}/>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
@@ -1354,6 +1460,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
 function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
   const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
+  const selection = useLeadSelectionController(leads, selectedIds, setSelectedIds);
   const shownIds = leads.map((lead) => text(lead, "id"));
   const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selectedIds.includes(id));
   const hasRetrySelection = allLeads.some((lead) => selectedIds.includes(text(lead, "id")) && (text(lead, "status") === "try_again" || (RETRY_DISPOSITIONS as readonly string[]).includes(text(lead, "disposition"))));
@@ -1422,7 +1529,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
             </button>
           </div>
         )}
-        <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists</div>
+        <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists · Drag checkboxes or Shift-click a range</div>
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input aria-label="Select all shown leads" type="checkbox" checked={allShownSelected} onChange={toggleShown}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Setter</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
         const owner = getBusinessOwner(lead);
@@ -1430,7 +1537,13 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
         return (
           <tr key={text(lead, "id")} className="group hover:bg-[#f8fafc]">
             <td className="px-4 py-3">
-              <input type="checkbox" checked={selectedIds.includes(text(lead, "id"))} onChange={(event) => setSelectedIds(event.target.checked ? [...selectedIds, text(lead, "id")] : selectedIds.filter((id) => id !== text(lead, "id")))}/>
+              <LeadSelectionCheckbox
+                checked={selectedIds.includes(text(lead, "id"))}
+                label={`Select ${leadName(lead)}`}
+                onToggle={(shiftKey) => selection.toggleLead(text(lead, "id"), shiftKey)}
+                onDragStart={(shiftKey) => selection.startDragging(text(lead, "id"), shiftKey)}
+                onDragEnter={() => selection.enterWhileDragging(text(lead, "id"))}
+              />
             </td>
             <td className="px-3 py-3">
               <div className="flex items-center gap-3">
