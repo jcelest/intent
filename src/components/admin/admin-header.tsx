@@ -6,6 +6,11 @@ import { LogoutLink } from "@/components/admin/logout-link";
 
 const NAV = [
   {
+    href: "/admin/opportunity-intelligence",
+    label: "Opportunity Intelligence",
+    match: (p: string) => p.includes("/opportunity-intelligence"),
+  },
+  {
     href: "/admin/analytics",
     label: "Intent Analytics",
     match: (p: string) => p.includes("/analytics") && !p.includes("/keyword"),
@@ -26,9 +31,12 @@ export function AdminHeader() {
           <Link href="/" className="text-sm font-mono text-slate-300 hover:text-[#00e5ff] transition-colors">
             ← Back to Intent
           </Link>
-          <h1 className="text-lg font-display font-semibold text-[#00e5ff] drop-shadow-[0_0_20px_rgba(0,229,255,0.5)]">
-            Intent Admin Hub
-          </h1>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#00e5ff] shadow-[0_0_10px_#00e5ff]" />
+            <h1 className="text-lg font-display font-semibold text-[#00e5ff] drop-shadow-[0_0_20px_rgba(0,229,255,0.5)]">
+              Intent Admin Hub
+            </h1>
+          </div>
           <LogoutLink />
         </div>
         <nav className="flex flex-wrap gap-6">
@@ -39,7 +47,7 @@ export function AdminHeader() {
                 key={item.href}
                 href={item.href}
                 className={`font-mono text-sm transition-colors ${
-                  active ? "text-[#00e5ff] font-semibold" : "text-slate-400 hover:text-slate-300"
+                  active ? "text-[#00e5ff] font-semibold border-b border-[#00e5ff] pb-1" : "text-slate-400 hover:text-slate-300"
                 }`}
               >
                 {item.label}
