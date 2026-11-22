@@ -866,7 +866,7 @@ export function DialerWorkspace() {
     deviceRef.current?.destroy();
     await fetch("/api/admin/logout", { method: "POST" });
     const isDialerHost = window.location.hostname === "call.intentrev.net" || window.location.hostname.startsWith("call.localhost");
-    window.location.href = isDialerHost ? "/login" : "/admin/login";
+    window.location.href = isDialerHost ? "/login" : "/admin/dialer/login";
   };
 
   if (loading) return <LoadingScreen />;
