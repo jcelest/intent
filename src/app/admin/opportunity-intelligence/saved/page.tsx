@@ -62,7 +62,7 @@ export default function SavedOpportunitiesPage() {
           <div className="p-12 text-center text-sm text-slate-400 space-y-2">
             <div>No saved opportunities yet.</div>
             <div className="text-xs text-slate-500">
-              Click the &quot;☆ Save&quot; button on any Commercial Bid or Network to bookmark it here.
+              Click the Save button on any Commercial Bid or Network to bookmark it here.
             </div>
           </div>
         ) : (

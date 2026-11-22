@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
+import { CheckIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 interface ClientMatchResult {
   clientId: string;
@@ -109,7 +110,9 @@ export default function ClientMatchingPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
                     {m.matchReasons.map((r, i) => (
-                      <span key={i} className="text-emerald-400">✓ {r}</span>
+                      <span key={i} className="inline-flex items-center gap-1 text-emerald-400">
+                        <CheckIcon className="h-3 w-3" /> {r}
+                      </span>
                     ))}
                   </div>
                 </div>

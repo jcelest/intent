@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ProcurementSourceDef } from "@/lib/opportunity-sources";
+import { ExternalLinkIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 export default function ProcurementSourcesPage() {
   const [sources, setSources] = useState<ProcurementSourceDef[]>([]);
@@ -151,9 +152,9 @@ export default function ProcurementSourcesPage() {
                         href={s.portalUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded bg-white/5 border border-white/10 px-2.5 py-1 text-[11px] text-cyan-300 hover:bg-cyan-500/20"
+                        className="inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-2.5 py-1 text-[11px] text-cyan-300 hover:bg-cyan-500/20"
                       >
-                        Portal ↗
+                        Portal <ExternalLinkIcon className="h-3 w-3" />
                       </a>
                     </td>
                   </tr>

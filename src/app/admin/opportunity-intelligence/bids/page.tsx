@@ -3,6 +3,14 @@
 import { useEffect, useState, useCallback } from "react";
 import type { CommercialBidRecord } from "@/lib/opportunity-intelligence";
 import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
+import {
+  DownloadIcon,
+  CheckIcon,
+  BookmarkIcon,
+  BookmarkSolidIcon,
+  ExternalLinkIcon,
+  PlusIcon,
+} from "@/components/admin/opportunity-intelligence/icons";
 
 export default function CommercialBidsPage() {
   const [bids, setBids] = useState<CommercialBidRecord[]>([]);
@@ -152,16 +160,16 @@ export default function CommercialBidsPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={exportCSV}
-            className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+            className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5"
           >
-            📥 Export CSV ({total})
+            <DownloadIcon className="h-3.5 w-3.5" /> Export CSV ({total})
           </button>
         </div>
       </div>
 
       {pipelineSuccess && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300">
-          ✓ {pipelineSuccess}
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300 inline-flex items-center gap-1.5 w-full">
+          <CheckIcon className="h-4 w-4 text-emerald-400 shrink-0" /> {pipelineSuccess}
         </div>
       )}
 
@@ -297,14 +305,22 @@ export default function CommercialBidsPage() {
                         : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
                     }`}
                   >
-                    {bid.is_saved ? "★ Saved" : "☆ Save"}
+                    {bid.is_saved ? (
+                      <span className="inline-flex items-center gap-1">
+                        <BookmarkSolidIcon className="h-3.5 w-3.5 text-pink-400" /> Saved
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <BookmarkIcon className="h-3.5 w-3.5" /> Save
+                      </span>
+                    )}
                   </button>
 
                   <button
                     onClick={() => pushToPipeline(bid)}
-                    className="rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+                    className="rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-colors inline-flex items-center gap-1"
                   >
-                    + Add to Pipeline
+                    <PlusIcon className="h-3 w-3" /> Add to Pipeline
                   </button>
 
                   <button
@@ -318,9 +334,9 @@ export default function CommercialBidsPage() {
                     href={bid.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 transition-colors"
+                    className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 transition-colors inline-flex items-center gap-1"
                   >
-                    Source ↗
+                    Source <ExternalLinkIcon className="h-3 w-3" />
                   </a>
                 </div>
               </div>
@@ -343,9 +359,11 @@ export default function CommercialBidsPage() {
               </div>
               <button
                 onClick={() => setSelectedBid(null)}
-                className="text-slate-400 hover:text-white text-lg p-1"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
               >
-                ✕
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -403,17 +421,17 @@ export default function CommercialBidsPage() {
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
               <button
                 onClick={() => pushToPipeline(selectedBid)}
-                className="rounded-lg bg-cyan-500/20 text-cyan-300 px-4 py-2 text-xs font-semibold hover:bg-cyan-500/30"
+                className="rounded-lg bg-cyan-500/20 text-cyan-300 px-4 py-2 text-xs font-semibold hover:bg-cyan-500/30 inline-flex items-center gap-1.5"
               >
-                + Add to Pipeline
+                <PlusIcon className="h-3.5 w-3.5" /> Add to Pipeline
               </button>
               <a
                 href={selectedBid.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg bg-cyan-500 text-black px-4 py-2 text-xs font-bold hover:bg-cyan-400"
+                className="rounded-lg bg-cyan-500 text-black px-4 py-2 text-xs font-bold hover:bg-cyan-400 inline-flex items-center gap-1.5"
               >
-                Open Official Procurement Portal ↗
+                Open Official Procurement Portal <ExternalLinkIcon className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>

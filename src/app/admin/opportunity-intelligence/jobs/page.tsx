@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CollectionJobRecord } from "@/lib/opportunity-intelligence";
+import { CheckIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 export default function CollectionJobsPage() {
   const [jobs, setJobs] = useState<CollectionJobRecord[]>([]);
@@ -74,8 +75,8 @@ export default function CollectionJobsPage() {
       </div>
 
       {jobNotice && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300">
-          ✓ {jobNotice}
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300 inline-flex items-center gap-1.5 w-full">
+          <CheckIcon className="h-4 w-4 text-emerald-400 shrink-0" /> {jobNotice}
         </div>
       )}
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { SearchIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 interface TabItem {
   href: string;
@@ -49,7 +50,7 @@ export default function OpportunityIntelligenceLayout({ children }: { children: 
                 href="/admin/opportunity-intelligence/geographic-search"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:from-cyan-400 hover:to-blue-500 transition-all"
               >
-                <span>🔍</span> Quick FL Geo Search
+                <SearchIcon className="h-3.5 w-3.5 text-white" /> Quick FL Geo Search
               </Link>
             </div>
           </div>

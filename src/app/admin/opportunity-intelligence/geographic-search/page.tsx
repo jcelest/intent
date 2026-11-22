@@ -3,6 +3,13 @@
 import { useState } from "react";
 import type { ParsedGeoScope } from "@/lib/florida-geo";
 import type { CommercialBidRecord, CommercialNetworkRecord } from "@/lib/opportunity-intelligence";
+import {
+  SearchIcon,
+  MapPinIcon,
+  RadarIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+} from "@/components/admin/opportunity-intelligence/icons";
 
 export default function FloridaGeographicSearchPage() {
   const [geoInput, setGeoInput] = useState("Orange County, Seminole, 32801, 33602, Tampa, Orlando");
@@ -81,39 +88,39 @@ export default function FloridaGeographicSearchPage() {
         <span className="text-xs font-mono text-slate-400 mr-1">Quick Presets:</span>
         <button
           onClick={() => applyPreset("Orange, Seminole, Osceola, Lake, Volusia, Brevard")}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all inline-flex items-center gap-1"
         >
-          📍 Greater Orlando / Central FL
+          <MapPinIcon className="h-3 w-3 text-cyan-400" /> Greater Orlando / Central FL
         </button>
         <button
           onClick={() => applyPreset("Hillsborough, Pinellas, Pasco, Manatee, Sarasota")}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all inline-flex items-center gap-1"
         >
-          📍 Tampa Bay & Suncoast
+          <MapPinIcon className="h-3 w-3 text-cyan-400" /> Tampa Bay & Suncoast
         </button>
         <button
           onClick={() => applyPreset("Miami-Dade, Broward, Palm Beach")}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all inline-flex items-center gap-1"
         >
-          📍 South Florida Tri-County
+          <MapPinIcon className="h-3 w-3 text-cyan-400" /> South Florida Tri-County
         </button>
         <button
           onClick={() => applyPreset("Duval, St. Johns, Clay, Nassau, Baker")}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all inline-flex items-center gap-1"
         >
-          📍 First Coast (Jacksonville)
+          <MapPinIcon className="h-3 w-3 text-cyan-400" /> First Coast (Jacksonville)
         </button>
         <button
           onClick={() => applyPreset("Hillsborough, Polk, Osceola, Orange, Seminole, Volusia")}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all inline-flex items-center gap-1"
         >
-          📍 I-4 High Demand Corridor
+          <MapPinIcon className="h-3 w-3 text-cyan-400" /> I-4 High Demand Corridor
         </button>
         <button
           onClick={() => applyPreset("All 67 Florida Counties, Statewide")}
-          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all inline-flex items-center gap-1"
         >
-          🌴 All 67 Counties (Statewide)
+          <RadarIcon className="h-3 w-3 text-cyan-400" /> All 67 Counties (Statewide)
         </button>
       </div>
 
@@ -125,8 +132,8 @@ export default function FloridaGeographicSearchPage() {
               Mixed Geographic Territory Input (ZIPs, Counties, Cities, Ranges)
             </label>
             <div className="flex items-center gap-3">
-              <label className="cursor-pointer text-xs font-mono text-cyan-400 hover:underline">
-                📁 Import CSV of ZIPs / Locations
+              <label className="cursor-pointer text-xs font-mono text-cyan-400 hover:underline inline-flex items-center gap-1.5">
+                <DownloadIcon className="h-3.5 w-3.5" /> Import CSV of ZIPs / Locations
                 <input
                   type="file"
                   accept=".csv,.txt"
@@ -172,9 +179,10 @@ export default function FloridaGeographicSearchPage() {
           <button
             onClick={() => executeSearch()}
             disabled={loading}
-            className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:from-cyan-400 hover:to-blue-500 transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/20"
+            className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:from-cyan-400 hover:to-blue-500 transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/20 inline-flex items-center gap-1.5"
           >
-            {loading ? "Resolving Florida Geography…" : "🔍 Execute Florida Search"}
+            <SearchIcon className="h-3.5 w-3.5" />
+            {loading ? "Resolving Florida Geography…" : "Execute Florida Search"}
           </button>
         </div>
       </div>
@@ -258,9 +266,9 @@ export default function FloridaGeographicSearchPage() {
                           href={b.source_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-cyan-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-cyan-400 hover:underline"
                         >
-                          View Source ↗
+                          View Source <ExternalLinkIcon className="h-3 w-3" />
                         </a>
                       </div>
                     </div>
@@ -301,9 +309,9 @@ export default function FloridaGeographicSearchPage() {
                             href={n.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-cyan-400 hover:underline"
+                            className="inline-flex items-center gap-1 text-cyan-400 hover:underline"
                           >
-                            Website ↗
+                            Website <ExternalLinkIcon className="h-3 w-3" />
                           </a>
                         )}
                       </div>

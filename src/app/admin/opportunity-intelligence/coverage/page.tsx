@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { FloridaCountyCoverage } from "@/lib/opportunity-intelligence";
 import { FLORIDA_REGIONS } from "@/lib/florida-geo";
+import { RefreshIcon, ArrowRightIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 export default function FloridaCoveragePage() {
   const [counties, setCounties] = useState<FloridaCountyCoverage[]>([]);
@@ -68,9 +69,9 @@ export default function FloridaCoveragePage() {
         <div className="flex items-center gap-2">
           <button
             onClick={loadCoverage}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 inline-flex items-center gap-1.5"
           >
-            ↻ Refresh Coverage
+            <RefreshIcon className="h-3.5 w-3.5" /> Refresh Coverage
           </button>
         </div>
       </div>
@@ -240,9 +241,9 @@ export default function FloridaCoveragePage() {
                       <span className="text-slate-700">|</span>
                       <Link
                         href={`/admin/opportunity-intelligence/geographic-search`}
-                        className="inline-block text-[11px] font-medium text-slate-300 hover:text-white"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-300 hover:text-white"
                       >
-                        Geo Search →
+                        Geo Search <ArrowRightIcon className="h-3 w-3" />
                       </Link>
                     </td>
                   </tr>

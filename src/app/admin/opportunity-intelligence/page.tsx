@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { OpportunityOverviewStats, CommercialBidRecord } from "@/lib/opportunity-intelligence";
+import {
+  RefreshIcon,
+  MapPinIcon,
+  BuildingIcon,
+  TargetIcon,
+  ExternalLinkIcon,
+  ArrowRightIcon,
+} from "@/components/admin/opportunity-intelligence/icons";
 
 export default function OpportunityIntelligenceOverviewPage() {
   const [stats, setStats] = useState<OpportunityOverviewStats | null>(null);
@@ -98,9 +106,10 @@ export default function OpportunityIntelligenceOverviewPage() {
           <button
             onClick={triggerRefresh}
             disabled={refreshing}
-            className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            {refreshing ? "Refreshing…" : "🔄 Trigger Refresh"}
+            <RefreshIcon className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing…" : "Trigger Refresh"}
           </button>
           <Link
             href="/admin/opportunity-intelligence/geographic-search"
@@ -197,7 +206,7 @@ export default function OpportunityIntelligenceOverviewPage() {
           href="/admin/opportunity-intelligence/geographic-search"
           className="group rounded-2xl border border-white/10 bg-[#0d1424] p-6 hover:border-cyan-500/50 hover:bg-[#111a30] transition-all"
         >
-          <div className="text-2xl mb-2">🗺️</div>
+          <MapPinIcon className="h-6 w-6 text-cyan-400 mb-3" />
           <h3 className="text-lg font-bold text-white group-hover:text-cyan-300">Florida Geographic Search</h3>
           <p className="text-xs text-slate-400 mt-2 leading-relaxed">
             Search any combination of Florida ZIP codes, 67 counties, cities, or regions simultaneously with instant spatial resolution.
@@ -208,7 +217,7 @@ export default function OpportunityIntelligenceOverviewPage() {
           href="/admin/opportunity-intelligence/bids"
           className="group rounded-2xl border border-white/10 bg-[#0d1424] p-6 hover:border-cyan-500/50 hover:bg-[#111a30] transition-all"
         >
-          <div className="text-2xl mb-2">📋</div>
+          <BuildingIcon className="h-6 w-6 text-cyan-400 mb-3" />
           <h3 className="text-lg font-bold text-white group-hover:text-cyan-300">Commercial Bids Engine</h3>
           <p className="text-xs text-slate-400 mt-2 leading-relaxed">
             Search and filter active public bids across State procurement, School Districts, Airports, and all 67 Florida counties.
@@ -219,7 +228,7 @@ export default function OpportunityIntelligenceOverviewPage() {
           href="/admin/opportunity-intelligence/pipeline"
           className="group rounded-2xl border border-white/10 bg-[#0d1424] p-6 hover:border-cyan-500/50 hover:bg-[#111a30] transition-all"
         >
-          <div className="text-2xl mb-2">💼</div>
+          <TargetIcon className="h-6 w-6 text-cyan-400 mb-3" />
           <h3 className="text-lg font-bold text-white group-hover:text-cyan-300">Outreach Pipeline</h3>
           <p className="text-xs text-slate-400 mt-2 leading-relaxed">
             Assign discovered opportunities to Intent Revenue clients and track stages from identification to awarded contracts.
@@ -233,9 +242,9 @@ export default function OpportunityIntelligenceOverviewPage() {
           <h3 className="text-base font-semibold text-white">Recently Indexed Florida Opportunities</h3>
           <Link
             href="/admin/opportunity-intelligence/bids"
-            className="text-xs font-mono text-cyan-400 hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline"
           >
-            View all bids →
+            View all bids <ArrowRightIcon className="h-3 w-3" />
           </Link>
         </div>
 
@@ -268,9 +277,9 @@ export default function OpportunityIntelligenceOverviewPage() {
                     href={bid.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors"
                   >
-                    Source ↗
+                    Source <ExternalLinkIcon className="h-3 w-3" />
                   </a>
                 </div>
               </div>

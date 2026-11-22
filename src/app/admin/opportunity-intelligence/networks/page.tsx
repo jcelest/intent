@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CommercialNetworkRecord } from "@/lib/opportunity-intelligence";
 import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
+import { CheckIcon, ExternalLinkIcon, PlusIcon } from "@/components/admin/opportunity-intelligence/icons";
 
 export default function CommercialNetworksPage() {
   const [networks, setNetworks] = useState<CommercialNetworkRecord[]>([]);
@@ -80,8 +81,8 @@ export default function CommercialNetworksPage() {
       </div>
 
       {pipelineSuccess && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300">
-          ✓ {pipelineSuccess}
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300 inline-flex items-center gap-1.5 w-full">
+          <CheckIcon className="h-4 w-4 text-emerald-400 shrink-0" /> {pipelineSuccess}
         </div>
       )}
 
@@ -210,15 +211,15 @@ export default function CommercialNetworksPage() {
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {net.website && (
                     <a
                       href={net.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-slate-400 hover:text-white"
+                      className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white"
                     >
-                      Website ↗
+                      Website <ExternalLinkIcon className="h-3 w-3" />
                     </a>
                   )}
                   {net.vendor_intake_url && (
@@ -226,18 +227,18 @@ export default function CommercialNetworksPage() {
                       href={net.vendor_intake_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-cyan-400 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline"
                     >
-                      Subcontractor Intake ↗
+                      Subcontractor Intake <ExternalLinkIcon className="h-3 w-3" />
                     </a>
                   )}
                 </div>
 
                 <button
                   onClick={() => addToPipeline(net)}
-                  className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:from-cyan-400 hover:to-blue-500 transition-all"
+                  className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:from-cyan-400 hover:to-blue-500 transition-all inline-flex items-center gap-1"
                 >
-                  + Add to Pipeline
+                  <PlusIcon className="h-3 w-3" /> Add to Pipeline
                 </button>
               </div>
             </div>
