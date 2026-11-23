@@ -187,7 +187,7 @@ export async function runSunbizMatchingPass(): Promise<{
           ${bestMatch.filingDate}, ${bestMatch.principalAddress}, ${bestMatch.registeredAgent},
           ${JSON.stringify(bestMatch.officers)}::jsonb, ${bestConfidence}, CURRENT_TIMESTAMP
         )
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (parcel_county, parcel_id) DO NOTHING
       `;
     } else {
       unmatchedCount++;
@@ -207,7 +207,7 @@ export async function runSunbizMatchingPass(): Promise<{
           ${p.county}, ${p.parcel_id}, ${rawOwner}, ${normalized},
           NULL, NULL, 'UNMATCHED', NULL, NULL, NULL, '[]'::jsonb, 0, CURRENT_TIMESTAMP
         )
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (parcel_county, parcel_id) DO NOTHING
       `;
     }
   }

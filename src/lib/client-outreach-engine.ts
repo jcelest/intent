@@ -249,7 +249,12 @@ export async function getClientTerritoryOutreachTargets(
         e.document_number as sunbiz_doc,
         e.match_confidence
       FROM fl_parcels p
-      LEFT JOIN fl_entities e 
+      LEFT JOIN (
+        SELECT DISTINCT ON (parcel_county, parcel_id)
+          parcel_county, parcel_id, status, document_number, match_confidence
+        FROM fl_entities
+        ORDER BY parcel_county, parcel_id, match_confidence DESC
+      ) e 
         ON e.parcel_county = p.county AND e.parcel_id = p.parcel_id
       ORDER BY p.county ASC, p.building_sqft DESC NULLS LAST
     `,
