@@ -11,6 +11,11 @@ import {
   COUNTY_BY_NAME,
 } from "../src/lib/florida-geo.ts";
 import { ALL_FLORIDA_PROCUREMENT_SOURCES } from "../src/lib/opportunity-sources.ts";
+import {
+  buildGoogleSearchQuery,
+  buildGoogleSearchUrl,
+  verifyTargetWithGoogleSearch,
+} from "../src/lib/google-search-verification.ts";
 
 test("validates all 67 Florida counties are indexed", () => {
   assert.equal(FLORIDA_COUNTIES.length, 67);
@@ -116,4 +121,29 @@ test("procurement source registry covers all 67 counties and major authorities",
 
   const stateSources = ALL_FLORIDA_PROCUREMENT_SOURCES.filter((s) => s.agencyType === "state");
   assert.ok(stateSources.length >= 3, "Must include VBS, MFMP, FDOT");
+});
+
+test("builds Google search query and verification URL with Florida location scope", () => {
+  const query = buildGoogleSearchQuery("Orange County Public Schools", "Orange", "Orlando");
+  assert.equal(query, '"Orange County Public Schools" Orlando, FL');
+
+  const url = buildGoogleSearchUrl(query);
+  assert.ok(url.startsWith("https://www.google.com/search?q="));
+  assert.ok(url.includes("Orlando"));
+});
+
+test("verifies Florida government targets as active using Google search data", async () => {
+  const result = await verifyTargetWithGoogleSearch({
+    targetName: "Greater Orlando Aviation Authority",
+    targetType: "aviation_transit",
+    county: "Orange",
+    city: "Orlando",
+    officialUrl: "https://orlandoairports.net",
+  });
+
+  assert.equal(result.status, "verified_active");
+  assert.equal(result.businessVerified, true);
+  assert.ok(result.snippet.includes("Greater Orlando Aviation Authority"));
+  assert.ok(result.snippet.includes("Orange"));
+  assert.ok(result.searchUrl.includes("google.com"));
 });

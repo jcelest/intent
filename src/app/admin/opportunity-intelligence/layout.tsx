@@ -13,6 +13,8 @@ interface TabItem {
 
 const OI_TABS: TabItem[] = [
   { href: "/admin/opportunity-intelligence", label: "Overview", exact: true },
+  { href: "/admin/opportunity-intelligence/client-targets", label: "Client Territory Targets" },
+  { href: "/admin/opportunity-intelligence/outreach-database", label: "Government & Network Portals" },
   { href: "/admin/opportunity-intelligence/bids", label: "Commercial Bids" },
   { href: "/admin/opportunity-intelligence/networks", label: "Commercial Networks" },
   { href: "/admin/opportunity-intelligence/geographic-search", label: "FL Geographic Search" },
