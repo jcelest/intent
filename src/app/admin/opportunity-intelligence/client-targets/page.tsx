@@ -29,6 +29,9 @@ interface RegisteredClient {
 interface CountyCoverage {
   county: string;
   count: number;
+  status?: string;
+  isPriority?: boolean;
+  threshold?: number;
 }
 
 export default function ClientTerritoryTargetsPage() {
@@ -440,14 +443,17 @@ export default function ClientTerritoryTargetsPage() {
           </span>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-300 font-mono text-[11px] pt-1">
-          {coverage.map((c) => (
-            <span key={c.county} className="inline-flex items-center gap-1">
-              <span className="text-white font-semibold">{c.county}:</span>
-              <span className="text-cyan-300">{c.count} records</span>
-            </span>
-          ))}
-          <span className="text-slate-500 italic">
-            • All other {67 - coverage.length} Florida counties are queued for ingestion.
+          {coverage
+            .filter((c) => c.status === "INGESTED" || c.count > 500)
+            .map((c) => (
+              <span key={c.county} className="inline-flex items-center gap-1">
+                <span className="text-white font-semibold">{c.county}:</span>
+                <span className="text-emerald-400 font-bold">{c.count.toLocaleString()} records</span>
+                <span className="text-[10px] text-emerald-500 font-mono">(Full Depth)</span>
+              </span>
+            ))}
+          <span className="text-slate-400">
+            • Other Florida counties are in the continuous ingestion queue or marked Records Request Required.
           </span>
         </div>
       </div>
@@ -630,12 +636,20 @@ export default function ClientTerritoryTargetsPage() {
               }}
               className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
             >
-              <option value="all">All Florida Counties ({coverage.length} Ingested)</option>
+              <option value="all">All Florida Counties (Full 67-County Statewide Registry)</option>
               {FLORIDA_COUNTIES.map((c) => {
                 const cov = coverage.find((cv) => cv.county.toLowerCase() === c.name.toLowerCase());
+                let tag = "In Ingestion Queue";
+                if (cov?.status === "INGESTED") {
+                  tag = `${cov.count.toLocaleString()} records • Ingested`;
+                } else if (cov?.status === "RECORDS_REQUEST_REQUIRED") {
+                  tag = `${cov.count > 0 ? cov.count + " records • " : ""}Records Request Req.`;
+                } else if (cov && cov.count > 0) {
+                  tag = `${cov.count.toLocaleString()} records • In Queue`;
+                }
                 return (
                   <option key={c.fips} value={c.name}>
-                    {c.name} County {cov ? `(${cov.count} records)` : "(Not ingested yet)"}
+                    {c.name} County ({tag})
                   </option>
                 );
               })}

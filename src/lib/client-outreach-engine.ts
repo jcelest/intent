@@ -71,7 +71,13 @@ export interface ClientOutreachQueryResult {
   page: number;
   pageSize: number;
   totalPages: number;
-  coverage: Array<{ county: string; count: number }>;
+  coverage: Array<{
+    county: string;
+    count: number;
+    status?: string;
+    isPriority?: boolean;
+    threshold?: number;
+  }>;
   stats: {
     totalInTerritory: number;
     inClientTerritoryCount: number;
@@ -160,18 +166,39 @@ export async function getClientTerritoryOutreachTargets(
 
   // 1. Dynamic County Coverage honesty: real record counts grouped by county across all tables
   const coverageRows = await sql`
-    SELECT county, COUNT(*)::int as count
+    SELECT 
+      u.county, 
+      u.count,
+      COALESCE(r.status, 'DIRECT_DOWNLOAD') as status,
+      COALESCE(r.is_priority_county, false) as is_priority,
+      COALESCE(r.full_depth_threshold, 500) as threshold
     FROM (
-      SELECT county FROM fl_parcels WHERE county IS NOT NULL
-      UNION ALL
-      SELECT county FROM fl_commercial_networks WHERE county IS NOT NULL
-      UNION ALL
-      SELECT county FROM fl_licenses WHERE county IS NOT NULL
-    ) unified
-    GROUP BY county
-    ORDER BY count DESC, county ASC
+      SELECT county, COUNT(*)::int as count
+      FROM (
+        SELECT county FROM fl_parcels WHERE county IS NOT NULL
+        UNION ALL
+        SELECT county FROM fl_commercial_networks WHERE county IS NOT NULL
+        UNION ALL
+        SELECT county FROM fl_licenses WHERE county IS NOT NULL
+      ) unified
+      GROUP BY county
+    ) u
+    LEFT JOIN fl_county_parcel_registry r ON LOWER(u.county) = LOWER(r.county)
+    ORDER BY u.count DESC, u.county ASC
   `;
-  const coverage = (coverageRows as Array<{ county: string; count: number }>);
+  const coverage = (coverageRows as Array<{
+    county: string;
+    count: number;
+    status: string;
+    is_priority: boolean;
+    threshold: number;
+  }>).map((r) => ({
+    county: String(r.county),
+    count: Number(r.count),
+    status: String(r.status),
+    isPriority: Boolean(r.is_priority),
+    threshold: Number(r.threshold),
+  }));
 
   // 2. Client Profile (Optional Overlay Lens)
   let clientObj: Record<string, unknown> | null = null;

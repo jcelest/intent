@@ -60,7 +60,7 @@ export const DOR_COUNTY_OID_START: Record<number, number> = {
   24: 2340001,   // DeSoto
   25: 2360001,   // Dixie
   26: 2400001,   // Duval
-  27: 2800001,   // Escambia
+  27: 2771360,   // Escambia
   28: 3000001,   // Flagler
   29: 3025001,   // Franklin
   30: 3045001,   // Gadsden
@@ -92,7 +92,7 @@ export const DOR_COUNTY_OID_START: Record<number, number> = {
   56: 6500001,   // Okaloosa
   57: 6600001,   // Okeechobee
   58: 6700001,   // Orange
-  59: 7200001,   // Osceola
+  59: 7103330,   // Osceola
   60: 7400001,   // Palm Beach
   61: 8100001,   // Pasco
   62: 8400001,   // Pinellas
@@ -100,7 +100,7 @@ export const DOR_COUNTY_OID_START: Record<number, number> = {
   64: 9300001,   // Putnam
   65: 10000001,  // St. Johns
   66: 10200001,  // St. Lucie
-  67: 9400001,   // Santa Rosa
+  67: 9302280,   // Santa Rosa
   68: 9500001,   // Sarasota
   69: 9800001,   // Seminole
   70: 10400001,  // Sumter

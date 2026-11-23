@@ -193,7 +193,7 @@ test("validates Florida DOR 67 counties and clustered index OBJECTID slices", ()
   const escambia = FLORIDA_DOR_COUNTIES.find((c) => c.name === "Escambia");
   assert.ok(escambia);
   assert.equal(escambia.dorCode, 27);
-  assert.equal(escambia.startOid, 2800001);
+  assert.equal(escambia.startOid, 2771360);
 });
 
 test("validates DOR commercial use code mapping to channels and categories", () => {

@@ -156,11 +156,27 @@ export async function runSunbizMatchingPass(): Promise<{
       SELECT 1 FROM fl_entities e
       WHERE e.parcel_county = p.county AND e.parcel_id = p.parcel_id
     )
+    LIMIT 2000
   `;
 
   let matchedCount = 0;
   let unmatchedCount = 0;
   const unmatchedReport: Array<{ county: string; parcel_id: string; owner_name_raw: string }> = [];
+
+  const toInsert: Array<{
+    county: string;
+    parcel_id: string;
+    rawOwner: string;
+    normalized: string;
+    entityName: string | null;
+    docNumber: string | null;
+    status: string;
+    filingDate: string | null;
+    principalAddress: string | null;
+    registeredAgent: string | null;
+    officers: Array<{ title: string; name: string; address?: string }>;
+    confidence: number;
+  }> = [];
 
   for (const p of (parcelRows as Array<{ county: string; parcel_id: string; owner_name_raw: string }>)) {
     const rawOwner = p.owner_name_raw;
@@ -180,20 +196,20 @@ export async function runSunbizMatchingPass(): Promise<{
 
     if (bestMatch && bestConfidence >= 75) {
       matchedCount++;
-      await sql`
-        INSERT INTO fl_entities (
-          parcel_county, parcel_id, owner_name_raw, normalized_name,
-          entity_name, document_number, status, filing_date,
-          principal_address, registered_agent, officers,
-          match_confidence, matched_at
-        ) VALUES (
-          ${p.county}, ${p.parcel_id}, ${rawOwner}, ${normalized},
-          ${bestMatch.entityName}, ${bestMatch.docNumber}, ${bestMatch.status},
-          ${bestMatch.filingDate}, ${bestMatch.principalAddress}, ${bestMatch.registeredAgent},
-          ${JSON.stringify(bestMatch.officers)}::jsonb, ${bestConfidence}, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (parcel_county, parcel_id) DO NOTHING
-      `;
+      toInsert.push({
+        county: p.county,
+        parcel_id: p.parcel_id,
+        rawOwner,
+        normalized,
+        entityName: bestMatch.entityName,
+        docNumber: bestMatch.docNumber,
+        status: bestMatch.status,
+        filingDate: bestMatch.filingDate,
+        principalAddress: bestMatch.principalAddress,
+        registeredAgent: bestMatch.registeredAgent,
+        officers: bestMatch.officers,
+        confidence: bestConfidence,
+      });
     } else {
       unmatchedCount++;
       unmatchedReport.push({
@@ -201,20 +217,66 @@ export async function runSunbizMatchingPass(): Promise<{
         parcel_id: p.parcel_id,
         owner_name_raw: rawOwner,
       });
-
-      await sql`
-        INSERT INTO fl_entities (
-          parcel_county, parcel_id, owner_name_raw, normalized_name,
-          entity_name, document_number, status, filing_date,
-          principal_address, registered_agent, officers,
-          match_confidence, matched_at
-        ) VALUES (
-          ${p.county}, ${p.parcel_id}, ${rawOwner}, ${normalized},
-          NULL, NULL, 'UNMATCHED', NULL, NULL, NULL, '[]'::jsonb, 0, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (parcel_county, parcel_id) DO NOTHING
-      `;
+      toInsert.push({
+        county: p.county,
+        parcel_id: p.parcel_id,
+        rawOwner,
+        normalized,
+        entityName: null,
+        docNumber: null,
+        status: "UNMATCHED",
+        filingDate: null,
+        principalAddress: null,
+        registeredAgent: null,
+        officers: [],
+        confidence: 0,
+      });
     }
+  }
+
+  // Bulk insert in chunks of 500
+  const CHUNK_SIZE = 500;
+  for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+    const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+    const counties = chunk.map((c) => c.county);
+    const parcelIds = chunk.map((c) => c.parcel_id);
+    const rawOwners = chunk.map((c) => c.rawOwner);
+    const normalizeds = chunk.map((c) => c.normalized);
+    const entityNames = chunk.map((c) => c.entityName);
+    const docNumbers = chunk.map((c) => c.docNumber);
+    const statuses = chunk.map((c) => c.status);
+    const filingDates = chunk.map((c) => c.filingDate);
+    const principalAddresses = chunk.map((c) => c.principalAddress);
+    const registeredAgents = chunk.map((c) => c.registeredAgent);
+    const officersJson = chunk.map((c) => JSON.stringify(c.officers));
+    const confidences = chunk.map((c) => c.confidence);
+
+    const timestamps = chunk.map(() => new Date().toISOString());
+
+    await sql`
+      INSERT INTO fl_entities (
+        parcel_county, parcel_id, owner_name_raw, normalized_name,
+        entity_name, document_number, status, filing_date,
+        principal_address, registered_agent, officers,
+        match_confidence, matched_at
+      )
+      SELECT * FROM UNNEST(
+        ${counties}::varchar[],
+        ${parcelIds}::varchar[],
+        ${rawOwners}::text[],
+        ${normalizeds}::text[],
+        ${entityNames}::varchar[],
+        ${docNumbers}::varchar[],
+        ${statuses}::varchar[],
+        ${filingDates}::date[],
+        ${principalAddresses}::text[],
+        ${registeredAgents}::text[],
+        ${officersJson}::jsonb[],
+        ${confidences}::integer[],
+        ${timestamps}::timestamptz[]
+      )
+      ON CONFLICT (parcel_county, parcel_id) DO NOTHING
+    `;
   }
 
   return { matchedCount, unmatchedCount, unmatchedReport };
