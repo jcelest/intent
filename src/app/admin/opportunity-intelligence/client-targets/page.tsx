@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import JSZip from "jszip";
 import type { UnifiedClientTargetRow } from "@/lib/client-outreach-engine";
@@ -41,7 +41,7 @@ interface ViewStats {
   inPipelineCount: number;
 }
 
-export default function ClientTerritoryTargetsTerminalPage() {
+function ClientTerritoryTargetsTerminalContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -1478,5 +1478,22 @@ export default function ClientTerritoryTargetsTerminalPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ClientTerritoryTargetsTerminalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#000000] p-6 text-xs text-[#FFB000] font-mono flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#FFB000] animate-ping" />
+            INITIALIZING WORK-FIRST TERMINAL...
+          </div>
+        </div>
+      }
+    >
+      <ClientTerritoryTargetsTerminalContent />
+    </Suspense>
   );
 }
