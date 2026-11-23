@@ -49,19 +49,24 @@ export interface ClientOutreachQueryParams {
   county?: string;
   city?: string;
   zip?: string;
+  channel?: string;
   channelFilter?: string;
   tonnageRisk?: string;
+  verificationStatus?: string;
   verificationFilter?: string;
   hasWebsite?: string; // "true" | "false" | "all"
   minReviews?: number;
   entityStatus?: string; // "Active" | "Inactive" | "UNMATCHED" | "all"
   licenseType?: string;
   permitWithinDays?: number;
+  search?: string;
   searchQuery?: string;
   needsReviewOnly?: boolean;
   hideExistingAccounts?: boolean;
   page?: number;
   pageSize?: number;
+  limit?: number;
+  mode?: "call_list" | "browse_all";
 }
 
 export interface ClientOutreachQueryResult {
@@ -70,6 +75,9 @@ export interface ClientOutreachQueryResult {
   total: number;
   page: number;
   pageSize: number;
+  limit?: number;
+  mode?: string;
+  hasMore?: boolean;
   totalPages: number;
   coverage: Array<{
     county: string;
@@ -79,6 +87,11 @@ export interface ClientOutreachQueryResult {
     threshold?: number;
   }>;
   stats: {
+    totalInView: number;
+    verifiedCallableCount: number;
+    withPhonePercent: number;
+    newPermits30dCount: number;
+    inPipelineCount: number;
     totalInTerritory: number;
     inClientTerritoryCount: number;
     existingAccountsCount: number;
@@ -86,7 +99,6 @@ export interface ClientOutreachQueryResult {
     chillerCount: number;
     under10tCount: number;
     permitsFoundCount: number;
-    inPipelineCount: number;
     reviewQueueCount: number;
   };
   territoryCounties: string[];
@@ -619,8 +631,9 @@ export async function getClientTerritoryOutreachTargets(
   }
 
   // 5e. Channel filter
-  if (params.channelFilter && params.channelFilter !== "all") {
-    filtered = filtered.filter((t) => t.channel === params.channelFilter);
+  const targetChannel = params.channelFilter || params.channel;
+  if (targetChannel && targetChannel !== "all") {
+    filtered = filtered.filter((t) => t.channel === targetChannel);
   }
 
   // 5f. Tonnage Risk filter
@@ -629,8 +642,9 @@ export async function getClientTerritoryOutreachTargets(
   }
 
   // 5g. Verification Status filter
-  if (params.verificationFilter && params.verificationFilter !== "all") {
-    filtered = filtered.filter((t) => t.verificationStatus === params.verificationFilter);
+  const targetVerification = params.verificationFilter || params.verificationStatus;
+  if (targetVerification && targetVerification !== "all") {
+    filtered = filtered.filter((t) => t.verificationStatus === targetVerification);
   }
 
   // 5h. Has Website filter
@@ -669,8 +683,9 @@ export async function getClientTerritoryOutreachTargets(
   }
 
   // 5m. Free-text search on name, address, city, county, incumbent, license number
-  if (params.searchQuery && params.searchQuery.trim()) {
-    const q = params.searchQuery.trim().toLowerCase();
+  const searchText = params.searchQuery || params.search;
+  if (searchText && searchText.trim()) {
+    const q = searchText.trim().toLowerCase();
     filtered = filtered.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
@@ -693,33 +708,101 @@ export async function getClientTerritoryOutreachTargets(
     filtered = filtered.filter((t) => !t.isClientAccount);
   }
 
-  // 6. Real Counts & Stats
+  // 6. Ranking
+  const mode = params.mode || "call_list";
+  const hasClientOverlay = Boolean(params.clientId && params.clientId !== "all");
+
+  if (mode === "call_list") {
+    // Call List ranking, in order:
+    // (1) verification status, Google search verified active first;
+    // (2) client fit score descending when a client overlay is selected;
+    // (3) most recent permit date;
+    // (4) Google review count descending.
+    filtered.sort((a, b) => {
+      const verifRank = (v: string) => {
+        if (v === "VERIFIED_ACTIVE") return 1;
+        if (v === "LIKELY_ACTIVE") return 2;
+        if (v === "AMBIGUOUS") return 3;
+        if (v === "NOT_FOUND") return 4;
+        return 5;
+      };
+      const vDiff = verifRank(a.verificationStatus) - verifRank(b.verificationStatus);
+      if (vDiff !== 0) return vDiff;
+
+      if (hasClientOverlay) {
+        const fitDiff = (b.fitScore || 0) - (a.fitScore || 0);
+        if (fitDiff !== 0) return fitDiff;
+      }
+
+      const pA = a.lastMechanicalPermitDate ? new Date(a.lastMechanicalPermitDate).getTime() : 0;
+      const pB = b.lastMechanicalPermitDate ? new Date(b.lastMechanicalPermitDate).getTime() : 0;
+      if (pB !== pA) return pB - pA;
+
+      const rA = Number(a.reviewCount) || 0;
+      const rB = Number(b.reviewCount) || 0;
+      return rB - rA;
+    });
+  }
+
+  // 7. Real Counts & Stats for CURRENT VIEW
   const total = filtered.length;
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+  let verifiedCallableCount = 0;
+  let withPhoneCount = 0;
+  let newPermits30dCount = 0;
+  let inPipelineCount = 0;
   let inClientTerritoryCount = 0;
   let existingAccountsCount = 0;
   let verifiedActiveCount = 0;
   let chillerCount = 0;
   let under10tCount = 0;
   let permitsFoundCount = 0;
-  let inPipelineCount = 0;
   let reviewQueueCount = 0;
 
   for (const t of filtered) {
+    const hasPhone = Boolean(t.verifiedPhone && t.verifiedPhone.trim());
+    if (hasPhone) withPhoneCount++;
+    if (t.verificationStatus === "VERIFIED_ACTIVE" && hasPhone) {
+      verifiedCallableCount++;
+    }
+    if (t.lastMechanicalPermitDate) {
+      const pTime = new Date(t.lastMechanicalPermitDate).getTime();
+      if (!isNaN(pTime) && now - pTime <= thirtyDaysMs) {
+        newPermits30dCount++;
+      }
+    }
+    if (t.inPipeline) inPipelineCount++;
+
+    // Preserve legacy dimensions
     if (t.inClientTerritory) inClientTerritoryCount++;
     if (t.isClientAccount) existingAccountsCount++;
     if (t.verificationStatus === "VERIFIED_ACTIVE") verifiedActiveCount++;
     if (t.tonnageRisk === "CHILLER_LIKELY") chillerCount++;
     if (t.tonnageRisk === "UNDER_10T_LIKELY") under10tCount++;
     if (t.lastMechanicalPermitDate) permitsFoundCount++;
-    if (t.inPipeline) inPipelineCount++;
     if (t.needsReview || t.verificationStatus === "AMBIGUOUS") reviewQueueCount++;
   }
 
-  // 7. Pagination
+  const withPhonePercent = total > 0 ? Math.round((withPhoneCount / total) * 100) : 0;
+
+  // 8. Pagination / Call List Slicing
   const page = Math.max(1, Number(params.page) || 1);
-  const pageSize = Math.max(1, Math.min(100, Number(params.pageSize) || 25));
+  const pageSize = Math.max(1, Math.min(200, Number(params.pageSize) || 25));
+  const limit = Math.max(1, Math.min(2000, Number(params.limit) || 50));
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const paginatedTargets = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  let paginatedTargets: UnifiedClientTargetRow[];
+  let hasMore = false;
+
+  if (mode === "call_list") {
+    paginatedTargets = filtered.slice(0, limit);
+    hasMore = limit < total;
+  } else {
+    paginatedTargets = filtered.slice((page - 1) * pageSize, page * pageSize);
+    hasMore = page < totalPages;
+  }
 
   const territoryCounties = Array.from(new Set(allRecords.map((t) => t.county)));
 
@@ -729,9 +812,17 @@ export async function getClientTerritoryOutreachTargets(
     total,
     page,
     pageSize,
+    limit,
+    mode,
+    hasMore,
     totalPages,
     coverage,
     stats: {
+      totalInView: total,
+      verifiedCallableCount,
+      withPhonePercent,
+      newPermits30dCount,
+      inPipelineCount,
       totalInTerritory: total,
       inClientTerritoryCount,
       existingAccountsCount,
@@ -739,7 +830,6 @@ export async function getClientTerritoryOutreachTargets(
       chillerCount,
       under10tCount,
       permitsFoundCount,
-      inPipelineCount,
       reviewQueueCount,
     },
     territoryCounties,

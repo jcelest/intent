@@ -1,17 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import JSZip from "jszip";
 import type { UnifiedClientTargetRow } from "@/lib/client-outreach-engine";
 import type { ClientRegistrationRecord } from "@/lib/permits-and-registrations";
 import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
 import {
-  GoogleIcon,
-  ShieldCheckIcon,
   SearchIcon,
   RefreshIcon,
   DownloadIcon,
   CheckIcon,
-  ExternalLinkIcon,
   PhoneIcon,
   BuildingIcon,
 } from "@/components/admin/opportunity-intelligence/icons";
@@ -26,23 +25,48 @@ interface RegisteredClient {
   contact_phone?: string | null;
 }
 
-interface CountyCoverage {
-  county: string;
-  count: number;
-  status?: string;
-  isPriority?: boolean;
-  threshold?: number;
+interface SavedView {
+  id: string;
+  name: string;
+  overlay_client_id: string | null;
+  filters: Record<string, string>;
+  created_at: string;
 }
 
-export default function ClientTerritoryTargetsPage() {
+interface ViewStats {
+  totalInView: number;
+  verifiedCallableCount: number;
+  withPhonePercent: number;
+  newPermits30dCount: number;
+  inPipelineCount: number;
+}
+
+export default function ClientTerritoryTargetsTerminalPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  // Mode: "call_list" (default) or "browse_all"
+  const [mode, setMode] = useState<"call_list" | "browse_all">("call_list");
+  const [callListLimit, setCallListLimit] = useState<number>(50);
+  const [hasMoreCallList, setHasMoreCallList] = useState<boolean>(false);
+
+  // Client Overlay (Optional Lens - Never Reduces Dataset)
   const [clients, setClients] = useState<RegisteredClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("all");
+  const [hideExistingAccounts, setHideExistingAccounts] = useState<boolean>(false);
 
-  // Manual Filter State (All Optional, Defaults Unscoped)
+  // Saved Views State
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+  const [newViewName, setNewViewName] = useState<string>("");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState<boolean>(false);
+
+  // Filter State (Combine via AND)
   const [countyFilter, setCountyFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("");
   const [zipFilter, setZipFilter] = useState<string>("");
-  const [territoryInput, setTerritoryInput] = useState<string>("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [tonnageRiskFilter, setTonnageRiskFilter] = useState<string>("all");
   const [verificationFilter, setVerificationFilter] = useState<string>("all");
@@ -53,76 +77,95 @@ export default function ClientTerritoryTargetsPage() {
   const [permitWithinDaysFilter, setPermitWithinDaysFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [needsReviewOnly, setNeedsReviewOnly] = useState<boolean>(false);
-  const [hideExistingAccounts, setHideExistingAccounts] = useState<boolean>(false);
 
-  // Pagination State
+  // Pagination for "browse_all" mode
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(25);
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  // Data & KPI State
+  // Data & Dynamic View Stats
   const [targets, setTargets] = useState<UnifiedClientTargetRow[]>([]);
-  const [coverage, setCoverage] = useState<CountyCoverage[]>([]);
-  const [registrations, setRegistrations] = useState<ClientRegistrationRecord[]>([]);
   const [total, setTotal] = useState<number>(0);
-  const [stats, setStats] = useState({
-    totalInTerritory: 0,
-    inClientTerritoryCount: 0,
-    existingAccountsCount: 0,
-    verifiedActiveCount: 0,
-    chillerCount: 0,
-    under10tCount: 0,
-    permitsFoundCount: 0,
+  const [stats, setStats] = useState<ViewStats>({
+    totalInView: 0,
+    verifiedCallableCount: 0,
+    withPhonePercent: 0,
+    newPermits30dCount: 0,
     inPipelineCount: 0,
-    reviewQueueCount: 0,
   });
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [verifyingTargetId, setVerifyingTargetId] = useState<string | null>(null);
-  const [pipelineNotice, setPipelineNotice] = useState<string | null>(null);
+  const [registrations, setRegistrations] = useState<ClientRegistrationRecord[]>([]);
   const [showRegistrations, setShowRegistrations] = useState<boolean>(false);
-  const [ingesting, setIngesting] = useState<boolean>(false);
-  const [ingestionNotice, setIngestionNotice] = useState<string | null>(null);
+  const [exportingSlices, setExportingSlices] = useState<boolean>(false);
 
-  const triggerIngestion = async (mode: "step" | "all_67") => {
+  // Load Saved Views
+  const loadSavedViews = useCallback(async () => {
     try {
-      setIngesting(true);
-      const res = await fetch("/api/opportunity-intelligence/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
+      const res = await fetch("/api/opportunity-intelligence/saved-views");
       const data = await res.json();
-      if (data.ok) {
-        if (mode === "all_67") {
-          setIngestionNotice(`Statewide Ingestion Complete: Processed 67 counties, added ${data.result?.totalAdded || 0} commercial parcels.`);
-        } else {
-          setIngestionNotice(`Continuous Cycle Complete: Ingested counties [${data.result?.countiesProcessed?.join(", ")}], added ${data.result?.totalRecordsAdded || 0} parcels. Next: ${data.result?.nextCounty}.`);
-        }
-        await loadTargets();
-        setTimeout(() => setIngestionNotice(null), 6000);
-      } else {
-        setIngestionNotice(`Ingestion error: ${data.error || "Failed to run ingestion"}`);
-        setTimeout(() => setIngestionNotice(null), 6000);
+      if (data.ok && Array.isArray(data.views)) {
+        setSavedViews(data.views);
       }
     } catch (err) {
-      console.error("Ingestion failed:", err);
-      setIngestionNotice("Ingestion request failed.");
-      setTimeout(() => setIngestionNotice(null), 6000);
-    } finally {
-      setIngesting(false);
+      console.error("Failed loading saved views:", err);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    loadSavedViews();
+  }, [loadSavedViews]);
+
+  // Sync initial query params on load
+  useEffect(() => {
+    const qCounty = searchParams.get("county");
+    const qCity = searchParams.get("city");
+    const qZip = searchParams.get("zip");
+    const qChannel = searchParams.get("channel");
+    const qTonnage = searchParams.get("tonnageRisk");
+    const qVerif = searchParams.get("verificationStatus");
+    const qWeb = searchParams.get("hasWebsite");
+    const qReviews = searchParams.get("minReviews");
+    const qEntity = searchParams.get("entityStatus");
+    const qLicense = searchParams.get("licenseType");
+    const qPermitDays = searchParams.get("permitWithinDays");
+    const qSearch = searchParams.get("search");
+    const qClient = searchParams.get("clientId");
+
+    if (qCounty) setCountyFilter(qCounty);
+    if (qCity) setCityFilter(qCity);
+    if (qZip) setZipFilter(qZip);
+    if (qChannel) setChannelFilter(qChannel);
+    if (qTonnage) setTonnageRiskFilter(qTonnage);
+    if (qVerif) setVerificationFilter(qVerif);
+    if (qWeb) setHasWebsiteFilter(qWeb);
+    if (qReviews) setMinReviewsFilter(qReviews);
+    if (qEntity) setEntityStatusFilter(qEntity);
+    if (qLicense) setLicenseTypeFilter(qLicense);
+    if (qPermitDays) setPermitWithinDaysFilter(qPermitDays);
+    if (qSearch) setSearchQuery(qSearch);
+    if (qClient) setSelectedClientId(qClient);
+  }, [searchParams]);
+
+  // Main Data Fetch
   const loadTargets = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      params.set("mode", mode);
+      if (mode === "call_list") {
+        params.set("limit", String(callListLimit));
+      } else {
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+      }
+
       if (selectedClientId && selectedClientId !== "all") params.set("clientId", selectedClientId);
       if (countyFilter !== "all") params.set("county", countyFilter);
       if (cityFilter.trim()) params.set("city", cityFilter.trim());
       if (zipFilter.trim()) params.set("zip", zipFilter.trim());
-      if (territoryInput.trim()) params.set("territory", territoryInput.trim());
       if (channelFilter !== "all") params.set("channel", channelFilter);
       if (tonnageRiskFilter !== "all") params.set("tonnageRisk", tonnageRiskFilter);
       if (verificationFilter !== "all") params.set("verificationStatus", verificationFilter);
@@ -134,8 +177,6 @@ export default function ClientTerritoryTargetsPage() {
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
       if (needsReviewOnly) params.set("needsReviewOnly", "true");
       if (hideExistingAccounts) params.set("hideExistingAccounts", "true");
-      params.set("page", String(page));
-      params.set("pageSize", String(pageSize));
 
       const res = await fetch(`/api/opportunity-intelligence/client-targets?${params.toString()}`);
       const data = await res.json();
@@ -143,22 +184,33 @@ export default function ClientTerritoryTargetsPage() {
         setTargets(data.targets || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
-        if (data.coverage) setCoverage(data.coverage);
-        if (data.stats) setStats(data.stats);
+        setHasMoreCallList(Boolean(data.hasMore));
         if (data.registeredClients) setClients(data.registeredClients);
         if (data.clientRegistrations) setRegistrations(data.clientRegistrations);
+        if (data.stats) {
+          setStats({
+            totalInView: data.stats.totalInView ?? data.stats.totalInTerritory ?? 0,
+            verifiedCallableCount: data.stats.verifiedCallableCount ?? 0,
+            withPhonePercent: data.stats.withPhonePercent ?? 0,
+            newPermits30dCount: data.stats.newPermits30dCount ?? 0,
+            inPipelineCount: data.stats.inPipelineCount ?? 0,
+          });
+        }
       }
     } catch (err) {
-      console.error("Failed loading client targets:", err);
+      console.error("Failed loading targets:", err);
     } finally {
       setLoading(false);
     }
   }, [
+    mode,
+    callListLimit,
+    page,
+    pageSize,
     selectedClientId,
     countyFilter,
     cityFilter,
     zipFilter,
-    territoryInput,
     channelFilter,
     tonnageRiskFilter,
     verificationFilter,
@@ -170,8 +222,6 @@ export default function ClientTerritoryTargetsPage() {
     searchQuery,
     needsReviewOnly,
     hideExistingAccounts,
-    page,
-    pageSize,
   ]);
 
   useEffect(() => {
@@ -181,33 +231,143 @@ export default function ClientTerritoryTargetsPage() {
     return () => clearTimeout(timer);
   }, [loadTargets]);
 
-  const handleClientSelect = (clientId: string) => {
-    setSelectedClientId(clientId);
-    setPage(1);
-    // Never reduce base dataset by territory when client is selected!
+  // Sync to URL Query String
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedClientId && selectedClientId !== "all") params.set("clientId", selectedClientId);
+    if (countyFilter !== "all") params.set("county", countyFilter);
+    if (cityFilter.trim()) params.set("city", cityFilter.trim());
+    if (zipFilter.trim()) params.set("zip", zipFilter.trim());
+    if (channelFilter !== "all") params.set("channel", channelFilter);
+    if (tonnageRiskFilter !== "all") params.set("tonnageRisk", tonnageRiskFilter);
+    if (verificationFilter !== "all") params.set("verificationStatus", verificationFilter);
+    if (hasWebsiteFilter !== "all") params.set("hasWebsite", hasWebsiteFilter);
+    if (minReviewsFilter) params.set("minReviews", minReviewsFilter);
+    if (entityStatusFilter !== "all") params.set("entityStatus", entityStatusFilter);
+    if (licenseTypeFilter !== "all") params.set("licenseType", licenseTypeFilter);
+    if (permitWithinDaysFilter !== "all") params.set("permitWithinDays", permitWithinDaysFilter);
+    if (searchQuery.trim()) params.set("search", searchQuery.trim());
+    const paramStr = params.toString();
+    startTransition(() => {
+      router.replace(`/admin/opportunity-intelligence/client-targets${paramStr ? `?${paramStr}` : ""}`, {
+        scroll: false,
+      });
+    });
+  }, [
+    selectedClientId,
+    countyFilter,
+    cityFilter,
+    zipFilter,
+    channelFilter,
+    tonnageRiskFilter,
+    verificationFilter,
+    hasWebsiteFilter,
+    minReviewsFilter,
+    entityStatusFilter,
+    licenseTypeFilter,
+    permitWithinDaysFilter,
+    searchQuery,
+    router,
+  ]);
+
+  // Quick Action Handlers (in-place row updates, NO page reload)
+  const handleMarkContacted = async (target: UnifiedClientTargetRow) => {
+    try {
+      const res = await fetch("/api/opportunity-intelligence/client-targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "contacted",
+          targetId: target.targetId,
+          businessName: target.name,
+          notes: "Marked contacted via Terminal Call List",
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTargets((prev) =>
+          prev.map((t) => (t.targetId === target.targetId ? { ...t, outreachStatus: "CONTACTED" } : t))
+        );
+        setActionNotice(`[CONTACTED] ${target.name} recorded.`);
+        setTimeout(() => setActionNotice(null), 4000);
+      }
+    } catch (err) {
+      console.error("Failed marking contacted:", err);
+    }
   };
 
-  const handleResetFilters = () => {
-    setCountyFilter("all");
-    setCityFilter("");
-    setZipFilter("");
-    setTerritoryInput("");
-    setChannelFilter("all");
-    setTonnageRiskFilter("all");
-    setVerificationFilter("all");
-    setHasWebsiteFilter("all");
-    setMinReviewsFilter("");
-    setEntityStatusFilter("all");
-    setLicenseTypeFilter("all");
-    setPermitWithinDaysFilter("all");
-    setSearchQuery("");
-    setNeedsReviewOnly(false);
-    setHideExistingAccounts(false);
-    setPage(1);
+  const handlePushToPipeline = async (target: UnifiedClientTargetRow) => {
+    try {
+      const selectedClient = clients.find((c) => c.id === selectedClientId);
+      const res = await fetch("/api/opportunity-intelligence/client-targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "pipeline",
+          clientId: selectedClient ? selectedClient.id : null,
+          clientName: selectedClient ? selectedClient.name : null,
+          parcelId: target.parcelId,
+          county: target.county,
+          businessName: target.name,
+          channel: target.channel,
+          situsAddress: target.situsAddress,
+          incumbentContractor: target.incumbentContractor,
+          lastPermitDate: target.lastMechanicalPermitDate,
+          evidenceUrls: target.evidence.map((e) => e.url),
+          officialWebsite: target.officialWebsiteUrl,
+          phone: target.verifiedPhone,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTargets((prev) =>
+          prev.map((t) =>
+            t.targetId === target.targetId
+              ? { ...t, inPipeline: true, pipelineStage: "identified" }
+              : t
+          )
+        );
+        setStats((prev) => ({ ...prev, inPipelineCount: prev.inPipelineCount + 1 }));
+        setActionNotice(`[PIPELINE] Added "${target.name}" to active pipeline.`);
+        setTimeout(() => setActionNotice(null), 4000);
+      }
+    } catch (err) {
+      console.error("Failed adding to pipeline:", err);
+    }
   };
 
-  // Layer 6 Search Verification Trigger
-  const triggerSearchVerification = async (target: UnifiedClientTargetRow, forceRefresh: boolean = false) => {
+  const handleExcludeRow = async (target: UnifiedClientTargetRow) => {
+    try {
+      const activeClientId = selectedClientId !== "all" ? selectedClientId : "GLOBAL";
+      const res = await fetch("/api/opportunity-intelligence/client-targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "exclude",
+          clientId: activeClientId,
+          accountName: target.name,
+          reason: "Manual exclusion via Terminal Call List",
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTargets((prev) =>
+          prev.map((t) => (t.targetId === target.targetId ? { ...t, isClientAccount: true } : t))
+        );
+        setActionNotice(
+          `[EXCLUDED] ${target.name} written to exclusions (${
+            activeClientId === "GLOBAL" ? "GLOBAL" : "Client scope"
+          }).`
+        );
+        setTimeout(() => setActionNotice(null), 4000);
+      }
+    } catch (err) {
+      console.error("Failed excluding record:", err);
+    }
+  };
+
+  // Re-verify search provider signal
+  const triggerSearchVerification = async (target: UnifiedClientTargetRow) => {
     try {
       setVerifyingTargetId(target.targetId);
       const res = await fetch("/api/opportunity-intelligence/client-targets", {
@@ -222,7 +382,7 @@ export default function ClientTerritoryTargetsPage() {
           targetId: target.parcelId || target.targetId,
           streetAddress: target.situsAddress,
           phone: target.verifiedPhone,
-          forceRefresh,
+          forceRefresh: true,
         }),
       });
       const data = await res.json();
@@ -240,59 +400,119 @@ export default function ClientTerritoryTargetsPage() {
                   reviewCount: data.verification.review_count,
                   verifiedPhone: data.verification.phone || t.verifiedPhone,
                   evidence: data.verification.evidence || t.evidence,
-                  needsReview: data.verification.needs_review,
                 }
               : t
           )
         );
+        setActionNotice(`[VERIFIED] Google search activity updated for ${target.name}.`);
+        setTimeout(() => setActionNotice(null), 4000);
       }
     } catch (err) {
-      console.error("Error verifying target:", err);
+      console.error("Verification failed:", err);
     } finally {
       setVerifyingTargetId(null);
     }
   };
 
-  // One-click Add to Outreach Pipeline carrying full evidence trail
-  const pushToPipeline = async (target: UnifiedClientTargetRow) => {
+  // Saved Views Handlers
+  const handleApplySavedView = (view: SavedView) => {
+    setActiveSavedViewId(view.id);
+    if (view.overlay_client_id) {
+      setSelectedClientId(view.overlay_client_id);
+    } else {
+      setSelectedClientId("all");
+    }
+    const f = view.filters || {};
+    setCountyFilter(f.county || "all");
+    setCityFilter(f.city || "");
+    setZipFilter(f.zip || "");
+    setChannelFilter(f.channel || "all");
+    setTonnageRiskFilter(f.tonnageRisk || "all");
+    setVerificationFilter(f.verificationStatus || "all");
+    setHasWebsiteFilter(f.hasWebsite || "all");
+    setMinReviewsFilter(f.minReviews || "");
+    setEntityStatusFilter(f.entityStatus || "all");
+    setLicenseTypeFilter(f.licenseType || "all");
+    setPermitWithinDaysFilter(f.permitWithinDays || "all");
+    setSearchQuery(f.search || "");
+    setAdvancedFiltersOpen(false); // Collapsed when saved view active
+    setCallListLimit(50);
+    setPage(1);
+  };
+
+  const handleSaveCurrentView = async () => {
+    if (!newViewName.trim()) return;
     try {
-      const selectedClient = clients.find((c) => c.id === selectedClientId);
-      const res = await fetch("/api/opportunity-intelligence/client-targets", {
+      const filtersToSave: Record<string, string> = {};
+      if (countyFilter !== "all") filtersToSave.county = countyFilter;
+      if (cityFilter.trim()) filtersToSave.city = cityFilter.trim();
+      if (zipFilter.trim()) filtersToSave.zip = zipFilter.trim();
+      if (channelFilter !== "all") filtersToSave.channel = channelFilter;
+      if (tonnageRiskFilter !== "all") filtersToSave.tonnageRisk = tonnageRiskFilter;
+      if (verificationFilter !== "all") filtersToSave.verificationStatus = verificationFilter;
+      if (hasWebsiteFilter !== "all") filtersToSave.hasWebsite = hasWebsiteFilter;
+      if (minReviewsFilter) filtersToSave.minReviews = minReviewsFilter;
+      if (entityStatusFilter !== "all") filtersToSave.entityStatus = entityStatusFilter;
+      if (licenseTypeFilter !== "all") filtersToSave.licenseType = licenseTypeFilter;
+      if (permitWithinDaysFilter !== "all") filtersToSave.permitWithinDays = permitWithinDaysFilter;
+      if (searchQuery.trim()) filtersToSave.search = searchQuery.trim();
+
+      const res = await fetch("/api/opportunity-intelligence/saved-views", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "add_pipeline",
-          clientId: selectedClient ? selectedClient.id : null,
-          clientName: selectedClient ? selectedClient.name : null,
-          parcelId: target.parcelId,
-          county: target.county,
-          businessName: target.name,
-          channel: target.channel,
-          situsAddress: target.situsAddress,
-          incumbentContractor: target.incumbentContractor,
-          lastPermitDate: target.lastMechanicalPermitDate,
-          evidenceUrls: target.evidence.map((e) => e.url),
-          officialWebsite: target.officialWebsiteUrl,
-          phone: target.verifiedPhone,
+          name: newViewName.trim(),
+          overlayClientId: selectedClientId !== "all" ? selectedClientId : null,
+          filters: filtersToSave,
         }),
       });
       const data = await res.json();
-      if (data.ok) {
-        setPipelineNotice(`Added "${target.name}" to outreach pipeline with full evidence trail.`);
-        setTargets((prev) =>
-          prev.map((t) =>
-            t.targetId === target.targetId ? { ...t, inPipeline: true, pipelineStage: "identified" } : t
-          )
-        );
-        setTimeout(() => setPipelineNotice(null), 4000);
+      if (data.ok && data.view) {
+        setSavedViews((prev) => [data.view, ...prev]);
+        setActiveSavedViewId(data.view.id);
+        setShowSaveModal(false);
+        setNewViewName("");
+        setActionNotice(`[SAVED VIEW] "${data.view.name}" saved.`);
+        setTimeout(() => setActionNotice(null), 4000);
       }
     } catch (err) {
-      console.error("Failed adding to pipeline:", err);
+      console.error("Failed saving view:", err);
     }
   };
 
-  // Export full targets to CSV
-  const exportTargetsCSV = () => {
+  const handleDeleteSavedView = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/opportunity-intelligence/saved-views?id=${id}`, { method: "DELETE" });
+      setSavedViews((prev) => prev.filter((v) => v.id !== id));
+      if (activeSavedViewId === id) setActiveSavedViewId(null);
+    } catch (err) {
+      console.error("Failed deleting saved view:", err);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setActiveSavedViewId(null);
+    setCountyFilter("all");
+    setCityFilter("");
+    setZipFilter("");
+    setChannelFilter("all");
+    setTonnageRiskFilter("all");
+    setVerificationFilter("all");
+    setHasWebsiteFilter("all");
+    setMinReviewsFilter("");
+    setEntityStatusFilter("all");
+    setLicenseTypeFilter("all");
+    setPermitWithinDaysFilter("all");
+    setSearchQuery("");
+    setNeedsReviewOnly(false);
+    setHideExistingAccounts(false);
+    setCallListLimit(50);
+    setPage(1);
+  };
+
+  // Full CSV Export
+  const exportFullCSV = () => {
     if (targets.length === 0) return;
     const headers = [
       "Target Name",
@@ -320,7 +540,6 @@ export default function ClientTerritoryTargetsPage() {
       "In Client Territory",
       "Is Client Account",
       "Scope Warning",
-      "Evidence URLs",
     ];
 
     const rows = targets.map((t) => [
@@ -349,7 +568,6 @@ export default function ClientTerritoryTargetsPage() {
       `"${t.inClientTerritory ? "YES" : "NO"}"`,
       `"${t.isClientAccount ? "YES" : "NO"}"`,
       `"${t.scopeWarning || ""}"`,
-      `"${t.evidence.map((e) => e.url).join("; ")}"`,
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -362,821 +580,903 @@ export default function ClientTerritoryTargetsPage() {
     document.body.removeChild(link);
   };
 
+  // Export Call Slices: Ranked Call List zipped into 30-record CSVs
+  const exportCallSlices = async () => {
+    try {
+      setExportingSlices(true);
+      const zip = new JSZip();
+      const sliceSize = 30;
+      const headers = [
+        "Business Name",
+        "Phone",
+        "City",
+        "County",
+        "Channel",
+        "Fit Score",
+        "Reviews",
+        "Website",
+        "Permit Signal",
+        "Verification Status",
+      ];
+
+      for (let i = 0; i < targets.length; i += sliceSize) {
+        const sliceChunk = targets.slice(i, i + sliceSize);
+        const sliceNum = Math.floor(i / sliceSize) + 1;
+        const slicePad = String(sliceNum).padStart(2, "0");
+        const rows = sliceChunk.map((t) => [
+          `"${t.name.replace(/"/g, '""')}"`,
+          `"${t.verifiedPhone || ""}"`,
+          `"${t.city}"`,
+          `"${t.county}"`,
+          `"${t.channel}"`,
+          `"${t.fitScore}"`,
+          `"${t.reviewCount || 0}"`,
+          `"${t.hasWebsite ? "Y" : "N"}"`,
+          `"${t.lastMechanicalPermitDate || "NONE"}"`,
+          `"${t.verificationStatus}"`,
+        ]);
+        const csvText = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+        zip.file(`slice-${slicePad}.csv`, csvText);
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `call-slices-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setActionNotice(`[EXPORT] Created zipped call slices (${Math.ceil(targets.length / sliceSize)} slices).`);
+      setTimeout(() => setActionNotice(null), 4000);
+    } catch (err) {
+      console.error("Export slices failed:", err);
+    } finally {
+      setExportingSlices(false);
+    }
+  };
+
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
-  // Check if selected county has data
-  const isSelectedCountyIngested = countyFilter === "all" || coverage.some((c) => c.county.toLowerCase() === countyFilter.toLowerCase());
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-500/20">
-              COMMERCIAL OPPORTUNITY INTELLIGENCE
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              Parcels • Businesses • DBPR Licensees • Commercial Networks
-            </span>
+    <div className="space-y-3 font-mono text-[13px] text-[#E0E0E0]">
+      {/* 1. Header Bar with Mode Toggle & Exports */}
+      <div className="rounded-[2px] border border-[#262626] bg-[#111111] px-4 py-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+        <div className="flex items-center gap-3">
+          <span className="h-2 w-2 rounded-full bg-[#FFB000]" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-wider text-[#FFB000] font-bold">
+                [CALL LIST MODE]
+              </span>
+              <span className="text-[11px] text-[#888888]">
+                {total.toLocaleString()} ELIGIBLE TARGETS
+              </span>
+            </div>
+            <h2 className="text-sm font-bold text-white tracking-tight">
+              TARGETS CALL QUEUE // WHO DO I CALL TODAY
+            </h2>
           </div>
-          <h1 className="text-xl font-bold text-white mt-1">
-            Florida Commercial Outreach Database
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Complete database of Florida commercial properties, licensees, networks, and timing permits verified with Google search data.
-          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* View Mode Toggle & Export Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="inline-flex rounded-[2px] border border-[#262626] bg-[#0A0A0A] p-0.5 text-xs">
+            <button
+              onClick={() => {
+                setMode("call_list");
+                setCallListLimit(50);
+              }}
+              className={`px-2.5 py-1 rounded-[2px] transition-colors ${
+                mode === "call_list"
+                  ? "bg-[#FFB000] text-black font-bold"
+                  : "text-[#888888] hover:text-white"
+              }`}
+            >
+              Top 50 Call List
+            </button>
+            <button
+              onClick={() => setMode("browse_all")}
+              className={`px-2.5 py-1 rounded-[2px] transition-colors ${
+                mode === "browse_all"
+                  ? "bg-[#FFB000] text-black font-bold"
+                  : "text-[#888888] hover:text-white"
+              }`}
+            >
+              Browse All
+            </button>
+          </div>
+
           {selectedClient && (
             <button
               onClick={() => setShowRegistrations(!showRegistrations)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/30 transition-colors"
+              className="inline-flex items-center gap-1 rounded-[2px] border border-[#262626] bg-[#161616] px-2.5 py-1 text-xs text-[#CCCCCC] hover:border-[#FFB000] hover:text-[#FFB000]"
             >
-              <BuildingIcon className="h-3.5 w-3.5" />
-              Vendor Registrations ({registrations.filter((r) => r.status === "REGISTERED").length}/{registrations.length})
+              <BuildingIcon className="h-3 w-3 text-[#FFB000]" />
+              <span>
+                Vendor Portals ({registrations.filter((r) => r.status === "REGISTERED").length}/
+                {registrations.length})
+              </span>
             </button>
           )}
 
           <button
-            onClick={() => triggerIngestion("step")}
-            disabled={ingesting}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/40 transition-colors disabled:opacity-50"
+            onClick={exportCallSlices}
+            disabled={exportingSlices || targets.length === 0}
+            className="inline-flex items-center gap-1 rounded-[2px] border border-[#FFB000] bg-[#FFB000]/10 px-2.5 py-1 text-xs text-[#FFB000] hover:bg-[#FFB000] hover:text-black transition-colors disabled:opacity-40"
+            title="Download ranked 30-record call slice CSVs inside a zip"
           >
-            <RefreshIcon className={`h-3.5 w-3.5 ${ingesting ? "animate-spin" : ""}`} />
-            {ingesting ? "Ingesting…" : "Run Ingestion Cycle"}
+            <DownloadIcon className="h-3 w-3" />
+            <span>{exportingSlices ? "Zipping..." : "Export Call Slices (.zip)"}</span>
           </button>
 
           <button
-            onClick={() => triggerIngestion("all_67")}
-            disabled={ingesting}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400 bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 transition-colors disabled:opacity-50"
+            onClick={exportFullCSV}
+            disabled={targets.length === 0}
+            className="inline-flex items-center gap-1 rounded-[2px] border border-[#262626] bg-[#161616] px-2.5 py-1 text-xs text-[#CCCCCC] hover:text-white transition-colors disabled:opacity-40"
           >
-            {ingesting ? "Ingesting All 67…" : "Ingest All 67 Counties"}
-          </button>
-
-          <button
-            onClick={exportTargetsCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
-          >
-            <DownloadIcon className="h-3.5 w-3.5" /> Export ({total})
+            <DownloadIcon className="h-3 w-3" />
+            <span>Full CSV ({total})</span>
           </button>
         </div>
       </div>
 
-      {ingestionNotice && (
-        <div className="rounded-xl border border-cyan-500/40 bg-cyan-950/40 px-4 py-3 text-xs font-medium text-cyan-200 inline-flex items-center gap-1.5 w-full">
-          <RefreshIcon className="h-4 w-4 text-cyan-400 shrink-0" /> {ingestionNotice}
+      {actionNotice && (
+        <div className="rounded-[2px] border border-[#FFB000]/50 bg-[#161309] px-3.5 py-1.5 text-xs text-[#FFB000] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckIcon className="h-3.5 w-3.5 shrink-0" />
+            <span>{actionNotice}</span>
+          </div>
+          <button onClick={() => setActionNotice(null)} className="text-[#888888] hover:text-white">
+            [DISMISS]
+          </button>
         </div>
       )}
 
-      {/* Coverage Honesty Banner */}
-      <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 px-4 py-3 text-xs space-y-1">
-        <div className="flex items-center justify-between font-mono">
-          <span className="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <ShieldCheckIcon className="h-4 w-4 text-cyan-400" />
-            County Coverage Status ({coverage.length} Ingested Florida Counties):
-          </span>
-          <span className="text-slate-400 text-[11px]">
-            {total} Total Active Commercial Records
-          </span>
+      {/* 2. Stats Row: Recomputed for Current Active View Only */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="rounded-[2px] border border-[#262626] bg-[#111111] px-3 py-2">
+          <div className="text-[10px] uppercase text-[#888888]">VERIFIED &amp; CALLABLE</div>
+          <div className="text-xl font-bold text-[#FFB000] mt-0.5">
+            {stats.verifiedCallableCount.toLocaleString()}
+          </div>
+          <div className="text-[10px] text-[#666666]">Google verified active + phone</div>
         </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-300 font-mono text-[11px] pt-1">
-          {coverage
-            .filter((c) => c.status === "INGESTED" || c.count > 500)
-            .map((c) => (
-              <span key={c.county} className="inline-flex items-center gap-1">
-                <span className="text-white font-semibold">{c.county}:</span>
-                <span className="text-emerald-400 font-bold">{c.count.toLocaleString()} records</span>
-                <span className="text-[10px] text-emerald-500 font-mono">(Full Depth)</span>
-              </span>
+
+        <div className="rounded-[2px] border border-[#262626] bg-[#111111] px-3 py-2">
+          <div className="text-[10px] uppercase text-[#888888]">WITH PHONE</div>
+          <div className="text-xl font-bold text-white mt-0.5">{stats.withPhonePercent}%</div>
+          <div className="text-[10px] text-[#666666]">Phone available on record</div>
+        </div>
+
+        <div className="rounded-[2px] border border-[#262626] bg-[#111111] px-3 py-2">
+          <div className="text-[10px] uppercase text-[#888888]">NEW PERMITS 30D</div>
+          <div className="text-xl font-bold text-white mt-0.5">{stats.newPermits30dCount.toLocaleString()}</div>
+          <div className="text-[10px] text-[#666666]">Mechanical permits in view</div>
+        </div>
+
+        <div className="rounded-[2px] border border-[#262626] bg-[#111111] px-3 py-2">
+          <div className="text-[10px] uppercase text-[#888888]">IN PIPELINE</div>
+          <div className="text-xl font-bold text-white mt-0.5">{stats.inPipelineCount.toLocaleString()}</div>
+          <div className="text-[10px] text-[#666666]">Active outreach underway</div>
+        </div>
+      </div>
+
+      {/* 3. Saved Views Bar & Client Overlay Selector */}
+      <div className="rounded-[2px] border border-[#262626] bg-[#111111] p-3 space-y-2.5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+          {/* Saved Views 1-Click Buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase text-[#888888] mr-1">Saved Views:</span>
+
+            <button
+              onClick={handleResetFilters}
+              className={`px-2 py-1 text-xs rounded-[2px] border transition-colors ${
+                !activeSavedViewId && selectedClientId === "all"
+                  ? "border-[#FFB000] text-[#FFB000] bg-[#1A180E] font-bold"
+                  : "border-[#262626] bg-[#161616] text-[#888888] hover:text-white"
+              }`}
+            >
+              All Florida (Default)
+            </button>
+
+            {savedViews.map((sv) => (
+              <div key={sv.id} className="inline-flex items-center">
+                <button
+                  onClick={() => handleApplySavedView(sv)}
+                  className={`px-2 py-1 text-xs rounded-l-[2px] border transition-colors ${
+                    activeSavedViewId === sv.id
+                      ? "border-[#FFB000] text-[#FFB000] bg-[#1A180E] font-bold"
+                      : "border-[#262626] bg-[#161616] text-[#CCCCCC] hover:text-white"
+                  }`}
+                >
+                  {sv.name}
+                </button>
+                <button
+                  onClick={(e) => handleDeleteSavedView(sv.id, e)}
+                  className="px-1 py-1 text-xs rounded-r-[2px] border-y border-r border-[#262626] bg-[#161616] text-[#666666] hover:text-[#FFB000]"
+                  title="Delete view"
+                >
+                  ×
+                </button>
+              </div>
             ))}
-          <span className="text-slate-400">
-            • Other Florida counties are in the continuous ingestion queue or marked Records Request Required.
-          </span>
-        </div>
-      </div>
 
-      {pipelineNotice && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-300 inline-flex items-center gap-1.5 w-full">
-          <CheckIcon className="h-4 w-4 text-emerald-400 shrink-0" /> {pipelineNotice}
-        </div>
-      )}
+            <button
+              onClick={() => setShowSaveModal(true)}
+              className="px-2 py-1 text-xs rounded-[2px] border border-dashed border-[#444444] bg-[#0A0A0A] text-[#888888] hover:border-[#FFB000] hover:text-[#FFB000] transition-colors"
+            >
+              + Save Current View
+            </button>
+          </div>
 
-      {/* Client Overlay Lens Card */}
-      <div className="rounded-2xl border border-white/10 bg-[#0d1424] p-5 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-white/10">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[11px] font-mono uppercase text-cyan-400 font-semibold">
-                Client Overlay Lens (Optional — Does not reduce dataset):
-              </label>
-            </div>
+          {/* Client Overlay Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] uppercase text-[#888888] whitespace-nowrap">
+              Client Overlay:
+            </label>
             <select
               value={selectedClientId}
-              onChange={(e) => handleClientSelect(e.target.value)}
-              className="w-full rounded-xl border border-cyan-500/40 bg-black/60 px-3.5 py-2.5 text-xs font-semibold text-white focus:border-cyan-400 focus:outline-none"
+              onChange={(e) => {
+                setSelectedClientId(e.target.value);
+                setCallListLimit(50);
+                setPage(1);
+              }}
+              className="rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
             >
-              <option value="all">None — Full Florida Market View (Unscoped)</option>
+              <option value="all">None (Statewide Unscoped)</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} {c.trades.length > 0 ? `• [${c.trades.join(", ")}]` : ""}
+                  {c.name} {c.trades.length > 0 ? `[${c.trades.join(", ")}]` : ""}
                 </option>
               ))}
             </select>
-            {selectedClient && (
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-400">
-                <span>Territory: {selectedClient.service_areas.length > 0 ? selectedClient.service_areas.join(", ") : "Statewide"}</span>
-                {selectedClient.trades.length > 0 && <span>Trades: {selectedClient.trades.join(", ")}</span>}
-              </div>
-            )}
-          </div>
 
-          <div className="flex flex-col justify-end">
-            {selectedClient ? (
-              <div className="rounded-xl bg-black/40 border border-white/10 p-3 space-y-2">
-                <div className="text-[11px] font-mono uppercase text-slate-300 font-semibold">
-                  Client Account Settings:
-                </div>
-                <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={hideExistingAccounts}
-                    onChange={(e) => {
-                      setHideExistingAccounts(e.target.checked);
-                      setPage(1);
-                    }}
-                    className="rounded border-white/20 bg-black/40 text-amber-500 focus:ring-0"
-                  />
-                  <span>
-                    Hide Existing Client Accounts ({stats.existingAccountsCount} Owned Accounts)
-                  </span>
-                </label>
-              </div>
-            ) : (
-              <div className="rounded-xl bg-black/20 border border-white/5 p-3 text-xs text-slate-400 font-mono">
-                Select a client to evaluate compatibility fit scores, capacity limits (chiller vs light commercial), and manage owned accounts.
-              </div>
+            {selectedClient && (
+              <label className="inline-flex items-center gap-1.5 text-xs text-[#888888] ml-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={hideExistingAccounts}
+                  onChange={(e) => {
+                    setHideExistingAccounts(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="rounded-[2px] border-[#333333] bg-[#0A0A0A] text-[#FFB000] focus:ring-0"
+                />
+                <span className="text-[11px]">Hide Owned Accounts</span>
+              </label>
             )}
           </div>
         </div>
 
-        {/* Territory & Six-Layer KPI Dashboard */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-1">
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-slate-400">Total Matching Targets</div>
-            <div className="text-xl font-bold text-white mt-0.5">{stats.totalInTerritory}</div>
-            <div className="text-[10px] text-cyan-400 font-mono mt-0.5">Real database count</div>
+        {/* Collapsible Advanced Filters Bar */}
+        <div className="border-t border-[#262626] pt-2">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+              className="inline-flex items-center gap-1.5 text-xs text-[#FFB000] hover:underline"
+            >
+              <span>{advancedFiltersOpen ? "[-] HIDE ADVANCED FILTERS" : "[+] ADVANCED FILTERS"}</span>
+              <span className="text-[10px] text-[#666666]">
+                (Combine via AND • Showing {total.toLocaleString()} records)
+              </span>
+            </button>
+            <button onClick={handleResetFilters} className="text-[11px] text-[#888888] hover:text-white underline">
+              Reset Filters
+            </button>
           </div>
 
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-cyan-400 flex items-center gap-1">
-              <GoogleIcon className="h-3 w-3" /> Verified Active
+          {advancedFiltersOpen && (
+            <div className="pt-3 space-y-3">
+              {/* Row 1: Geography & Text */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">County</label>
+                  <select
+                    value={countyFilter}
+                    onChange={(e) => {
+                      setCountyFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setCallListLimit(50);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All Florida Counties</option>
+                    {FLORIDA_COUNTIES.map((c) => (
+                      <option key={c.fips} value={c.name}>
+                        {c.name} County
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">City</label>
+                  <input
+                    type="text"
+                    value={cityFilter}
+                    onChange={(e) => {
+                      setCityFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    placeholder="e.g. Orlando, Pensacola..."
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white placeholder-[#555555] focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">ZIP Code</label>
+                  <input
+                    type="text"
+                    value={zipFilter}
+                    onChange={(e) => {
+                      setZipFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    placeholder="e.g. 32801..."
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white placeholder-[#555555] focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Search Name/Address</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setActiveSavedViewId(null);
+                        setPage(1);
+                      }}
+                      placeholder="Name, address, contractor..."
+                      className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] pl-7 pr-2 py-1 text-xs text-white placeholder-[#555555] focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                    />
+                    <SearchIcon className="h-3.5 w-3.5 text-[#555555] absolute left-2 top-1.5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Channel, Size, Verification & Website */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Channel</label>
+                  <select
+                    value={channelFilter}
+                    onChange={(e) => {
+                      setChannelFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All Channels</option>
+                    <option value="office">Office / Professional</option>
+                    <option value="retail">Retail / Commercial</option>
+                    <option value="medical_clinic">Medical / Clinic</option>
+                    <option value="school">School / Educational</option>
+                    <option value="warehouse_industrial">Warehouse &amp; Logistics</option>
+                    <option value="municipal">Municipal / Govt</option>
+                    <option value="association_cam">Association / CAM</option>
+                    <option value="hospitality">Hospitality</option>
+                    <option value="other">Other Commercial</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Tonnage Risk (Screening)</label>
+                  <select
+                    value={tonnageRiskFilter}
+                    onChange={(e) => {
+                      setTonnageRiskFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All Size Bands</option>
+                    <option value="UNDER_10T_LIKELY">UNDER_10T_LIKELY (&lt;15k sq ft)</option>
+                    <option value="OVER_10T_POSSIBLE">OVER_10T_POSSIBLE (15k-100k sq ft)</option>
+                    <option value="CHILLER_LIKELY">CHILLER_LIKELY (100k+ sq ft)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Verification Status</label>
+                  <select
+                    value={verificationFilter}
+                    onChange={(e) => {
+                      setVerificationFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="VERIFIED_ACTIVE">VERIFIED_ACTIVE</option>
+                    <option value="LIKELY_ACTIVE">LIKELY_ACTIVE</option>
+                    <option value="AMBIGUOUS">AMBIGUOUS</option>
+                    <option value="CLOSED">CLOSED</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Website Available</label>
+                  <select
+                    value={hasWebsiteFilter}
+                    onChange={(e) => {
+                      setHasWebsiteFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All</option>
+                    <option value="true">Has Official Website</option>
+                    <option value="false">No Website</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Entity, License, Permit Signal & Reviews */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Entity Status</label>
+                  <select
+                    value={entityStatusFilter}
+                    onChange={(e) => {
+                      setEntityStatusFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All Entity States</option>
+                    <option value="Active">Active (Sunbiz)</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="UNMATCHED">UNMATCHED</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">License Type</label>
+                  <select
+                    value={licenseTypeFilter}
+                    onChange={(e) => {
+                      setLicenseTypeFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">All License Types</option>
+                    <option value="Mechanical">Mechanical / HVAC</option>
+                    <option value="General Contractor">General Contractor</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Roofing">Roofing</option>
+                    <option value="Community Association">CAM / Management</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Permit Signal</label>
+                  <select
+                    value={permitWithinDaysFilter}
+                    onChange={(e) => {
+                      setPermitWithinDaysFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="all">Any Permit History</option>
+                    <option value="90">Mechanical Permit &le; 90 Days</option>
+                    <option value="180">Mechanical Permit &le; 180 Days</option>
+                    <option value="365">Mechanical Permit &le; 365 Days</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Minimum Reviews</label>
+                  <select
+                    value={minReviewsFilter}
+                    onChange={(e) => {
+                      setMinReviewsFilter(e.target.value);
+                      setActiveSavedViewId(null);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
+                  >
+                    <option value="">Any Reviews</option>
+                    <option value="5">5+ Reviews</option>
+                    <option value="10">10+ Reviews</option>
+                    <option value="25">25+ Reviews</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="text-xl font-bold text-cyan-400 mt-0.5">{stats.verifiedActiveCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Google search verified</div>
-          </div>
-
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-emerald-400">Permits Found</div>
-            <div className="text-xl font-bold text-emerald-400 mt-0.5">{stats.permitsFoundCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Incumbent contractor</div>
-          </div>
-
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-purple-400">Chiller Likely (Est)</div>
-            <div className="text-xl font-bold text-purple-400 mt-0.5">{stats.chillerCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">100k+ sq ft screening</div>
-          </div>
-
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-blue-400">Under 10T Likely (Est)</div>
-            <div className="text-xl font-bold text-blue-400 mt-0.5">{stats.under10tCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">&lt;15k sq ft screening</div>
-          </div>
-
-          <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-amber-400">In Pipeline</div>
-            <div className="text-xl font-bold text-amber-400 mt-0.5">{stats.inPipelineCount}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Outreach initiated</div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Layer 5: Client Vendor Portal Registrations Drawer */}
+      {/* Layer 5 Vendor Registrations Drawer */}
       {showRegistrations && selectedClient && (
-        <div className="rounded-2xl border border-cyan-500/30 bg-[#0d1424] p-5 space-y-3">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <BuildingIcon className="h-4 w-4 text-cyan-400" />
-                Layer 5: Vendor Portal & Aggregator Registration Tracker for {selectedClient.name}
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Track compliance on official county vendor portals, school districts, ServiceChannel, Lessen, and DMG Pro.
-              </p>
-            </div>
-            <span className="text-xs font-mono text-cyan-400">
-              {registrations.filter((r) => r.status === "REGISTERED").length} of {registrations.length} Active Registrations
+        <div className="rounded-[2px] border border-[#262626] bg-[#111111] p-3 space-y-2 text-xs">
+          <div className="flex items-center justify-between border-b border-[#262626] pb-1.5">
+            <span className="font-bold text-[#FFB000] uppercase">
+              [VENDOR PORTAL REGISTRATIONS: {selectedClient.name}]
+            </span>
+            <span className="text-[#888888]">
+              {registrations.filter((r) => r.status === "REGISTERED").length} of {registrations.length} Active
             </span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {registrations.map((reg) => (
-              <div key={reg.portal_name} className="rounded-xl border border-white/5 bg-black/30 p-3.5 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white">{reg.portal_name}</span>
+              <div key={reg.portal_name} className="p-2 border border-[#262626] bg-[#0E0E0E] rounded-[2px]">
+                <div className="flex justify-between items-center">
+                  <span className="text-white font-semibold">{reg.portal_name}</span>
                   <span
-                    className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                      reg.status === "REGISTERED"
-                        ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
-                        : reg.status === "IN_PROGRESS"
-                        ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
-                        : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                    className={`text-[10px] font-bold ${
+                      reg.status === "REGISTERED" ? "text-[#FFB000]" : "text-[#888888]"
                     }`}
                   >
-                    {reg.status}
+                    [{reg.status}]
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono">Type: {reg.portal_type.replace(/_/g, " ")}</div>
-                {reg.vendor_number && <div className="text-[11px] text-cyan-400 font-mono">Vendor #: {reg.vendor_number}</div>}
+                <div className="text-[10px] text-[#666666]">{reg.portal_type}</div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Manual Filter Controls Toolbar (All Combine via AND) */}
-      <div className="rounded-2xl border border-white/10 bg-[#0d1424] p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
-            <SearchIcon className="h-4 w-4 text-cyan-400" />
-            <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-              Manual Filtering Engine (All Filters Combine via AND)
-            </h3>
-          </div>
-          <button
-            onClick={handleResetFilters}
-            className="text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
-          >
-            Reset All Filters
-          </button>
+      {/* 4. Dense Operations Table (Sticky Header & Sticky First 2 Columns) */}
+      <div className="rounded-[2px] border border-[#262626] bg-[#111111] overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh]">
+          <table className="w-full text-left text-xs border-collapse">
+            {/* Sticky Table Header */}
+            <thead className="sticky top-0 z-20 bg-[#0E0E0E] border-b border-[#262626] text-[11px] text-[#888888] uppercase tracking-wider">
+              <tr>
+                {/* Column 1: Business Name (Sticky) */}
+                <th className="py-2 px-2.5 font-semibold sticky left-0 z-30 bg-[#0E0E0E] min-w-[200px] border-r border-[#222222]">
+                  Business Name
+                </th>
+                {/* Column 2: Phone (Sticky) */}
+                <th className="py-2 px-2.5 font-semibold sticky left-[200px] z-30 bg-[#0E0E0E] min-w-[120px] border-r border-[#222222]">
+                  Phone
+                </th>
+                {/* Column 3: City */}
+                <th className="py-2 px-2 font-semibold min-w-[100px]">City</th>
+                {/* Column 4: County */}
+                <th className="py-2 px-2 font-semibold min-w-[90px]">County</th>
+                {/* Column 5: Channel */}
+                <th className="py-2 px-2 font-semibold min-w-[110px]">Channel</th>
+                {/* Column 6: Fit Score */}
+                <th className="py-2 px-2 font-semibold min-w-[70px]">Fit</th>
+                {/* Column 7: Reviews */}
+                <th className="py-2 px-2 font-semibold min-w-[70px]">Reviews</th>
+                {/* Column 8: Website (Y/N) */}
+                <th className="py-2 px-2 font-semibold min-w-[65px]">Web</th>
+                {/* Column 9: Permit Signal */}
+                <th className="py-2 px-2 font-semibold min-w-[110px]">Permit Signal</th>
+                {/* Column 10: Verification Tag */}
+                <th className="py-2 px-2 font-semibold min-w-[110px]">Verification</th>
+                {/* Column 11: Quick Actions */}
+                <th className="py-2 px-2.5 font-semibold text-right min-w-[210px]">Quick Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-[#1D1D1D]">
+              {loading ? (
+                <tr>
+                  <td colSpan={11} className="py-14 text-center text-[#666666]">
+                    <RefreshIcon className="h-5 w-5 animate-spin mx-auto mb-2 text-[#FFB000]" />
+                    Loading ranked Call List records from Florida database...
+                  </td>
+                </tr>
+              ) : targets.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-10 text-center text-[#666666]">
+                    No commercial outreach targets match the active filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                targets.map((target) => {
+                  const isVerified = target.verificationStatus === "VERIFIED_ACTIVE";
+                  const fitHigh = target.fitScore >= 80;
+
+                  return (
+                    <tr
+                      key={target.targetId}
+                      className={`hover:bg-[#181818] transition-colors ${
+                        isVerified ? "border-l-2 border-l-[#FFB000]" : "opacity-75 hover:opacity-100"
+                      }`}
+                      style={{ height: "34px" }}
+                    >
+                      {/* 1. Business Name (Sticky Col 1) */}
+                      <td className="py-1.5 px-2.5 font-bold text-white whitespace-nowrap sticky left-0 z-10 bg-[#111111] border-r border-[#1F1F1F]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[180px]" title={target.name}>
+                            {target.name}
+                          </span>
+                          {target.scopeWarning && (
+                            <span
+                              className="text-[10px] text-[#FF5555] font-bold"
+                              title={target.scopeWarning}
+                            >
+                              [{target.scopeWarning.includes("10T") ? "<10T" : "CHILLER?"}]
+                            </span>
+                          )}
+                          {target.isClientAccount && (
+                            <span className="text-[10px] text-[#FFB000]">[OWNED]</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 2. Phone (Sticky Col 2) */}
+                      <td className="py-1.5 px-2.5 whitespace-nowrap sticky left-[200px] z-10 bg-[#111111] border-r border-[#1F1F1F]">
+                        {target.verifiedPhone ? (
+                          <a
+                            href={`tel:${target.verifiedPhone}`}
+                            className="text-[#FFB000] hover:underline inline-flex items-center gap-1"
+                          >
+                            <PhoneIcon className="h-3 w-3" />
+                            <span>{target.verifiedPhone}</span>
+                          </a>
+                        ) : (
+                          <span className="text-[#555555]">[NO PHONE]</span>
+                        )}
+                      </td>
+
+                      {/* 3. City */}
+                      <td className="py-1.5 px-2 text-[#CCCCCC] whitespace-nowrap">{target.city}</td>
+
+                      {/* 4. County */}
+                      <td className="py-1.5 px-2 text-[#888888] whitespace-nowrap">{target.county}</td>
+
+                      {/* 5. Channel */}
+                      <td className="py-1.5 px-2 text-[#CCCCCC] whitespace-nowrap">
+                        <span className="uppercase text-[11px]">{target.channel.replace(/_/g, " ")}</span>
+                      </td>
+
+                      {/* 6. Fit Score (Amber if >= 80) */}
+                      <td className="py-1.5 px-2 font-mono whitespace-nowrap">
+                        <span className={`font-bold ${fitHigh ? "text-[#FFB000]" : "text-[#888888]"}`}>
+                          {target.fitScore}
+                        </span>
+                      </td>
+
+                      {/* 7. Reviews */}
+                      <td className="py-1.5 px-2 text-[#888888] whitespace-nowrap font-mono">
+                        {target.reviewCount && target.reviewCount > 0 ? (
+                          <span>
+                            {target.rating ? `${target.rating}★ ` : ""}
+                            {target.reviewCount}
+                          </span>
+                        ) : (
+                          <span className="text-[#444444]">—</span>
+                        )}
+                      </td>
+
+                      {/* 8. Website (Y/N Text Tag) */}
+                      <td className="py-1.5 px-2 whitespace-nowrap">
+                        {target.hasWebsite && target.officialWebsiteUrl ? (
+                          <a
+                            href={target.officialWebsiteUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#FFB000] hover:underline"
+                            title={target.officialWebsiteUrl}
+                          >
+                            [Y]
+                          </a>
+                        ) : (
+                          <span className="text-[#555555]">[N]</span>
+                        )}
+                      </td>
+
+                      {/* 9. Permit Signal */}
+                      <td className="py-1.5 px-2 whitespace-nowrap font-mono">
+                        {target.lastMechanicalPermitDate ? (
+                          <span className="text-white" title={target.incumbentContractor || undefined}>
+                            {target.lastMechanicalPermitDate}
+                          </span>
+                        ) : (
+                          <span className="text-[#555555]">NONE</span>
+                        )}
+                      </td>
+
+                      {/* 10. Verification Tag */}
+                      <td className="py-1.5 px-2 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-1 py-0.5 text-[10px] font-bold rounded-[2px] ${
+                            target.verificationStatus === "VERIFIED_ACTIVE"
+                              ? "text-[#FFB000] border border-[#FFB000]/40 bg-[#FFB000]/10"
+                              : target.verificationStatus === "AMBIGUOUS"
+                              ? "text-[#CCCCCC] border border-[#444444] bg-[#161616]"
+                              : "text-[#666666] border border-[#262626]"
+                          }`}
+                        >
+                          {target.verificationStatus === "VERIFIED_ACTIVE"
+                            ? "[VERIFIED]"
+                            : target.verificationStatus === "AMBIGUOUS"
+                            ? "[STALE]"
+                            : "[UNVERIFIED]"}
+                        </span>
+                      </td>
+
+                      {/* 11. Row Quick Actions: Contacted, Pipeline, Exclude */}
+                      <td className="py-1.5 px-2.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          {/* Contacted */}
+                          <button
+                            onClick={() => handleMarkContacted(target)}
+                            className="px-1.5 py-0.5 text-[11px] rounded-[2px] border border-[#262626] bg-[#161616] text-[#CCCCCC] hover:border-[#FFB000] hover:text-[#FFB000] transition-colors"
+                            title="Mark as contacted"
+                          >
+                            [Contacted]
+                          </button>
+
+                          {/* Pipeline */}
+                          <button
+                            onClick={() => handlePushToPipeline(target)}
+                            disabled={target.inPipeline}
+                            className={`px-1.5 py-0.5 text-[11px] rounded-[2px] border transition-colors ${
+                              target.inPipeline
+                                ? "border-[#FFB000]/40 text-[#FFB000] bg-[#FFB000]/10 cursor-default"
+                                : "border-[#262626] bg-[#161616] text-[#CCCCCC] hover:border-[#FFB000] hover:text-[#FFB000]"
+                            }`}
+                            title="Add to active pipeline"
+                          >
+                            {target.inPipeline ? "[In Pipe]" : "[Pipeline]"}
+                          </button>
+
+                          {/* Exclude */}
+                          <button
+                            onClick={() => handleExcludeRow(target)}
+                            className="px-1.5 py-0.5 text-[11px] rounded-[2px] border border-[#262626] bg-[#161616] text-[#888888] hover:border-[#FF5555] hover:text-[#FF5555] transition-colors"
+                            title="Exclude from outreach target list"
+                          >
+                            [Exclude]
+                          </button>
+
+                          {/* Re-verify Search */}
+                          <button
+                            onClick={() => triggerSearchVerification(target)}
+                            disabled={verifyingTargetId === target.targetId}
+                            className="px-1 py-0.5 text-[11px] text-[#666666] hover:text-[#FFB000]"
+                            title="Verify Google search signal"
+                          >
+                            <RefreshIcon
+                              className={`h-3 w-3 ${
+                                verifyingTargetId === target.targetId ? "animate-spin text-[#FFB000]" : ""
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Row 1: Geography & Search */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">County</label>
-            <select
-              value={countyFilter}
-              onChange={(e) => {
-                setCountyFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All Florida Counties (Full 67-County Statewide Registry)</option>
-              {FLORIDA_COUNTIES.map((c) => {
-                const cov = coverage.find((cv) => cv.county.toLowerCase() === c.name.toLowerCase());
-                let tag = "In Ingestion Queue";
-                if (cov?.status === "INGESTED") {
-                  tag = `${cov.count.toLocaleString()} records • Ingested`;
-                } else if (cov?.status === "RECORDS_REQUEST_REQUIRED") {
-                  tag = `${cov.count > 0 ? cov.count + " records • " : ""}Records Request Req.`;
-                } else if (cov && cov.count > 0) {
-                  tag = `${cov.count.toLocaleString()} records • In Queue`;
-                }
-                return (
-                  <option key={c.fips} value={c.name}>
-                    {c.name} County ({tag})
-                  </option>
-                );
-              })}
-            </select>
+        {/* 5. Pagination / Load More Footer */}
+        <div className="border-t border-[#262626] px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+          <div className="text-[#888888]">
+            {mode === "call_list" ? (
+              <span>
+                Showing Top {Math.min(targets.length, total)} Ranked Call Targets of {total.toLocaleString()} Total
+              </span>
+            ) : (
+              <span>
+                Page {page} of {totalPages} ({total.toLocaleString()} Total Records)
+              </span>
+            )}
           </div>
 
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">City</label>
-            <input
-              type="text"
-              value={cityFilter}
-              onChange={(e) => {
-                setCityFilter(e.target.value);
-                setPage(1);
-              }}
-              placeholder="e.g. Orlando, Pensacola..."
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none font-mono"
-            />
-          </div>
+          <div className="flex items-center gap-2">
+            {mode === "call_list" ? (
+              hasMoreCallList ? (
+                <button
+                  onClick={() => setCallListLimit((l) => l + 50)}
+                  disabled={loading}
+                  className="rounded-[2px] border border-[#FFB000] bg-[#FFB000] px-3 py-1 text-xs font-bold text-black hover:bg-[#FFC033] transition-colors disabled:opacity-40"
+                >
+                  Load More (+50 Targets)
+                </button>
+              ) : (
+                <span className="text-[#666666]">[END OF RANKED LIST]</span>
+              )
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[#888888] mr-1">Page Size:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-1.5 py-0.5 text-xs text-white"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
 
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">ZIP Code</label>
-            <input
-              type="text"
-              value={zipFilter}
-              onChange={(e) => {
-                setZipFilter(e.target.value);
-                setPage(1);
-              }}
-              placeholder="e.g. 32801, 32501..."
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none font-mono"
-            />
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="rounded-[2px] border border-[#262626] bg-[#161616] px-2 py-0.5 text-xs text-[#CCCCCC] hover:text-white disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="text-[#888888] px-1">
+                  {page}/{totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="rounded-[2px] border border-[#262626] bg-[#161616] px-2 py-0.5 text-xs text-[#CCCCCC] hover:text-white disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
 
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Free-Text Search</label>
-            <div className="relative">
+      {/* Save View Modal Dialog */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[2px] border border-[#262626] bg-[#111111] p-4 font-mono text-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-[#262626] pb-2">
+              <span className="font-bold text-[#FFB000] uppercase">[SAVE CURRENT VIEW]</span>
+              <button onClick={() => setShowSaveModal(false)} className="text-[#888888] hover:text-white">
+                [X]
+              </button>
+            </div>
+            <div>
+              <label className="block text-[10px] text-[#888888] uppercase mb-1">View Name</label>
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Name, address, incumbent GC..."
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none pl-8"
+                autoFocus
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                placeholder="e.g. Orange County HVAC Qualified"
+                className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
               />
-              <SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
             </div>
-          </div>
-        </div>
-
-        {/* Row 2: Trade & Technical Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Outreach Channel</label>
-            <select
-              value={channelFilter}
-              onChange={(e) => {
-                setChannelFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All Channels</option>
-              <option value="office">Office / Professional</option>
-              <option value="retail">Retail / Commercial Centers</option>
-              <option value="medical_clinic">Medical & Clinic</option>
-              <option value="school">School / Educational</option>
-              <option value="warehouse_industrial">Warehouse & Logistics</option>
-              <option value="municipal">Municipal / Government</option>
-              <option value="association_cam">Association / CAM</option>
-              <option value="hospitality">Hospitality</option>
-              <option value="other">Other Commercial</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Tonnage Risk (Screening)</label>
-            <select
-              value={tonnageRiskFilter}
-              onChange={(e) => {
-                setTonnageRiskFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All Size Bands</option>
-              <option value="UNDER_10T_LIKELY">UNDER_10T_LIKELY (&lt;15k sq ft)</option>
-              <option value="OVER_10T_POSSIBLE">OVER_10T_POSSIBLE (15k-100k sq ft)</option>
-              <option value="CHILLER_LIKELY">CHILLER_LIKELY (100k+ sq ft)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Verification Status</label>
-            <select
-              value={verificationFilter}
-              onChange={(e) => {
-                setVerificationFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All Statuses</option>
-              <option value="VERIFIED_ACTIVE">VERIFIED_ACTIVE (Name + Signal)</option>
-              <option value="LIKELY_ACTIVE">LIKELY_ACTIVE</option>
-              <option value="AMBIGUOUS">AMBIGUOUS (Needs Review)</option>
-              <option value="CLOSED">CLOSED</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Website Available</label>
-            <select
-              value={hasWebsiteFilter}
-              onChange={(e) => {
-                setHasWebsiteFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All (With & Without Website)</option>
-              <option value="true">Has Official Website</option>
-              <option value="false">No Website Found</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 3: Entity, License, Timing & Review Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Entity Status</label>
-            <select
-              value={entityStatusFilter}
-              onChange={(e) => {
-                setEntityStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All Entity States</option>
-              <option value="Active">Active (Sunbiz / License)</option>
-              <option value="Inactive">Inactive</option>
-              <option value="UNMATCHED">UNMATCHED</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">License Type</label>
-            <select
-              value={licenseTypeFilter}
-              onChange={(e) => {
-                setLicenseTypeFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">All License Types</option>
-              <option value="Mechanical">Mechanical / HVAC</option>
-              <option value="General Contractor">General Contractor</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Plumbing">Plumbing</option>
-              <option value="Roofing">Roofing</option>
-              <option value="Community Association">CAM / Management</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Permit Timing Signal</label>
-            <select
-              value={permitWithinDaysFilter}
-              onChange={(e) => {
-                setPermitWithinDaysFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="all">Any Permit History</option>
-              <option value="90">Mechanical Permit within 90 days</option>
-              <option value="180">Mechanical Permit within 180 days</option>
-              <option value="365">Mechanical Permit within 365 days</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Minimum Reviews</label>
-            <select
-              value={minReviewsFilter}
-              onChange={(e) => {
-                setMinReviewsFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="">Any Review Count</option>
-              <option value="5">5+ Reviews</option>
-              <option value="10">10+ Reviews</option>
-              <option value="25">25+ Reviews</option>
-              <option value="50">50+ Reviews</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setNeedsReviewOnly(!needsReviewOnly);
-                setPage(1);
-              }}
-              className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all border ${
-                needsReviewOnly
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                  : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
-              }`}
-            >
-              {needsReviewOnly ? "✓ Showing Review Queue" : "Human Review Queue"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Outreach Deliverable Table */}
-      <div className="rounded-2xl border border-white/10 bg-[#0d1424] overflow-hidden">
-        <div className="border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-white">
-              Florida Commercial Targets ({total} Total Records)
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} records across ingested counties
-            </p>
-          </div>
-
-          {/* Page Size Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-mono">Page Size:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white focus:border-cyan-500 focus:outline-none font-mono"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="p-16 text-center text-sm font-mono text-slate-400">
-            <RefreshIcon className="h-6 w-6 animate-spin mx-auto mb-3 text-cyan-400" />
-            Loading commercial property appraiser parcels, Sunbiz matches, permits, and Google verifications…
-          </div>
-        ) : !isSelectedCountyIngested ? (
-          <div className="p-16 text-center text-sm text-slate-400 space-y-2">
-            <div className="text-amber-400 font-bold font-mono">
-              {countyFilter} County has not been ingested yet.
+            <div className="text-[10px] text-[#666666]">
+              Saves current filters + overlay client ({selectedClientId !== "all" ? selectedClient?.name : "None"}) for 1-click access.
             </div>
-            <div className="text-xs text-slate-500 max-w-md mx-auto">
-              Data collection is currently active for {coverage.map((c) => c.county).join(", ")}. When {countyFilter} is ingested, records will appear here automatically.
-            </div>
-          </div>
-        ) : targets.length === 0 ? (
-          <div className="p-16 text-center text-sm text-slate-400 space-y-2">
-            <div>No commercial targets match the active filter criteria.</div>
-            <div className="text-xs text-slate-500">
-              Try clearing active filters or selecting &quot;All Florida Counties&quot;.
-            </div>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {targets.map((target) => (
-              <div
-                key={target.targetId}
-                className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
-              >
-                {/* Information Column */}
-                <div className="space-y-2 max-w-3xl">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Record Type Pill */}
-                    <span className="rounded bg-slate-500/10 px-2 py-0.5 text-[10px] font-mono text-slate-300 border border-slate-500/20 uppercase">
-                      {target.recordType}
-                    </span>
-
-                    {/* Channel */}
-                    <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wide border border-cyan-500/20">
-                      {target.channel.replace(/_/g, " ")}
-                    </span>
-
-                    {/* Location */}
-                    <span className="text-xs text-slate-400 font-mono">
-                      {target.county} County • {target.city} {target.zip ? `(ZIP: ${target.zip})` : ""} {target.parcelId ? `(APN: ${target.parcelId})` : ""}
-                    </span>
-
-                    {/* Fit Score (Visible for all, dynamically tuned if client selected) */}
-                    <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-mono text-indigo-300">
-                      Fit: {target.fitScore}/100
-                    </span>
-
-                    {/* Sunbiz / Entity Status */}
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-mono border ${
-                        target.entityStatus === "Active"
-                          ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
-                          : "bg-slate-500/10 text-slate-400 border-slate-500/20"
-                      }`}
-                    >
-                      Entity: {target.entityStatus} {target.sunbizDocNumber ? `(${target.sunbizDocNumber})` : ""}
-                    </span>
-
-                    {/* Tonnage Risk / Sqft Band (Screening Estimate) */}
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-mono border ${
-                        target.tonnageRisk === "CHILLER_LIKELY"
-                          ? "bg-purple-500/10 text-purple-300 border-purple-500/20"
-                          : target.tonnageRisk === "OVER_10T_POSSIBLE"
-                          ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
-                          : "bg-blue-500/10 text-blue-300 border-blue-500/20"
-                      }`}
-                    >
-                      {target.tonnageRisk} {target.buildingSqft ? `(${target.buildingSqft.toLocaleString()} sqft)` : ""}
-                    </span>
-
-                    {/* Client Territory Alignment (Overlay) */}
-                    {selectedClient && (
-                      <span
-                        className={`rounded px-2 py-0.5 text-[10px] font-mono border ${
-                          target.inClientTerritory
-                            ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
-                            : "bg-slate-500/10 text-slate-400 border-slate-500/20"
-                        }`}
-                      >
-                        {target.inClientTerritory ? "In Client Territory" : "Outside Territory"}
-                      </span>
-                    )}
-
-                    {/* Existing Account Badge (Overlay) */}
-                    {target.isClientAccount && (
-                      <span className="rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
-                        Existing Client Account
-                      </span>
-                    )}
-
-                    {/* Client Scope Warning Screen (No emojis!) */}
-                    {target.scopeWarning && (
-                      <span className="rounded bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 flex items-center gap-1">
-                        <ShieldCheckIcon className="h-3 w-3 text-rose-300" />
-                        {target.scopeWarning}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Target Name */}
-                  <h4 className="text-base font-semibold text-white">
-                    {target.name}
-                  </h4>
-                  <div className="text-xs text-slate-300 font-mono">
-                    Situs: {target.situsAddress}, {target.city}, FL
-                  </div>
-
-                  {/* License Info (if licensee or network) */}
-                  {target.licenseType && (
-                    <div className="text-xs text-slate-400 font-mono">
-                      License: {target.licenseType} {target.licenseNumber ? `(#${target.licenseNumber})` : ""}
-                    </div>
-                  )}
-
-                  {/* Layer 4: Permit & Incumbent Contractor Signal */}
-                  {target.incumbentContractor && (
-                    <div className="rounded-lg bg-emerald-950/20 border border-emerald-500/20 p-2 text-xs text-emerald-300 flex items-center gap-2">
-                      <span className="font-bold uppercase font-mono text-[10px]">Timing Permit Signal:</span>
-                      <span>
-                        Serviced by <strong>{target.incumbentContractor}</strong> (Mechanical Permit: {target.lastMechanicalPermitDate || "Recorded"}).
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Layer 6: Google Search Verification Signals */}
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                        target.verificationStatus === "VERIFIED_ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
-                          : target.verificationStatus === "AMBIGUOUS"
-                          ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
-                          : "bg-blue-500/10 text-blue-300 border-blue-500/20"
-                      }`}
-                    >
-                      <GoogleIcon className="h-2.5 w-2.5" />
-                      <ShieldCheckIcon className="h-3 w-3 text-cyan-400" />
-                      {target.verificationStatus}
-                    </span>
-
-                    {target.hasWebsite && target.officialWebsiteUrl && (
-                      <a
-                        href={target.officialWebsiteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-cyan-400 hover:underline font-mono text-[11px]"
-                      >
-                        Official Website <ExternalLinkIcon className="h-3 w-3" />
-                      </a>
-                    )}
-
-                    {!target.hasWebsite && target.gbpSignal === "LISTING_PRESENT" && (
-                      <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 font-mono">
-                        No Website Lead Profile (GBP Present)
-                      </span>
-                    )}
-
-                    {target.rating && (
-                      <span className="text-[11px] font-mono text-amber-400">
-                        {target.rating} ★ ({target.reviewCount || 0} reviews)
-                      </span>
-                    )}
-
-                    {target.verifiedPhone && (
-                      <a
-                        href={`tel:${target.verifiedPhone}`}
-                        className="inline-flex items-center gap-1 text-slate-300 hover:text-white font-mono text-[11px]"
-                      >
-                        <PhoneIcon className="h-3 w-3" /> {target.verifiedPhone}
-                      </a>
-                    )}
-
-                    {target.evidence.length > 0 && (
-                      <span className="text-[10px] font-mono text-slate-500">
-                        {target.evidence.length} Evidence Source URLs
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions Column */}
-                <div className="flex flex-col sm:flex-row xl:flex-col items-start xl:items-end gap-2 shrink-0 pt-3 xl:pt-0">
-                  {/* Google Search Live Inspection */}
-                  <a
-                    href={`https://www.google.com/search?q=${encodeURIComponent(`"${target.name}" ${target.city} FL`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition-all w-full sm:w-auto"
-                  >
-                    <GoogleIcon className="h-3.5 w-3.5" />
-                    Inspect Search Results
-                    <ExternalLinkIcon className="h-3 w-3" />
-                  </a>
-
-                  {/* Re-verify Layer 6 Search Provider */}
-                  <button
-                    onClick={() => triggerSearchVerification(target, true)}
-                    disabled={verifyingTargetId === target.targetId}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/30 transition-all w-full sm:w-auto disabled:opacity-50"
-                  >
-                    <RefreshIcon className={`h-3.5 w-3.5 ${verifyingTargetId === target.targetId ? "animate-spin" : ""}`} />
-                    {verifyingTargetId === target.targetId ? "Verifying..." : "Verify Search Signal"}
-                  </button>
-
-                  {/* Pipeline Action */}
-                  <button
-                    onClick={() => pushToPipeline(target)}
-                    disabled={target.inPipeline}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all w-full sm:w-auto border ${
-                      target.inPipeline
-                        ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-400 cursor-default"
-                        : "border-indigo-500/40 bg-indigo-600/30 text-white hover:bg-indigo-600/50"
-                    }`}
-                  >
-                    <CheckIcon className="h-3.5 w-3.5" />
-                    {target.inPipeline ? `In Pipeline (${target.pipelineStage || "Active"})` : "Add to Client Pipeline"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Pagination Footer */}
-        {total > 0 && (
-          <div className="border-t border-white/10 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <span className="text-slate-400 font-mono">
-              Page {page} of {totalPages} ({total} Total Records)
-            </span>
-
-            <div className="flex items-center gap-2">
+            <div className="pt-2 border-t border-[#262626] flex justify-end gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5 disabled:opacity-40 transition-colors"
+                onClick={() => setShowSaveModal(false)}
+                className="rounded-[2px] border border-[#262626] bg-[#161616] px-2.5 py-1 text-xs text-[#CCCCCC] hover:text-white"
               >
-                Previous
+                Cancel
               </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pNum = i + 1;
-                  return (
-                    <button
-                      key={pNum}
-                      onClick={() => setPage(pNum)}
-                      className={`h-8 w-8 rounded-lg font-mono font-semibold transition-colors ${
-                        page === pNum
-                          ? "bg-cyan-500 text-black"
-                          : "border border-white/10 bg-black/40 text-slate-300 hover:bg-white/5"
-                      }`}
-                    >
-                      {pNum}
-                    </button>
-                  );
-                })}
-                {totalPages > 5 && <span className="text-slate-500 px-1">…</span>}
-              </div>
-
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5 disabled:opacity-40 transition-colors"
+                onClick={handleSaveCurrentView}
+                disabled={!newViewName.trim()}
+                className="rounded-[2px] border border-[#FFB000] bg-[#FFB000] px-3 py-1 text-xs font-bold text-black hover:bg-[#FFC033] disabled:opacity-40"
               >
-                Next
+                Save View
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

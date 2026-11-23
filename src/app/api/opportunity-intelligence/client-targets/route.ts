@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
     const hideExistingAccounts = searchParams.get("hideExistingAccounts") === "true";
     const page = searchParams.get("page") ? Number(searchParams.get("page")) : 1;
     const pageSize = searchParams.get("pageSize") ? Number(searchParams.get("pageSize")) : 25;
+    const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : 50;
+    const mode = (searchParams.get("mode") as "call_list" | "browse_all") || "call_list";
 
     const [outreachData, registeredClients] = await Promise.all([
       getClientTerritoryOutreachTargets({
@@ -52,6 +54,8 @@ export async function GET(req: NextRequest) {
         hideExistingAccounts,
         page,
         pageSize,
+        limit,
+        mode,
       }),
       getRegisteredClientsList(),
     ]);
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Add to Client Pipeline with evidence trail
-    if (action === "add_pipeline") {
+    if (action === "add_pipeline" || action === "pipeline") {
       const {
         clientId,
         clientName,
@@ -135,7 +139,57 @@ export async function POST(req: NextRequest) {
         phone,
       });
 
-      return NextResponse.json(result);
+      return NextResponse.json({ ...result, outreachState: "pipeline" });
+    }
+
+    // 2b. Contacted quick action
+    if (action === "contacted") {
+      const {
+        clientId,
+        clientName,
+        parcelId,
+        county,
+        businessName,
+        channel,
+        situsAddress,
+        phone,
+      } = body;
+
+      await sql`
+        INSERT INTO fl_outreach_pipeline (
+          opportunity_title, target_name, target_type, stage,
+          client_id, client_name, contact_phone, notes
+        ) VALUES (
+          ${`Commercial Outreach: ${businessName}`},
+          ${businessName},
+          ${channel || "commercial_target"},
+          'contacted',
+          ${clientId || null},
+          ${clientName || null},
+          ${phone || null},
+          ${`Direct terminal outreach: Contacted on ${new Date().toLocaleDateString()}. APN: ${parcelId || "N/A"}, County: ${county || "N/A"}, Situs: ${situsAddress || "N/A"}`}
+        )
+        ON CONFLICT DO NOTHING
+      `;
+
+      return NextResponse.json({ ok: true, outreachState: "contacted" });
+    }
+
+    // 2c. Exclude quick action (Client overlay -> fl_client_exclusions, or GLOBAL if no overlay)
+    if (action === "exclude") {
+      const { clientId, businessName, reason } = body;
+      const targetClientId = clientId && clientId !== "all" ? clientId : "GLOBAL";
+      if (!businessName) {
+        return NextResponse.json({ ok: false, error: "businessName required" }, { status: 400 });
+      }
+
+      await sql`
+        INSERT INTO fl_client_exclusions (client_id, account_name, reason)
+        VALUES (${targetClientId}, ${businessName}, ${reason || (targetClientId === "GLOBAL" ? "Global Account Exclusion" : "Client Account Exclusion")})
+        ON CONFLICT (client_id, account_name) DO NOTHING
+      `;
+
+      return NextResponse.json({ ok: true, isExcluded: true });
     }
 
     // 3. Human Review Queue Resolution
