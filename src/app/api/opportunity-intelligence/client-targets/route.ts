@@ -15,21 +15,43 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get("clientId") || undefined;
     const territory = searchParams.get("territory") || undefined;
+    const county = searchParams.get("county") || undefined;
+    const city = searchParams.get("city") || undefined;
+    const zip = searchParams.get("zip") || undefined;
     const channel = searchParams.get("channel") || undefined;
+    const tonnageRisk = searchParams.get("tonnageRisk") || searchParams.get("sqftBand") || undefined;
     const verificationStatus = searchParams.get("verificationStatus") || undefined;
-    const sqftBand = searchParams.get("sqftBand") || undefined;
+    const hasWebsite = searchParams.get("hasWebsite") || undefined;
+    const minReviews = searchParams.get("minReviews") ? Number(searchParams.get("minReviews")) : undefined;
+    const entityStatus = searchParams.get("entityStatus") || undefined;
+    const licenseType = searchParams.get("licenseType") || undefined;
+    const permitWithinDays = searchParams.get("permitWithinDays") ? Number(searchParams.get("permitWithinDays")) : undefined;
     const search = searchParams.get("search") || undefined;
     const needsReviewOnly = searchParams.get("needsReviewOnly") === "true";
+    const hideExistingAccounts = searchParams.get("hideExistingAccounts") === "true";
+    const page = searchParams.get("page") ? Number(searchParams.get("page")) : 1;
+    const pageSize = searchParams.get("pageSize") ? Number(searchParams.get("pageSize")) : 25;
 
     const [outreachData, registeredClients] = await Promise.all([
       getClientTerritoryOutreachTargets({
         clientId,
         territoryInput: territory,
+        county,
+        city,
+        zip,
         channelFilter: channel,
+        tonnageRisk,
         verificationFilter: verificationStatus,
-        sqftFilter: sqftBand,
+        hasWebsite,
+        minReviews,
+        entityStatus,
+        licenseType,
+        permitWithinDays,
         searchQuery: search,
         needsReviewOnly,
+        hideExistingAccounts,
+        page,
+        pageSize,
       }),
       getRegisteredClientsList(),
     ]);

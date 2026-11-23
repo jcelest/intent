@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { UnifiedClientTargetRow } from "@/lib/client-outreach-engine";
 import type { ClientRegistrationRecord } from "@/lib/permits-and-registrations";
+import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
 import {
   GoogleIcon,
   ShieldCheckIcon,
@@ -11,7 +12,6 @@ import {
   DownloadIcon,
   CheckIcon,
   ExternalLinkIcon,
-  PlusIcon,
   PhoneIcon,
   BuildingIcon,
 } from "@/components/admin/opportunity-intelligence/icons";
@@ -26,22 +26,46 @@ interface RegisteredClient {
   contact_phone?: string | null;
 }
 
+interface CountyCoverage {
+  county: string;
+  count: number;
+}
+
 export default function ClientTerritoryTargetsPage() {
   const [clients, setClients] = useState<RegisteredClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("all");
-  const [territoryInput, setTerritoryInput] = useState<string>("Orange, Osceola, Seminole, Escambia, Santa Rosa");
+
+  // Manual Filter State (All Optional, Defaults Unscoped)
+  const [countyFilter, setCountyFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("");
+  const [zipFilter, setZipFilter] = useState<string>("");
+  const [territoryInput, setTerritoryInput] = useState<string>("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [tonnageRiskFilter, setTonnageRiskFilter] = useState<string>("all");
   const [verificationFilter, setVerificationFilter] = useState<string>("all");
-  const [sqftFilter, setSqftFilter] = useState<string>("all");
+  const [hasWebsiteFilter, setHasWebsiteFilter] = useState<string>("all");
+  const [minReviewsFilter, setMinReviewsFilter] = useState<string>("");
+  const [entityStatusFilter, setEntityStatusFilter] = useState<string>("all");
+  const [licenseTypeFilter, setLicenseTypeFilter] = useState<string>("all");
+  const [permitWithinDaysFilter, setPermitWithinDaysFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [needsReviewOnly, setNeedsReviewOnly] = useState<boolean>(false);
+  const [hideExistingAccounts, setHideExistingAccounts] = useState<boolean>(false);
 
+  // Pagination State
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Data & KPI State
   const [targets, setTargets] = useState<UnifiedClientTargetRow[]>([]);
-  const [territoryCounties, setTerritoryCounties] = useState<string[]>([]);
+  const [coverage, setCoverage] = useState<CountyCoverage[]>([]);
   const [registrations, setRegistrations] = useState<ClientRegistrationRecord[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [stats, setStats] = useState({
     totalInTerritory: 0,
+    inClientTerritoryCount: 0,
+    existingAccountsCount: 0,
     verifiedActiveCount: 0,
     chillerCount: 0,
     under10tCount: 0,
@@ -60,19 +84,31 @@ export default function ClientTerritoryTargetsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (selectedClientId && selectedClientId !== "all") params.set("clientId", selectedClientId);
+      if (countyFilter !== "all") params.set("county", countyFilter);
+      if (cityFilter.trim()) params.set("city", cityFilter.trim());
+      if (zipFilter.trim()) params.set("zip", zipFilter.trim());
       if (territoryInput.trim()) params.set("territory", territoryInput.trim());
       if (channelFilter !== "all") params.set("channel", channelFilter);
+      if (tonnageRiskFilter !== "all") params.set("tonnageRisk", tonnageRiskFilter);
       if (verificationFilter !== "all") params.set("verificationStatus", verificationFilter);
-      if (sqftFilter !== "all") params.set("sqftBand", sqftFilter);
+      if (hasWebsiteFilter !== "all") params.set("hasWebsite", hasWebsiteFilter);
+      if (minReviewsFilter && Number(minReviewsFilter) > 0) params.set("minReviews", minReviewsFilter);
+      if (entityStatusFilter !== "all") params.set("entityStatus", entityStatusFilter);
+      if (licenseTypeFilter !== "all") params.set("licenseType", licenseTypeFilter);
+      if (permitWithinDaysFilter !== "all") params.set("permitWithinDays", permitWithinDaysFilter);
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
       if (needsReviewOnly) params.set("needsReviewOnly", "true");
+      if (hideExistingAccounts) params.set("hideExistingAccounts", "true");
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
 
       const res = await fetch(`/api/opportunity-intelligence/client-targets?${params.toString()}`);
       const data = await res.json();
       if (data.ok) {
         setTargets(data.targets || []);
         setTotal(data.total || 0);
-        setTerritoryCounties(data.territoryCounties || []);
+        setTotalPages(data.totalPages || 1);
+        if (data.coverage) setCoverage(data.coverage);
         if (data.stats) setStats(data.stats);
         if (data.registeredClients) setClients(data.registeredClients);
         if (data.clientRegistrations) setRegistrations(data.clientRegistrations);
@@ -84,12 +120,23 @@ export default function ClientTerritoryTargetsPage() {
     }
   }, [
     selectedClientId,
+    countyFilter,
+    cityFilter,
+    zipFilter,
     territoryInput,
     channelFilter,
+    tonnageRiskFilter,
     verificationFilter,
-    sqftFilter,
+    hasWebsiteFilter,
+    minReviewsFilter,
+    entityStatusFilter,
+    licenseTypeFilter,
+    permitWithinDaysFilter,
     searchQuery,
     needsReviewOnly,
+    hideExistingAccounts,
+    page,
+    pageSize,
   ]);
 
   useEffect(() => {
@@ -101,12 +148,27 @@ export default function ClientTerritoryTargetsPage() {
 
   const handleClientSelect = (clientId: string) => {
     setSelectedClientId(clientId);
-    if (clientId !== "all") {
-      const match = clients.find((c) => c.id === clientId);
-      if (match && match.service_areas && match.service_areas.length > 0) {
-        setTerritoryInput(match.service_areas.join(", "));
-      }
-    }
+    setPage(1);
+    // Never reduce base dataset by territory when client is selected!
+  };
+
+  const handleResetFilters = () => {
+    setCountyFilter("all");
+    setCityFilter("");
+    setZipFilter("");
+    setTerritoryInput("");
+    setChannelFilter("all");
+    setTonnageRiskFilter("all");
+    setVerificationFilter("all");
+    setHasWebsiteFilter("all");
+    setMinReviewsFilter("");
+    setEntityStatusFilter("all");
+    setLicenseTypeFilter("all");
+    setPermitWithinDaysFilter("all");
+    setSearchQuery("");
+    setNeedsReviewOnly(false);
+    setHideExistingAccounts(false);
+    setPage(1);
   };
 
   // Layer 6 Search Verification Trigger
@@ -122,7 +184,7 @@ export default function ClientTerritoryTargetsPage() {
           city: target.city,
           county: target.county,
           targetType: target.channel,
-          targetId: target.parcelId,
+          targetId: target.parcelId || target.targetId,
           streetAddress: target.situsAddress,
           phone: target.verifiedPhone,
           forceRefresh,
@@ -199,14 +261,18 @@ export default function ClientTerritoryTargetsPage() {
     if (targets.length === 0) return;
     const headers = [
       "Target Name",
+      "Record Type",
       "Channel",
       "Situs Address",
       "City",
       "County",
+      "ZIP",
       "SqFt",
       "Tonnage Risk (Est)",
       "Sunbiz Status",
       "Sunbiz Doc #",
+      "License Type",
+      "License #",
       "Last Mechanical Permit",
       "Incumbent Contractor",
       "Verification Status",
@@ -216,20 +282,26 @@ export default function ClientTerritoryTargetsPage() {
       "Reviews",
       "Verified Phone",
       "Fit Score",
+      "In Client Territory",
+      "Is Client Account",
       "Scope Warning",
       "Evidence URLs",
     ];
 
     const rows = targets.map((t) => [
       `"${t.name.replace(/"/g, '""')}"`,
+      `"${t.recordType}"`,
       `"${t.channel}"`,
       `"${t.situsAddress.replace(/"/g, '""')}"`,
       `"${t.city}"`,
       `"${t.county}"`,
+      `"${t.zip || ""}"`,
       `"${t.buildingSqft || ""}"`,
       `"${t.tonnageRisk}"`,
       `"${t.entityStatus}"`,
       `"${t.sunbizDocNumber || ""}"`,
+      `"${(t.licenseType || "").replace(/"/g, '""')}"`,
+      `"${t.licenseNumber || ""}"`,
       `"${t.lastMechanicalPermitDate || ""}"`,
       `"${(t.incumbentContractor || "").replace(/"/g, '""')}"`,
       `"${t.verificationStatus}"`,
@@ -239,6 +311,8 @@ export default function ClientTerritoryTargetsPage() {
       `"${t.reviewCount || ""}"`,
       `"${t.verifiedPhone || ""}"`,
       `"${t.fitScore}"`,
+      `"${t.inClientTerritory ? "YES" : "NO"}"`,
+      `"${t.isClientAccount ? "YES" : "NO"}"`,
       `"${t.scopeWarning || ""}"`,
       `"${t.evidence.map((e) => e.url).join("; ")}"`,
     ]);
@@ -247,13 +321,16 @@ export default function ClientTerritoryTargetsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `client-territory-targets-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `florida-commercial-outreach-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
+
+  // Check if selected county has data
+  const isSelectedCountyIngested = countyFilter === "all" || coverage.some((c) => c.county.toLowerCase() === countyFilter.toLowerCase());
 
   return (
     <div className="space-y-6">
@@ -262,17 +339,17 @@ export default function ClientTerritoryTargetsPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-500/20">
-              SIX-LAYER COMMERCIAL INTELLIGENCE
+              COMMERCIAL OPPORTUNITY INTELLIGENCE
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Parcels • Sunbiz • DBPR • Permits • Registrations • Google Search Verified
+              Parcels • Businesses • DBPR Licensees • Commercial Networks
             </span>
           </div>
           <h1 className="text-xl font-bold text-white mt-1">
-            Client Territory Commercial Outreach Database
+            Florida Commercial Outreach Database
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Comprehensive commercial outreach targets in client territory across property appraiser parcels, timing permits, and Google-verified active entities.
+            Complete database of Florida commercial properties, licensees, networks, and timing permits verified with Google search data.
           </p>
         </div>
 
@@ -280,18 +357,43 @@ export default function ClientTerritoryTargetsPage() {
           {selectedClient && (
             <button
               onClick={() => setShowRegistrations(!showRegistrations)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/30 transition-colors"
             >
               <BuildingIcon className="h-3.5 w-3.5" />
-              {showRegistrations ? "Hide Vendor Portals" : "Client Vendor Portals (Layer 5)"}
+              Vendor Registrations ({registrations.filter((r) => r.status === "REGISTERED").length}/{registrations.length})
             </button>
           )}
+
           <button
             onClick={exportTargetsCSV}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
           >
-            <DownloadIcon className="h-3.5 w-3.5" /> Export Targets ({total})
+            <DownloadIcon className="h-3.5 w-3.5" /> Export ({total})
           </button>
+        </div>
+      </div>
+
+      {/* Coverage Honesty Banner */}
+      <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 px-4 py-3 text-xs space-y-1">
+        <div className="flex items-center justify-between font-mono">
+          <span className="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <ShieldCheckIcon className="h-4 w-4 text-cyan-400" />
+            County Coverage Status ({coverage.length} Ingested Florida Counties):
+          </span>
+          <span className="text-slate-400 text-[11px]">
+            {total} Total Active Commercial Records
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-300 font-mono text-[11px] pt-1">
+          {coverage.map((c) => (
+            <span key={c.county} className="inline-flex items-center gap-1">
+              <span className="text-white font-semibold">{c.county}:</span>
+              <span className="text-cyan-300">{c.count} records</span>
+            </span>
+          ))}
+          <span className="text-slate-500 italic">
+            • All other {67 - coverage.length} Florida counties are queued for ingestion.
+          </span>
         </div>
       </div>
 
@@ -301,45 +403,59 @@ export default function ClientTerritoryTargetsPage() {
         </div>
       )}
 
-      {/* Client Selector & Territory Input Card */}
+      {/* Client Overlay Lens Card */}
       <div className="rounded-2xl border border-white/10 bg-[#0d1424] p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-white/10">
           <div>
-            <label className="block text-[11px] font-mono uppercase text-cyan-400 font-semibold mb-1.5">
-              Client Profile (from trade_demand_clients):
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[11px] font-mono uppercase text-cyan-400 font-semibold">
+                Client Overlay Lens (Optional — Does not reduce dataset):
+              </label>
+            </div>
             <select
               value={selectedClientId}
               onChange={(e) => handleClientSelect(e.target.value)}
               className="w-full rounded-xl border border-cyan-500/40 bg-black/60 px-3.5 py-2.5 text-xs font-semibold text-white focus:border-cyan-400 focus:outline-none"
             >
-              <option value="all">Priority Counties Market (Orange, Osceola, Seminole, Escambia, Santa Rosa)</option>
+              <option value="all">None — Full Florida Market View (Unscoped)</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} {c.trades.length > 0 ? `• [${c.trades.join(", ")}]` : ""}
                 </option>
               ))}
             </select>
+            {selectedClient && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-400">
+                <span>Territory: {selectedClient.service_areas.length > 0 ? selectedClient.service_areas.join(", ") : "Statewide"}</span>
+                {selectedClient.trades.length > 0 && <span>Trades: {selectedClient.trades.join(", ")}</span>}
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-[11px] font-mono uppercase text-slate-400 font-semibold mb-1.5">
-              Territory Input (Counties, Cities, ZIPs resolved by florida-geo):
-            </label>
-            <input
-              type="text"
-              value={territoryInput}
-              onChange={(e) => setTerritoryInput(e.target.value)}
-              placeholder="e.g. Orange, Osceola, Seminole, Escambia, Santa Rosa..."
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none font-mono"
-            />
-            {territoryCounties.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {territoryCounties.map((c) => (
-                  <span key={c} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
-                    {c} County
+          <div className="flex flex-col justify-end">
+            {selectedClient ? (
+              <div className="rounded-xl bg-black/40 border border-white/10 p-3 space-y-2">
+                <div className="text-[11px] font-mono uppercase text-slate-300 font-semibold">
+                  Client Account Settings:
+                </div>
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={hideExistingAccounts}
+                    onChange={(e) => {
+                      setHideExistingAccounts(e.target.checked);
+                      setPage(1);
+                    }}
+                    className="rounded border-white/20 bg-black/40 text-amber-500 focus:ring-0"
+                  />
+                  <span>
+                    Hide Existing Client Accounts ({stats.existingAccountsCount} Owned Accounts)
                   </span>
-                ))}
+                </label>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-black/20 border border-white/5 p-3 text-xs text-slate-400 font-mono">
+                Select a client to evaluate compatibility fit scores, capacity limits (chiller vs light commercial), and manage owned accounts.
               </div>
             )}
           </div>
@@ -348,9 +464,9 @@ export default function ClientTerritoryTargetsPage() {
         {/* Territory & Six-Layer KPI Dashboard */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-1">
           <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-            <div className="text-[10px] font-mono uppercase text-slate-400">Total in Territory</div>
+            <div className="text-[10px] font-mono uppercase text-slate-400">Total Matching Targets</div>
             <div className="text-xl font-bold text-white mt-0.5">{stats.totalInTerritory}</div>
-            <div className="text-[10px] text-cyan-400 font-mono mt-0.5">Commercial parcels</div>
+            <div className="text-[10px] text-cyan-400 font-mono mt-0.5">Real database count</div>
           </div>
 
           <div className="rounded-xl bg-black/40 p-3 border border-white/5">
@@ -413,10 +529,10 @@ export default function ClientTerritoryTargetsPage() {
                   <span
                     className={`rounded px-2 py-0.5 text-[10px] font-bold ${
                       reg.status === "REGISTERED"
-                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                        ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
                         : reg.status === "IN_PROGRESS"
-                        ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
-                        : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                        ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                        : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                     }`}
                   >
                     {reg.status}
@@ -430,93 +546,291 @@ export default function ClientTerritoryTargetsPage() {
         </div>
       )}
 
-      {/* Filter Toolbar */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 rounded-xl border border-white/10 bg-[#0d1424] p-4">
-        <div>
-          <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Search Property / Owner / GC</label>
-          <div className="relative">
+      {/* Manual Filter Controls Toolbar (All Combine via AND) */}
+      <div className="rounded-2xl border border-white/10 bg-[#0d1424] p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <SearchIcon className="h-4 w-4 text-cyan-400" />
+            <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
+              Manual Filtering Engine (All Filters Combine via AND)
+            </h3>
+          </div>
+          <button
+            onClick={handleResetFilters}
+            className="text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+          >
+            Reset All Filters
+          </button>
+        </div>
+
+        {/* Row 1: Geography & Search */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">County</label>
+            <select
+              value={countyFilter}
+              onChange={(e) => {
+                setCountyFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All Florida Counties ({coverage.length} Ingested)</option>
+              {FLORIDA_COUNTIES.map((c) => {
+                const cov = coverage.find((cv) => cv.county.toLowerCase() === c.name.toLowerCase());
+                return (
+                  <option key={c.fips} value={c.name}>
+                    {c.name} County {cov ? `(${cov.count} records)` : "(Not ingested yet)"}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">City</label>
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Owner, address, incumbent GC..."
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none pl-8"
+              value={cityFilter}
+              onChange={(e) => {
+                setCityFilter(e.target.value);
+                setPage(1);
+              }}
+              placeholder="e.g. Orlando, Pensacola..."
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none font-mono"
             />
-            <SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">ZIP Code</label>
+            <input
+              type="text"
+              value={zipFilter}
+              onChange={(e) => {
+                setZipFilter(e.target.value);
+                setPage(1);
+              }}
+              placeholder="e.g. 32801, 32501..."
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Free-Text Search</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Name, address, incumbent GC..."
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none pl-8"
+              />
+              <SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+            </div>
           </div>
         </div>
 
-        <div>
-          <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Outreach Channel</label>
-          <select
-            value={channelFilter}
-            onChange={(e) => setChannelFilter(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-          >
-            <option value="all">All Channels</option>
-            <option value="office">Office / Professional</option>
-            <option value="retail">Retail / Community Centers</option>
-            <option value="medical_clinic">Medical & Clinic</option>
-            <option value="school">School / Educational</option>
-            <option value="warehouse_industrial">Warehouse & Logistics</option>
-            <option value="municipal">Municipal / Government</option>
-            <option value="association_cam">Association / CAM</option>
-            <option value="hospitality">Hospitality</option>
-          </select>
+        {/* Row 2: Trade & Technical Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Outreach Channel</label>
+            <select
+              value={channelFilter}
+              onChange={(e) => {
+                setChannelFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All Channels</option>
+              <option value="office">Office / Professional</option>
+              <option value="retail">Retail / Commercial Centers</option>
+              <option value="medical_clinic">Medical & Clinic</option>
+              <option value="school">School / Educational</option>
+              <option value="warehouse_industrial">Warehouse & Logistics</option>
+              <option value="municipal">Municipal / Government</option>
+              <option value="association_cam">Association / CAM</option>
+              <option value="hospitality">Hospitality</option>
+              <option value="other">Other Commercial</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Tonnage Risk (Screening)</label>
+            <select
+              value={tonnageRiskFilter}
+              onChange={(e) => {
+                setTonnageRiskFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All Size Bands</option>
+              <option value="UNDER_10T_LIKELY">UNDER_10T_LIKELY (&lt;15k sq ft)</option>
+              <option value="OVER_10T_POSSIBLE">OVER_10T_POSSIBLE (15k-100k sq ft)</option>
+              <option value="CHILLER_LIKELY">CHILLER_LIKELY (100k+ sq ft)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Verification Status</label>
+            <select
+              value={verificationFilter}
+              onChange={(e) => {
+                setVerificationFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All Statuses</option>
+              <option value="VERIFIED_ACTIVE">VERIFIED_ACTIVE (Name + Signal)</option>
+              <option value="LIKELY_ACTIVE">LIKELY_ACTIVE</option>
+              <option value="AMBIGUOUS">AMBIGUOUS (Needs Review)</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Website Available</label>
+            <select
+              value={hasWebsiteFilter}
+              onChange={(e) => {
+                setHasWebsiteFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All (With & Without Website)</option>
+              <option value="true">Has Official Website</option>
+              <option value="false">No Website Found</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Verification Status (Layer 6)</label>
-          <select
-            value={verificationFilter}
-            onChange={(e) => setVerificationFilter(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-          >
-            <option value="all">All Verification States</option>
-            <option value="VERIFIED_ACTIVE">VERIFIED_ACTIVE (Name + City + Signal)</option>
-            <option value="LIKELY_ACTIVE">LIKELY_ACTIVE</option>
-            <option value="AMBIGUOUS">AMBIGUOUS (Needs Review)</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
-        </div>
+        {/* Row 3: Entity, License, Timing & Review Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Entity Status</label>
+            <select
+              value={entityStatusFilter}
+              onChange={(e) => {
+                setEntityStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All Entity States</option>
+              <option value="Active">Active (Sunbiz / License)</option>
+              <option value="Inactive">Inactive</option>
+              <option value="UNMATCHED">UNMATCHED</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">SqFt / Tonnage (Screening Est)</label>
-          <select
-            value={sqftFilter}
-            onChange={(e) => setSqftFilter(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
-          >
-            <option value="all">All Size Bands</option>
-            <option value="UNDER_10T_LIKELY">UNDER_10T_LIKELY (&lt;15k sq ft)</option>
-            <option value="OVER_10T_POSSIBLE">OVER_10T_POSSIBLE (15k-100k sq ft)</option>
-            <option value="CHILLER_LIKELY">CHILLER_LIKELY (100k+ sq ft)</option>
-          </select>
-        </div>
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">License Type</label>
+            <select
+              value={licenseTypeFilter}
+              onChange={(e) => {
+                setLicenseTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">All License Types</option>
+              <option value="Mechanical">Mechanical / HVAC</option>
+              <option value="General Contractor">General Contractor</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Roofing">Roofing</option>
+              <option value="Community Association">CAM / Management</option>
+            </select>
+          </div>
 
-        <div className="flex items-end">
-          <button
-            onClick={() => setNeedsReviewOnly(!needsReviewOnly)}
-            className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all border ${
-              needsReviewOnly
-                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
-            }`}
-          >
-            {needsReviewOnly ? "✓ Showing Review Queue" : "Human Review Queue"}
-          </button>
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Permit Timing Signal</label>
+            <select
+              value={permitWithinDaysFilter}
+              onChange={(e) => {
+                setPermitWithinDaysFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="all">Any Permit History</option>
+              <option value="90">Mechanical Permit within 90 days</option>
+              <option value="180">Mechanical Permit within 180 days</option>
+              <option value="365">Mechanical Permit within 365 days</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1">Minimum Reviews</label>
+            <select
+              value={minReviewsFilter}
+              onChange={(e) => {
+                setMinReviewsFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="">Any Review Count</option>
+              <option value="5">5+ Reviews</option>
+              <option value="10">10+ Reviews</option>
+              <option value="25">25+ Reviews</option>
+              <option value="50">50+ Reviews</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setNeedsReviewOnly(!needsReviewOnly);
+                setPage(1);
+              }}
+              className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all border ${
+                needsReviewOnly
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                  : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
+              }`}
+            >
+              {needsReviewOnly ? "✓ Showing Review Queue" : "Human Review Queue"}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Outreach Deliverable Table */}
       <div className="rounded-2xl border border-white/10 bg-[#0d1424] overflow-hidden">
-        <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white">
-            Commercial Outreach Targets: {selectedClient ? selectedClient.name : "Territory Market"}
-          </h3>
-          <span className="text-xs font-mono text-cyan-400">
-            Showing {targets.length} of {total} Targets
-          </span>
+        <div className="border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-white">
+              Florida Commercial Targets ({total} Total Records)
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} records across ingested counties
+            </p>
+          </div>
+
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-mono">Page Size:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white focus:border-cyan-500 focus:outline-none font-mono"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
@@ -524,11 +838,20 @@ export default function ClientTerritoryTargetsPage() {
             <RefreshIcon className="h-6 w-6 animate-spin mx-auto mb-3 text-cyan-400" />
             Loading commercial property appraiser parcels, Sunbiz matches, permits, and Google verifications…
           </div>
+        ) : !isSelectedCountyIngested ? (
+          <div className="p-16 text-center text-sm text-slate-400 space-y-2">
+            <div className="text-amber-400 font-bold font-mono">
+              {countyFilter} County has not been ingested yet.
+            </div>
+            <div className="text-xs text-slate-500 max-w-md mx-auto">
+              Data collection is currently active for {coverage.map((c) => c.county).join(", ")}. When {countyFilter} is ingested, records will appear here automatically.
+            </div>
+          </div>
         ) : targets.length === 0 ? (
           <div className="p-16 text-center text-sm text-slate-400 space-y-2">
-            <div>No outreach targets matched this client&apos;s territory or filter settings.</div>
+            <div>No commercial targets match the active filter criteria.</div>
             <div className="text-xs text-slate-500">
-              Try adjusting the territory input or clearing active filters.
+              Try clearing active filters or selecting &quot;All Florida Counties&quot;.
             </div>
           </div>
         ) : (
@@ -541,6 +864,11 @@ export default function ClientTerritoryTargetsPage() {
                 {/* Information Column */}
                 <div className="space-y-2 max-w-3xl">
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* Record Type Pill */}
+                    <span className="rounded bg-slate-500/10 px-2 py-0.5 text-[10px] font-mono text-slate-300 border border-slate-500/20 uppercase">
+                      {target.recordType}
+                    </span>
+
                     {/* Channel */}
                     <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wide border border-cyan-500/20">
                       {target.channel.replace(/_/g, " ")}
@@ -548,15 +876,15 @@ export default function ClientTerritoryTargetsPage() {
 
                     {/* Location */}
                     <span className="text-xs text-slate-400 font-mono">
-                      {target.county} County • {target.city} (APN: {target.parcelId})
+                      {target.county} County • {target.city} {target.zip ? `(ZIP: ${target.zip})` : ""} {target.parcelId ? `(APN: ${target.parcelId})` : ""}
                     </span>
 
-                    {/* Fit Score */}
+                    {/* Fit Score (Visible for all, dynamically tuned if client selected) */}
                     <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-mono text-indigo-300">
                       Fit: {target.fitScore}/100
                     </span>
 
-                    {/* Sunbiz Status */}
+                    {/* Sunbiz / Entity Status */}
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-mono border ${
                         target.entityStatus === "Active"
@@ -564,7 +892,7 @@ export default function ClientTerritoryTargetsPage() {
                           : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                       }`}
                     >
-                      Sunbiz: {target.entityStatus} {target.sunbizDocNumber ? `(${target.sunbizDocNumber})` : ""}
+                      Entity: {target.entityStatus} {target.sunbizDocNumber ? `(${target.sunbizDocNumber})` : ""}
                     </span>
 
                     {/* Tonnage Risk / Sqft Band (Screening Estimate) */}
@@ -577,13 +905,34 @@ export default function ClientTerritoryTargetsPage() {
                           : "bg-blue-500/10 text-blue-300 border-blue-500/20"
                       }`}
                     >
-                      {target.tonnageRisk} (Screening Est: {target.buildingSqft ? `${target.buildingSqft.toLocaleString()} sqft` : "Unknown sqft"})
+                      {target.tonnageRisk} {target.buildingSqft ? `(${target.buildingSqft.toLocaleString()} sqft)` : ""}
                     </span>
 
-                    {/* Client Scope Warning Screen */}
+                    {/* Client Territory Alignment (Overlay) */}
+                    {selectedClient && (
+                      <span
+                        className={`rounded px-2 py-0.5 text-[10px] font-mono border ${
+                          target.inClientTerritory
+                            ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                            : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                        }`}
+                      >
+                        {target.inClientTerritory ? "In Client Territory" : "Outside Territory"}
+                      </span>
+                    )}
+
+                    {/* Existing Account Badge (Overlay) */}
+                    {target.isClientAccount && (
+                      <span className="rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
+                        Existing Client Account
+                      </span>
+                    )}
+
+                    {/* Client Scope Warning Screen (No emojis!) */}
                     {target.scopeWarning && (
-                      <span className="rounded bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300">
-                        ⚠ {target.scopeWarning}
+                      <span className="rounded bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 flex items-center gap-1">
+                        <ShieldCheckIcon className="h-3 w-3 text-rose-300" />
+                        {target.scopeWarning}
                       </span>
                     )}
                   </div>
@@ -595,6 +944,13 @@ export default function ClientTerritoryTargetsPage() {
                   <div className="text-xs text-slate-300 font-mono">
                     Situs: {target.situsAddress}, {target.city}, FL
                   </div>
+
+                  {/* License Info (if licensee or network) */}
+                  {target.licenseType && (
+                    <div className="text-xs text-slate-400 font-mono">
+                      License: {target.licenseType} {target.licenseNumber ? `(#${target.licenseNumber})` : ""}
+                    </div>
+                  )}
 
                   {/* Layer 4: Permit & Incumbent Contractor Signal */}
                   {target.incumbentContractor && (
@@ -662,7 +1018,7 @@ export default function ClientTerritoryTargetsPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Actions Column */}
                 <div className="flex flex-col sm:flex-row xl:flex-col items-start xl:items-end gap-2 shrink-0 pt-3 xl:pt-0">
                   {/* Google Search Live Inspection */}
                   <a
@@ -680,28 +1036,75 @@ export default function ClientTerritoryTargetsPage() {
                   <button
                     onClick={() => triggerSearchVerification(target, true)}
                     disabled={verifyingTargetId === target.targetId}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 transition-all w-full sm:w-auto disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/30 transition-all w-full sm:w-auto disabled:opacity-50"
                   >
-                    <RefreshIcon className={`h-3 w-3 ${verifyingTargetId === target.targetId ? "animate-spin text-cyan-400" : ""}`} />
-                    {verifyingTargetId === target.targetId ? "Searching…" : "Refresh Search Signals"}
+                    <RefreshIcon className={`h-3.5 w-3.5 ${verifyingTargetId === target.targetId ? "animate-spin" : ""}`} />
+                    {verifyingTargetId === target.targetId ? "Verifying..." : "Verify Search Signal"}
                   </button>
 
-                  {/* Add to Pipeline Carrying Full Evidence Trail */}
+                  {/* Pipeline Action */}
                   <button
                     onClick={() => pushToPipeline(target)}
                     disabled={target.inPipeline}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-all w-full sm:w-auto shadow-sm ${
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all w-full sm:w-auto border ${
                       target.inPipeline
-                        ? "bg-white/5 text-slate-500 border border-white/5 cursor-not-allowed"
-                        : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20"
+                        ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-400 cursor-default"
+                        : "border-indigo-500/40 bg-indigo-600/30 text-white hover:bg-indigo-600/50"
                     }`}
                   >
-                    <PlusIcon className="h-3.5 w-3.5" />
-                    {target.inPipeline ? `In Pipeline (${target.pipelineStage})` : "Add to Outreach Pipeline"}
+                    <CheckIcon className="h-3.5 w-3.5" />
+                    {target.inPipeline ? `In Pipeline (${target.pipelineStage || "Active"})` : "Add to Client Pipeline"}
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {total > 0 && (
+          <div className="border-t border-white/10 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <span className="text-slate-400 font-mono">
+              Page {page} of {totalPages} ({total} Total Records)
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5 disabled:opacity-40 transition-colors"
+              >
+                Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pNum = i + 1;
+                  return (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      className={`h-8 w-8 rounded-lg font-mono font-semibold transition-colors ${
+                        page === pNum
+                          ? "bg-cyan-500 text-black"
+                          : "border border-white/10 bg-black/40 text-slate-300 hover:bg-white/5"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  );
+                })}
+                {totalPages > 5 && <span className="text-slate-500 px-1">…</span>}
+              </div>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5 disabled:opacity-40 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

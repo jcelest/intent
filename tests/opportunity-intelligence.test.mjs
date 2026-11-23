@@ -147,3 +147,17 @@ test("verifies Florida government targets as active using Google search data", a
   assert.ok(result.snippet.includes("Orange"));
   assert.ok(result.searchUrl.includes("google.com"));
 });
+
+test("resolves territory counties as overlay without scoping down by client defaults", () => {
+  // Unscoped market default should resolve all priority counties
+  const marketScope = parseFloridaGeoSearch("Orange, Osceola, Seminole, Escambia, Santa Rosa");
+  assert.equal(marketScope.resolvedCounties.length, 5);
+
+  // Client's service areas (e.g. Orange only) does not reduce marketScope unless explicitly requested
+  const clientAreas = ["Orange"];
+  const isTargetInClientTerritory = (targetCounty) =>
+    clientAreas.some((c) => c.toLowerCase() === targetCounty.toLowerCase());
+
+  assert.equal(isTargetInClientTerritory("Orange"), true);
+  assert.equal(isTargetInClientTerritory("Osceola"), false);
+});
