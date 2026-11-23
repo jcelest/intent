@@ -16,6 +16,12 @@ import {
   buildGoogleSearchUrl,
   verifyTargetWithGoogleSearch,
 } from "../src/lib/google-search-verification.ts";
+import {
+  FLORIDA_DOR_COUNTIES,
+  DOR_COUNTY_OID_START,
+  mapDorUseCode,
+  deriveTonnageRisk,
+} from "../src/lib/florida-dor-meta.ts";
 
 test("validates all 67 Florida counties are indexed", () => {
   assert.equal(FLORIDA_COUNTIES.length, 67);
@@ -160,4 +166,80 @@ test("resolves territory counties as overlay without scoping down by client defa
 
   assert.equal(isTargetInClientTerritory("Orange"), true);
   assert.equal(isTargetInClientTerritory("Osceola"), false);
+});
+
+test("validates Florida DOR 67 counties and clustered index OBJECTID slices", () => {
+  assert.equal(FLORIDA_DOR_COUNTIES.length, 67, "Must cover all 67 Florida counties");
+  assert.equal(FLORIDA_DOR_COUNTIES[0].dorCode, 11, "First county Alachua is DOR 11");
+  assert.equal(FLORIDA_DOR_COUNTIES[66].dorCode, 77, "Last county Washington is DOR 77");
+
+  // Every county has an indexed start OBJECTID
+  for (const c of FLORIDA_DOR_COUNTIES) {
+    assert.ok(c.startOid > 0, `County ${c.name} (code ${c.dorCode}) must have startOid > 0`);
+    assert.ok(DOR_COUNTY_OID_START[c.dorCode] > 0, `DOR_COUNTY_OID_START must define ${c.dorCode}`);
+  }
+
+  // Key counties verification
+  const miami = FLORIDA_DOR_COUNTIES.find((c) => c.name === "Miami-Dade");
+  assert.ok(miami);
+  assert.equal(miami.dorCode, 23);
+  assert.equal(miami.startOid, 5800001);
+
+  const orange = FLORIDA_DOR_COUNTIES.find((c) => c.name === "Orange");
+  assert.ok(orange);
+  assert.equal(orange.dorCode, 58);
+  assert.equal(orange.startOid, 6700001);
+
+  const escambia = FLORIDA_DOR_COUNTIES.find((c) => c.name === "Escambia");
+  assert.ok(escambia);
+  assert.equal(escambia.dorCode, 27);
+  assert.equal(escambia.startOid, 2800001);
+});
+
+test("validates DOR commercial use code mapping to channels and categories", () => {
+  // Retail (011)
+  const retail = mapDorUseCode("011");
+  assert.equal(retail.channel, "retail");
+  assert.equal(retail.category, "Commercial Retail");
+
+  // Office (017)
+  const office = mapDorUseCode("017");
+  assert.equal(office.channel, "office");
+  assert.equal(office.category, "Commercial Office");
+
+  // Restaurant (021)
+  const dining = mapDorUseCode("021");
+  assert.equal(dining.channel, "retail");
+  assert.equal(dining.category, "Commercial Hospitality");
+
+  // Hotel (039)
+  const hotel = mapDorUseCode("039");
+  assert.equal(hotel.channel, "hospitality");
+  assert.equal(hotel.category, "Commercial Hospitality");
+
+  // Warehouse (048)
+  const warehouse = mapDorUseCode("048");
+  assert.equal(warehouse.channel, "warehouse_industrial");
+  assert.equal(warehouse.category, "Industrial Logistics");
+
+  // Hospital (073)
+  const hospital = mapDorUseCode("073");
+  assert.equal(hospital.channel, "medical_clinic");
+  assert.equal(hospital.category, "Institutional Medical");
+
+  // Municipal (086)
+  const municipal = mapDorUseCode("086");
+  assert.equal(municipal.channel, "municipal");
+  assert.equal(municipal.category, "Government Facilities");
+});
+
+test("derives screening tonnage risk estimates from building sqft", () => {
+  assert.equal(deriveTonnageRisk(null), "UNDER_10T_LIKELY");
+  assert.equal(deriveTonnageRisk(5000), "UNDER_10T_LIKELY");
+  assert.equal(deriveTonnageRisk(14999), "UNDER_10T_LIKELY");
+  assert.equal(deriveTonnageRisk(15000), "OVER_10T_POSSIBLE");
+  assert.equal(deriveTonnageRisk(65000), "OVER_10T_POSSIBLE");
+  assert.equal(deriveTonnageRisk(99999), "OVER_10T_POSSIBLE");
+  assert.equal(deriveTonnageRisk(100000), "CHILLER_LIKELY");
+  assert.equal(deriveTonnageRisk(350000), "CHILLER_LIKELY");
 });

@@ -148,9 +148,14 @@ export async function runSunbizMatchingPass(): Promise<{
   unmatchedCount: number;
   unmatchedReport: Array<{ county: string; parcel_id: string; owner_name_raw: string }>;
 }> {
+  // Only process parcels that haven't been indexed in fl_entities yet
   const parcelRows = await sql`
-    SELECT county, parcel_id, owner_name_raw
-    FROM fl_parcels
+    SELECT p.county, p.parcel_id, p.owner_name_raw
+    FROM fl_parcels p
+    WHERE NOT EXISTS (
+      SELECT 1 FROM fl_entities e
+      WHERE e.parcel_county = p.county AND e.parcel_id = p.parcel_id
+    )
   `;
 
   let matchedCount = 0;

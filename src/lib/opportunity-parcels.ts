@@ -1,83 +1,22 @@
 import { sql } from "@/lib/db";
+import {
+  type OutreachChannel,
+  type TonnageRiskEstimate,
+  deriveTonnageRisk,
+  mapDorUseCode,
+} from "./florida-dor-meta";
 
-/**
- * County Priority Ingestion List per prompt specification:
- * Orange, Osceola, Seminole, Escambia, Santa Rosa.
- * Statewide pull is strictly prohibited in a single run.
- */
 export const COUNTY_PRIORITY = ["Orange", "Osceola", "Seminole", "Escambia", "Santa Rosa"] as const;
 export type PriorityCounty = (typeof COUNTY_PRIORITY)[number];
 
-export type OutreachChannel =
-  | "association_cam"
-  | "rental_residential"
-  | "church"
-  | "school"
-  | "medical_clinic"
-  | "retail"
-  | "office"
-  | "warehouse_industrial"
-  | "hospitality"
-  | "municipal"
-  | "other";
+export type { OutreachChannel, TonnageRiskEstimate };
+export { deriveTonnageRisk };
 
-export type TonnageRiskEstimate = "UNDER_10T_LIKELY" | "OVER_10T_POSSIBLE" | "CHILLER_LIKELY";
-
-/**
- * Maps Florida property appraiser use codes to outreach channels
- */
 export function mapUseCodeToChannel(useCode: string, useDescription?: string): OutreachChannel {
-  const code = useCode.trim();
-  const desc = (useDescription || "").toLowerCase();
-
-  if (code.startsWith("08") || desc.includes("condo") || desc.includes("association") || desc.includes("hoa")) {
+  if (useDescription && (useDescription.includes("condo") || useDescription.includes("association"))) {
     return "association_cam";
   }
-  if (code.startsWith("03") || code.startsWith("04") || desc.includes("apartment") || desc.includes("multi-family")) {
-    return "rental_residential";
-  }
-  if (code.startsWith("71") || desc.includes("church") || desc.includes("religious") || desc.includes("worship")) {
-    return "church";
-  }
-  if (code.startsWith("72") || desc.includes("school") || desc.includes("college") || desc.includes("academy")) {
-    return "school";
-  }
-  if (code.startsWith("73") || desc.includes("hospital") || desc.includes("clinic") || desc.includes("medical") || desc.includes("dental")) {
-    return "medical_clinic";
-  }
-  if (code.startsWith("11") || code.startsWith("12") || code.startsWith("13") || code.startsWith("14") || code.startsWith("15") || code.startsWith("16") || desc.includes("store") || desc.includes("retail") || desc.includes("shopping")) {
-    return "retail";
-  }
-  if (code.startsWith("17") || code.startsWith("18") || code.startsWith("19") || desc.includes("office") || desc.includes("professional") || desc.includes("bank")) {
-    return "office";
-  }
-  if (code.startsWith("40") || code.startsWith("41") || code.startsWith("48") || desc.includes("warehouse") || desc.includes("industrial") || desc.includes("distribution") || desc.includes("manufacturing")) {
-    return "warehouse_industrial";
-  }
-  if (code.startsWith("38") || code.startsWith("39") || desc.includes("hotel") || desc.includes("motel") || desc.includes("resort")) {
-    return "hospitality";
-  }
-  if (code.startsWith("80") || code.startsWith("81") || code.startsWith("82") || code.startsWith("86") || desc.includes("county") || desc.includes("city") || desc.includes("municipal") || desc.includes("government")) {
-    return "municipal";
-  }
-  return "other";
-}
-
-/**
- * Derives screening sqft band and tonnage risk estimate:
- * - UNDER_10T_LIKELY: under ~15,000 sq ft
- * - OVER_10T_POSSIBLE: 15,000 to ~100,000 sq ft
- * - CHILLER_LIKELY: 100,000+ sq ft
- * Note: These are screening estimates, labeled as estimates in UI.
- */
-export function deriveTonnageRisk(buildingSqft: number | null | undefined): TonnageRiskEstimate {
-  if (!buildingSqft || buildingSqft < 15000) {
-    return "UNDER_10T_LIKELY";
-  }
-  if (buildingSqft >= 100000) {
-    return "CHILLER_LIKELY";
-  }
-  return "OVER_10T_POSSIBLE";
+  return mapDorUseCode(useCode).channel;
 }
 
 export interface ParcelRecord {

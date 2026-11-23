@@ -78,6 +78,38 @@ export default function ClientTerritoryTargetsPage() {
   const [verifyingTargetId, setVerifyingTargetId] = useState<string | null>(null);
   const [pipelineNotice, setPipelineNotice] = useState<string | null>(null);
   const [showRegistrations, setShowRegistrations] = useState<boolean>(false);
+  const [ingesting, setIngesting] = useState<boolean>(false);
+  const [ingestionNotice, setIngestionNotice] = useState<string | null>(null);
+
+  const triggerIngestion = async (mode: "step" | "all_67") => {
+    try {
+      setIngesting(true);
+      const res = await fetch("/api/opportunity-intelligence/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (mode === "all_67") {
+          setIngestionNotice(`Statewide Ingestion Complete: Processed 67 counties, added ${data.result?.totalAdded || 0} commercial parcels.`);
+        } else {
+          setIngestionNotice(`Continuous Cycle Complete: Ingested counties [${data.result?.countiesProcessed?.join(", ")}], added ${data.result?.totalRecordsAdded || 0} parcels. Next: ${data.result?.nextCounty}.`);
+        }
+        await loadTargets();
+        setTimeout(() => setIngestionNotice(null), 6000);
+      } else {
+        setIngestionNotice(`Ingestion error: ${data.error || "Failed to run ingestion"}`);
+        setTimeout(() => setIngestionNotice(null), 6000);
+      }
+    } catch (err) {
+      console.error("Ingestion failed:", err);
+      setIngestionNotice("Ingestion request failed.");
+      setTimeout(() => setIngestionNotice(null), 6000);
+    } finally {
+      setIngesting(false);
+    }
+  };
 
   const loadTargets = useCallback(async () => {
     try {
@@ -365,6 +397,23 @@ export default function ClientTerritoryTargetsPage() {
           )}
 
           <button
+            onClick={() => triggerIngestion("step")}
+            disabled={ingesting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/40 transition-colors disabled:opacity-50"
+          >
+            <RefreshIcon className={`h-3.5 w-3.5 ${ingesting ? "animate-spin" : ""}`} />
+            {ingesting ? "Ingesting…" : "Run Ingestion Cycle"}
+          </button>
+
+          <button
+            onClick={() => triggerIngestion("all_67")}
+            disabled={ingesting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400 bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 transition-colors disabled:opacity-50"
+          >
+            {ingesting ? "Ingesting All 67…" : "Ingest All 67 Counties"}
+          </button>
+
+          <button
             onClick={exportTargetsCSV}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
           >
@@ -372,6 +421,12 @@ export default function ClientTerritoryTargetsPage() {
           </button>
         </div>
       </div>
+
+      {ingestionNotice && (
+        <div className="rounded-xl border border-cyan-500/40 bg-cyan-950/40 px-4 py-3 text-xs font-medium text-cyan-200 inline-flex items-center gap-1.5 w-full">
+          <RefreshIcon className="h-4 w-4 text-cyan-400 shrink-0" /> {ingestionNotice}
+        </div>
+      )}
 
       {/* Coverage Honesty Banner */}
       <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 px-4 py-3 text-xs space-y-1">

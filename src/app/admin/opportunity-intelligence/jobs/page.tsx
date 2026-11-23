@@ -62,14 +62,21 @@ export default function CollectionJobsPage() {
             disabled={triggering}
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-50"
           >
-            Run State MFMP/FDOT Sweep
+            Run MFMP/FDOT Sweep
           </button>
           <button
-            onClick={() => triggerJob("county_procurement")}
+            onClick={() => triggerJob("statewide_cadastral")}
+            disabled={triggering}
+            className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/30 disabled:opacity-50"
+          >
+            {triggering ? "Ingesting…" : "Run Continuous Ingestion Step"}
+          </button>
+          <button
+            onClick={() => triggerJob("statewide_all_67")}
             disabled={triggering}
             className="rounded-lg bg-cyan-500 px-3.5 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 disabled:opacity-50"
           >
-            {triggering ? "Running Sweep…" : "Run Full 67-County Sweep"}
+            {triggering ? "Running Full Sweep…" : "Run Full 67-County Ingestion"}
           </button>
         </div>
       </div>

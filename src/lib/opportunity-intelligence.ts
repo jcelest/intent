@@ -2,6 +2,7 @@ import { sql } from "@/lib/db";
 import { ALL_FLORIDA_PROCUREMENT_SOURCES } from "@/lib/opportunity-sources";
 import { FLORIDA_COUNTIES } from "@/lib/florida-geo";
 import { verifyTargetWithGoogleSearch } from "@/lib/google-search-verification";
+import { runContinuousIngestionStep, ingestAll67Counties } from "@/lib/statewide-cadastral-collector";
 
 export interface OpportunityOverviewStats {
   totalActiveBids: number;
@@ -1019,6 +1020,20 @@ export async function getCollectionJobs(): Promise<CollectionJobRecord[]> {
 
 export async function runCollectionJob(jobType: string, targetSourceId?: string): Promise<{ success: boolean; jobId: string }> {
   try {
+    if (jobType === "statewide_cadastral" || jobType === "continuous_ingestion") {
+      const res = await runContinuousIngestionStep({
+        countiesPerStep: 5,
+        recordsPerCounty: 50,
+        triggeredBy: "admin",
+      });
+      return { success: res.success, jobId: "continuous_cadastral" };
+    }
+
+    if (jobType === "statewide_all_67") {
+      const res = await ingestAll67Counties(40);
+      return { success: res.success, jobId: "all_67_cadastral" };
+    }
+
     const jobRows = await sql`
       INSERT INTO fl_collection_jobs (job_type, target_source_id, status, triggered_by)
       VALUES (${jobType}, ${targetSourceId || null}, 'running', 'admin')
