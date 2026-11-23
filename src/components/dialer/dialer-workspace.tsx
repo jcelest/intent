@@ -379,6 +379,7 @@ export function DialerWorkspace() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<{ type: "single"; id: string; name: string } | { type: "bulk"; count: number } | null>(null);
@@ -449,20 +450,29 @@ export function DialerWorkspace() {
   useEffect(() => { autoDialRef.current = autoDial; }, [autoDial]);
   useEffect(() => { dialSessionStateRef.current = dialSessionState; }, [dialSessionState]);
 
+  const currentUser = useMemo(() => (overview.user || settings.currentUser || {}) as Row, [overview.user, settings.currentUser]);
+  const users = (settings.users || []) as Row[];
+  const counts = (overview.counts || {}) as Row;
+  const metrics = (overview.metrics || {}) as Row;
+
   const visibleLeads = useMemo(() => leads.filter((lead) => {
     const matchesStatus = statusFilter === "all" || (
       (RETRY_DISPOSITIONS as readonly string[]).includes(statusFilter)
         ? text(lead, "disposition") === statusFilter
         : text(lead, "status") === statusFilter
     );
-    const haystack = `${leadName(lead)} ${text(lead, "company")} ${text(lead, "phone_e164")} ${text(lead, "email")} ${text(lead, "disposition")} ${text(lead, "status")}`.toLowerCase();
-    return matchesStatus && haystack.includes(search.toLowerCase());
-  }), [leads, search, statusFilter]);
-
-  const currentUser = (overview.user || settings.currentUser || {}) as Row;
-  const users = (settings.users || []) as Row[];
-  const counts = (overview.counts || {}) as Row;
-  const metrics = (overview.metrics || {}) as Row;
+    const leadAssigneeId = text(lead, "assigned_user_id");
+    const currentUserId = text(currentUser, "id");
+    const matchesAssignee = assigneeFilter === "all" || (
+      assigneeFilter === "unassigned"
+        ? !leadAssigneeId
+        : assigneeFilter === "me"
+        ? leadAssigneeId === currentUserId
+        : leadAssigneeId === assigneeFilter
+    );
+    const haystack = `${leadName(lead)} ${text(lead, "company")} ${text(lead, "phone_e164")} ${text(lead, "email")} ${text(lead, "disposition")} ${text(lead, "status")} ${text(lead, "assigned_name")}`.toLowerCase();
+    return matchesStatus && matchesAssignee && haystack.includes(search.toLowerCase());
+  }), [leads, search, statusFilter, assigneeFilter, currentUser]);
   const twilio = (settings.twilio || {}) as Row;
   const workspace = ((settings.settings as Row | undefined)?.workspace as Row | undefined) || {};
   const guardrailsActive = workspace.guardrailsEnabled !== false && workspace.enforceCallingWindow !== false;
@@ -938,7 +948,7 @@ export function DialerWorkspace() {
         )}
         <main className="mx-auto min-w-0 max-w-[1500px] overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-10">
           {view === "dashboard" && <Dashboard counts={counts} metrics={metrics} recentCalls={(overview.recentCalls || []) as Row[]} conversations={(overview.conversations || []) as Row[]} outcomeBreakdown={(overview.outcomeBreakdown || []) as Row[]} tasks={(overview.tasks || []) as Row[]} repStats={(overview.repStats || []) as Row[]} onNavigate={navigate} onOpenDialpad={() => setModal("dialpad")} />}
-          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} dialSessionState={dialSessionState} voiceReadiness={voiceReadiness} voiceReadinessMessage={voiceReadinessMessage} isOnline={isOnline} wakeLockActive={wakeLockActive} onPrepareCalling={handlePrepareCalling} onStartPowerDial={startPowerDial} onPausePowerDial={pausePowerDial} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
+          {view === "leads" && <ResponsiveLeadsView leads={visibleLeads} allLeads={leads} counts={counts} users={users} lists={lists} statusFilter={statusFilter} setStatusFilter={setStatusFilter} assigneeFilter={assigneeFilter} setAssigneeFilter={setAssigneeFilter} currentUser={currentUser} setterLeadStats={(overview.setterLeadStats || []) as Row[]} search={search} setSearch={setSearch} selectedIds={selectedIds} setSelectedIds={setSelectedIds} onDial={placeCall} dialSessionState={dialSessionState} voiceReadiness={voiceReadiness} voiceReadinessMessage={voiceReadinessMessage} isOnline={isOnline} wakeLockActive={wakeLockActive} onPrepareCalling={handlePrepareCalling} onStartPowerDial={startPowerDial} onPausePowerDial={pausePowerDial} onOpenDialpad={() => setModal("dialpad")} onOpenGuardrails={() => setModal("guardrails")} onAdd={() => setModal("lead")} onImport={() => setModal("import")} onRefresh={refresh} onRequestDeleteLead={(id, name) => setConfirmDelete({ type: "single", id, name })} onRequestDeleteBulk={() => setConfirmDelete({ type: "bulk", count: selectedIds.length })} onNotify={(msg) => setToast(msg)} />}
           {view === "calls" && <ResponsiveCallsView calls={calls} users={users} onRefresh={refresh} onOpenDialpad={() => setModal("dialpad")} onNotify={(msg) => setToast(msg)} />}
           {view === "tasks" && <TasksView tasks={tasks} onCreate={() => setModal("task")} onRefresh={refresh} />}
           {view === "sequences" && <SequencesView sequences={sequences} onRefresh={refresh} />}
@@ -1182,6 +1192,10 @@ type LeadsViewProps = {
   lists: Row[];
   statusFilter: string;
   setStatusFilter: (value: string) => void;
+  assigneeFilter?: string;
+  setAssigneeFilter?: (value: string) => void;
+  currentUser?: Row;
+  setterLeadStats?: Row[];
   search: string;
   setSearch: (value: string) => void;
   selectedIds: string[];
@@ -1310,8 +1324,18 @@ function LeadSelectionCheckbox({
 }
 
 function ResponsiveLeadsView(props: LeadsViewProps) {
-  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify } = props;
+  const { leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, assigneeFilter = "all", setAssigneeFilter, currentUser, setterLeadStats = [], search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify } = props;
   const [assigning, setAssigning] = useState(false);
+  const currentUserId = text(currentUser, "id");
+  const isOwner = text(currentUser, "role") === "owner";
+  const myAssignedLeads = allLeads.filter((l) => text(l, "assigned_user_id") === currentUserId);
+  const myAssignedCount = number(counts, "assigned_to_me") || myAssignedLeads.length;
+  const myToCall = number(counts, "assigned_to_me_to_call") || myAssignedLeads.filter((l) => text(l, "status") === "to_call" && !l.do_not_call).length;
+  const myTryAgain = number(counts, "assigned_to_me_try_again") || myAssignedLeads.filter((l) => text(l, "status") === "try_again" && !l.do_not_call).length;
+  const myFollowUp = number(counts, "assigned_to_me_follow_up") || myAssignedLeads.filter((l) => text(l, "status") === "follow_up" && !l.do_not_call).length;
+  const unassignedLeads = allLeads.filter((l) => !text(l, "assigned_user_id"));
+  const unassignedCount = number(counts, "total_unassigned") || unassignedLeads.length;
+  const totalAssignedCount = number(counts, "total_assigned") || (allLeads.length - unassignedLeads.length);
   const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
   const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
   const selection = useLeadSelectionController(leads, selectedIds, setSelectedIds);
@@ -1366,6 +1390,97 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
           </div>
           {voiceReadiness !== "ready" && voiceReadiness !== "preparing" && <button type="button" disabled={!isOnline} onClick={onPrepareCalling} className="min-h-9 shrink-0 rounded-lg bg-[#edf5fc] px-2.5 text-[11px] font-bold text-[#1266c4] disabled:opacity-45">Enable phone</button>}
         </div>
+      </section>
+      {/* MOBILE LEAD ASSIGNMENT METRIC */}
+      <section className="mb-3 rounded-2xl border border-[#d5e3f1] bg-white p-3 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[.12em] text-[#1266c4]">
+            <Icon name="users" className="h-3.5 w-3.5" />
+            <span>{isOwner ? "Lead Distribution" : "Your Assigned Leads"}</span>
+          </div>
+          <span className="text-xs font-bold text-[#0f172a]">
+            {isOwner ? `${totalAssignedCount} assigned · ${unassignedCount} pool` : `${myAssignedCount} assigned`}
+          </span>
+        </div>
+
+        {!isOwner && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700 border border-blue-200">
+              {myToCall} ready
+            </span>
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700 border border-amber-200">
+              {myTryAgain} retry
+            </span>
+            <span className="rounded-full bg-purple-50 px-2 py-0.5 font-bold text-purple-700 border border-purple-200">
+              {myFollowUp} follow-up
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600 border border-slate-200">
+              {unassignedCount} unassigned
+            </span>
+          </div>
+        )}
+
+        {/* 1-click Filter Pills */}
+        {setAssigneeFilter && (
+          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("all"); setSelectedIds([]); }}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                assigneeFilter === "all"
+                  ? "bg-[#1266c4] text-white"
+                  : "border border-[#d0dbe7] bg-white text-[#64748b]"
+              }`}
+            >
+              All ({allLeads.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("me"); setSelectedIds([]); }}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                assigneeFilter === "me" || assigneeFilter === currentUserId
+                  ? "bg-[#1266c4] text-white"
+                  : "border border-[#d0dbe7] bg-white text-[#1266c4]"
+              }`}
+            >
+              Assigned to You ({myAssignedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("unassigned"); setSelectedIds([]); }}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                assigneeFilter === "unassigned"
+                  ? "bg-[#1266c4] text-white"
+                  : "border border-[#d0dbe7] bg-white text-[#64748b]"
+              }`}
+            >
+              Unassigned Pool ({unassignedCount})
+            </button>
+            {isOwner &&
+              users
+                .filter((u) => Boolean(u.active))
+                .map((u) => {
+                  const uId = text(u, "id");
+                  const uName = text(u, "display_name") || "Setter";
+                  const stat = setterLeadStats.find((s) => text(s, "user_id") === uId);
+                  const uTotal = stat ? number(stat, "total") : allLeads.filter((l) => text(l, "assigned_user_id") === uId).length;
+                  return (
+                    <button
+                      key={uId}
+                      type="button"
+                      onClick={() => { setAssigneeFilter(assigneeFilter === uId ? "all" : uId); setSelectedIds([]); }}
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        assigneeFilter === uId
+                          ? "bg-[#1266c4] text-white"
+                          : "border border-[#d0dbe7] bg-white text-[#334155]"
+                      }`}
+                    >
+                      {uName} ({uTotal})
+                    </button>
+                  );
+                })}
+          </div>
+        )}
       </section>
       <div className="mb-3 grid min-w-0 grid-cols-6 gap-2">{filters.map(([id, label, count], index) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${index < 3 ? "col-span-2" : "col-span-3"} ${statusFilter === id ? "border-[#1266c4] bg-[#1266c4] text-white shadow-md shadow-blue-900/10" : "border-[#e2e8f0] bg-white text-[#334155]"}`}><div className="truncate text-lg font-bold">{count}</div><div className={`mt-0.5 truncate text-[11px] font-semibold ${statusFilter === id ? "text-white/80" : "text-[#64748b]"}`}>{label}</div></button>)}</div>
       <div className="mb-4 flex min-w-0 gap-2 overflow-x-auto pb-1">{retryFilters.map(([id, label, count]) => <button key={id} onClick={() => { setStatusFilter(id); setSelectedIds([]); }} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold ${statusFilter === id ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#e2e8f0] bg-white text-[#64748b]"}`}>{label} ({count})</button>)}</div>
@@ -1478,8 +1593,20 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   </>;
 }
 
-function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify }: LeadsViewProps) {
+function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setStatusFilter, assigneeFilter = "all", setAssigneeFilter, currentUser, setterLeadStats = [], search, setSearch, selectedIds, setSelectedIds, onDial, dialSessionState, voiceReadiness, voiceReadinessMessage, isOnline, wakeLockActive, onPrepareCalling, onStartPowerDial, onPausePowerDial, onOpenDialpad, onOpenGuardrails, onAdd, onImport, onRefresh, onRequestDeleteLead, onRequestDeleteBulk, onNotify }: LeadsViewProps) {
   const [assigning, setAssigning] = useState(false);
+  const currentUserId = text(currentUser, "id");
+  const isOwner = text(currentUser, "role") === "owner";
+  const myAssignedLeads = allLeads.filter((l) => text(l, "assigned_user_id") === currentUserId);
+  const myAssignedCount = number(counts, "assigned_to_me") || myAssignedLeads.length;
+  const myToCall = number(counts, "assigned_to_me_to_call") || myAssignedLeads.filter((l) => text(l, "status") === "to_call" && !l.do_not_call).length;
+  const myTryAgain = number(counts, "assigned_to_me_try_again") || myAssignedLeads.filter((l) => text(l, "status") === "try_again" && !l.do_not_call).length;
+  const myFollowUp = number(counts, "assigned_to_me_follow_up") || myAssignedLeads.filter((l) => text(l, "status") === "follow_up" && !l.do_not_call).length;
+  const myClosed = number(counts, "assigned_to_me_closed") || myAssignedLeads.filter((l) => text(l, "status") === "closed" || l.do_not_call).length;
+  const unassignedLeads = allLeads.filter((l) => !text(l, "assigned_user_id"));
+  const unassignedCount = number(counts, "total_unassigned") || unassignedLeads.length;
+  const totalAssignedCount = number(counts, "total_assigned") || (allLeads.length - unassignedLeads.length);
+
   const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
   const selection = useLeadSelectionController(leads, selectedIds, setSelectedIds);
   const shownIds = leads.map((lead) => text(lead, "id"));
@@ -1525,11 +1652,170 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
       <span className="min-w-0 flex-1">{voiceReadinessMessage}</span>
       {voiceReadiness !== "ready" && voiceReadiness !== "preparing" && <SecondaryButton onClick={onPrepareCalling} disabled={!isOnline}>Enable phone</SecondaryButton>}
     </div>
+
+    {/* LEAD ASSIGNMENT & SETTER WORKLOAD SECTION */}
+    <div className="mb-4 rounded-2xl border border-[#d5e3f1] bg-gradient-to-r from-[#edf5fc] via-white to-[#f8fbfe] p-4 shadow-[0_4px_20px_rgba(18,59,112,.04)]">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        {/* Left: Summary Headline Metric */}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1266c4]/10 text-[#1266c4]">
+              <Icon name="users" className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-[.14em] text-[#1266c4]">
+              {isOwner ? "Lead Distribution & Setter Workload" : "Your Assigned Workload"}
+            </span>
+          </div>
+
+          <div className="mt-1.5 flex flex-wrap items-baseline gap-3">
+            <div className="text-2xl font-black tracking-tight text-[#0f172a]">
+              {isOwner ? (
+                <span>
+                  {totalAssignedCount} <span className="text-base font-normal text-[#64748b]">assigned across team</span>
+                </span>
+              ) : (
+                <span>
+                  {myAssignedCount} <span className="text-base font-normal text-[#64748b]">leads assigned to you</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700 border border-blue-200">
+                {isOwner ? `${myAssignedCount} assigned to you` : `${myToCall} ready to call`}
+              </span>
+              {!isOwner && (
+                <>
+                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 font-bold text-amber-700 border border-amber-200">
+                    {myTryAgain} retry
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 font-bold text-purple-700 border border-purple-200">
+                    {myFollowUp} follow-up
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 font-medium text-slate-600 border border-slate-200">
+                    {myClosed} closed
+                  </span>
+                </>
+              )}
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 font-bold text-slate-700 border border-slate-200">
+                {unassignedCount} in unassigned pool
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Quick Filter Buttons */}
+        {setAssigneeFilter && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("all"); setSelectedIds([]); }}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                assigneeFilter === "all"
+                  ? "bg-[#1266c4] text-white shadow-xs"
+                  : "border border-[#d0dbe7] bg-white text-[#64748b] hover:bg-[#f8fafc]"
+              }`}
+            >
+              All Leads ({number(counts, "all_leads") || allLeads.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("me"); setSelectedIds([]); }}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                assigneeFilter === "me" || assigneeFilter === currentUserId
+                  ? "bg-[#1266c4] text-white shadow-xs"
+                  : "border border-[#d0dbe7] bg-white text-[#1266c4] hover:bg-[#edf5fc]"
+              }`}
+            >
+              Assigned to You ({myAssignedCount})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setAssigneeFilter("unassigned"); setSelectedIds([]); }}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                assigneeFilter === "unassigned"
+                  ? "bg-[#1266c4] text-white shadow-xs"
+                  : "border border-[#d0dbe7] bg-white text-[#64748b] hover:bg-[#f8fafc]"
+              }`}
+            >
+              Unassigned Pool ({unassignedCount})
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* For Owner: Full Setter Workload Breakdown Chips */}
+      {isOwner && users.filter((u) => Boolean(u.active)).length > 0 && (
+        <div className="mt-3 border-t border-[#e2e8f0]/80 pt-3">
+          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">
+            Setter Workload Breakdown (Click to filter leads by setter)
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {users
+              .filter((u) => Boolean(u.active))
+              .map((u) => {
+                const uId = text(u, "id");
+                const uName = text(u, "display_name") || "Setter";
+                const stat = setterLeadStats.find((s) => text(s, "user_id") === uId);
+                const uLeads = allLeads.filter((l) => text(l, "assigned_user_id") === uId);
+                const uTotal = stat ? number(stat, "total") : uLeads.length;
+                const uToCall = stat ? number(stat, "to_call") : uLeads.filter((l) => text(l, "status") === "to_call" && !l.do_not_call).length;
+                const isSelected = assigneeFilter === uId;
+
+                return (
+                  <button
+                    key={uId}
+                    type="button"
+                    onClick={() => { setAssigneeFilter?.(isSelected ? "all" : uId); setSelectedIds([]); }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      isSelected
+                        ? "border-[#1266c4] bg-[#edf5fc] text-[#1266c4] ring-2 ring-[#1266c4]/30"
+                        : "border-[#e2e8f0] bg-white text-[#334155] hover:border-[#b8d0e6] hover:bg-[#f8fafc]"
+                    }`}
+                  >
+                    <span className="font-bold">{uName}:</span>
+                    <span className="rounded-full bg-[#1266c4]/10 px-1.5 py-0.2 text-[10px] font-extrabold text-[#1266c4]">
+                      {uTotal} leads
+                    </span>
+                    <span className="text-[10px] text-[#64748b]">
+                      ({uToCall} ready)
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </div>
+
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, voicemail, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
     <div className="mt-3 flex flex-wrap items-center gap-2"><span className="mr-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Retry outcomes</span>{retryFilters.map(([id, label, count]) => <button key={id} onClick={() => { setStatusFilter(id); setSelectedIds([]); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusFilter === id ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#b8d0e6]"}`}>{label} ({count})</button>)}</div>
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
         <div className="relative flex-1"><Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]"/><input value={search} onChange={(event) => { setSearch(event.target.value); setSelectedIds([]); }} placeholder="Search names, companies, phones…" className="w-full rounded-lg border border-[#d0dbe7] bg-[#f8fafc] py-2.5 pl-9 pr-3 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"/></div>
+        {setAssigneeFilter && (
+          <select
+            value={assigneeFilter}
+            onChange={(event) => { setAssigneeFilter(event.target.value); setSelectedIds([]); }}
+            className="rounded-lg border border-[#d0dbe7] bg-white px-3 py-2.5 text-sm font-semibold text-[#0f172a] outline-none focus:border-[#5d9bd3] focus:ring-2 focus:ring-[#d9eaf8]"
+          >
+            <option value="all">All Assignees ({number(counts, "all_leads") || allLeads.length})</option>
+            <option value="me">Assigned to You ({myAssignedCount})</option>
+            <option value="unassigned">Unassigned Pool ({unassignedCount})</option>
+            {users.filter((user) => Boolean(user.active)).map((user) => {
+              const uId = text(user, "id");
+              const stat = setterLeadStats.find((s) => text(s, "user_id") === uId);
+              const uCount = stat ? number(stat, "total") : allLeads.filter((l) => text(l, "assigned_user_id") === uId).length;
+              return (
+                <option key={uId} value={uId}>
+                  {text(user, "display_name")} ({uCount} leads)
+                </option>
+              );
+            })}
+          </select>
+        )}
         <button type="button" disabled={!shownIds.length} onClick={toggleShown} className="rounded-lg border border-[#b8d0e6] bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] disabled:opacity-50">{allShownSelected ? "Clear shown" : `Select all shown (${shownIds.length})`}</button>
         {selectedIds.length > 0 && (
           <div className="flex items-center gap-2">
@@ -1550,7 +1836,17 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
             </button>
           </div>
         )}
-        <div className="text-xs text-[#64748b]">{leads.length} shown · {lists.length} lists · Drag checkboxes or Shift-click a range</div>
+        <div className="text-xs text-[#64748b]">
+          {leads.length} shown
+          {assigneeFilter === "me"
+            ? " (Assigned to You)"
+            : assigneeFilter === "unassigned"
+            ? " (Unassigned Pool)"
+            : assigneeFilter !== "all"
+            ? ` (Assigned to ${users.find((u) => text(u, "id") === assigneeFilter)?.display_name || "Setter"})`
+            : ""}
+          {" · "}{lists.length} lists · Drag checkboxes or Shift-click a range
+        </div>
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]"><th className="w-12 px-4 py-3"><input aria-label="Select all shown leads" type="checkbox" checked={allShownSelected} onChange={toggleShown}/></th><th className="px-3 py-3">Prospect</th><th className="px-3 py-3">Contact</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last call</th><th className="px-3 py-3">Setter</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-[#e2e8f0]">{leads.map((lead) => {
         const owner = getBusinessOwner(lead);

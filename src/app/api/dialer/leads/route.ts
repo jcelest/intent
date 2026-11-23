@@ -40,26 +40,43 @@ export async function GET(request: Request) {
   const normalizedStatus = ["to_call", "try_again", "follow_up", "closed"].includes(status) ? status : null;
   const searchTerm = `%${search}%`;
 
-  const leads = await sql`
-    SELECT l.*, u.display_name AS assigned_name,
-      COALESCE((SELECT ARRAY_AGG(dl.name ORDER BY dl.name)
-        FROM dialer_list_members lm JOIN dialer_lists dl ON dl.id = lm.list_id
-        WHERE lm.lead_id = l.id), '{}') AS lists
-    FROM dialer_leads l
-    LEFT JOIN dialer_users u ON u.id = l.assigned_user_id
-    WHERE (${normalizedStatus}::text IS NULL OR l.status = ${normalizedStatus})
-      AND (${search} = '' OR CONCAT_WS(' ', l.first_name, l.last_name, l.company, l.phone_e164, l.email, l.city, l.state) ILIKE ${searchTerm})
-      AND (${assignee} = 'all' OR (${assignee} = 'unassigned' AND l.assigned_user_id IS NULL) OR l.assigned_user_id::text = ${assignee})
-      AND (${listId}::text IS NULL OR EXISTS (
-        SELECT 1 FROM dialer_list_members lm WHERE lm.lead_id = l.id AND lm.list_id::text = ${listId}
-      ))
-      AND (${auth.user.role} = 'owner' OR l.assigned_user_id = ${auth.user.id} OR l.assigned_user_id IS NULL)
-    ORDER BY
-      CASE WHEN l.next_call_at IS NOT NULL AND l.next_call_at <= CURRENT_TIMESTAMP THEN 0 ELSE 1 END,
-      l.priority DESC, l.created_at DESC
-    LIMIT ${limit}
-  `;
-  return NextResponse.json({ leads });
+  const [leads, assignmentCounts] = await Promise.all([
+    sql`
+      SELECT l.*, u.display_name AS assigned_name,
+        COALESCE((SELECT ARRAY_AGG(dl.name ORDER BY dl.name)
+          FROM dialer_list_members lm JOIN dialer_lists dl ON dl.id = lm.list_id
+          WHERE lm.lead_id = l.id), '{}') AS lists
+      FROM dialer_leads l
+      LEFT JOIN dialer_users u ON u.id = l.assigned_user_id
+      WHERE (${normalizedStatus}::text IS NULL OR l.status = ${normalizedStatus})
+        AND (${search} = '' OR CONCAT_WS(' ', l.first_name, l.last_name, l.company, l.phone_e164, l.email, l.city, l.state) ILIKE ${searchTerm})
+        AND (${assignee} = 'all' OR (${assignee} = 'unassigned' AND l.assigned_user_id IS NULL) OR l.assigned_user_id::text = ${assignee})
+        AND (${listId}::text IS NULL OR EXISTS (
+          SELECT 1 FROM dialer_list_members lm WHERE lm.lead_id = l.id AND lm.list_id::text = ${listId}
+        ))
+        AND (${auth.user.role} = 'owner' OR l.assigned_user_id = ${auth.user.id} OR l.assigned_user_id IS NULL)
+      ORDER BY
+        CASE WHEN l.next_call_at IS NOT NULL AND l.next_call_at <= CURRENT_TIMESTAMP THEN 0 ELSE 1 END,
+        l.priority DESC, l.created_at DESC
+      LIMIT ${limit}
+    `,
+    sql`
+      SELECT
+        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id})::int AS assigned_to_me,
+        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
+        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
+        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
+        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
+        COUNT(*) FILTER (WHERE assigned_user_id IS NOT NULL)::int AS total_assigned,
+        COUNT(*) FILTER (WHERE assigned_user_id IS NULL)::int AS total_unassigned
+      FROM dialer_leads
+    `,
+  ]);
+
+  return NextResponse.json({
+    leads,
+    assignmentStats: assignmentCounts[0] || {},
+  });
 }
 
 export async function POST(request: Request) {
