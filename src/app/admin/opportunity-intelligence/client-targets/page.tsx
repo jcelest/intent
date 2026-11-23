@@ -13,6 +13,8 @@ import {
   CheckIcon,
   PhoneIcon,
   BuildingIcon,
+  GoogleIcon,
+  ExternalLinkIcon,
 } from "@/components/admin/opportunity-intelligence/icons";
 
 interface RegisteredClient {
@@ -924,7 +926,21 @@ function ClientTerritoryTargetsTerminalContent() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-[#888888] mb-1">Search Name/Address</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] uppercase text-[#888888]">Search Name/Address</label>
+                    {searchQuery.trim() && (
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(`"${searchQuery.trim()}" Florida`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#FFB000] hover:underline inline-flex items-center gap-1 font-mono"
+                        title={`Search "${searchQuery}" on Google`}
+                      >
+                        <GoogleIcon className="h-2.5 w-2.5" />
+                        Google Search ↗
+                      </a>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type="text"
@@ -1144,11 +1160,11 @@ function ClientTerritoryTargetsTerminalContent() {
             <thead className="sticky top-0 z-20 bg-[#0E0E0E] border-b border-[#262626] text-[11px] text-[#888888] uppercase tracking-wider">
               <tr>
                 {/* Column 1: Business Name (Sticky) */}
-                <th className="py-2 px-2.5 font-semibold sticky left-0 z-30 bg-[#0E0E0E] min-w-[200px] border-r border-[#222222]">
+                <th className="py-2 px-2.5 font-semibold sticky left-0 z-30 bg-[#0E0E0E] min-w-[230px] border-r border-[#222222]">
                   Business Name
                 </th>
                 {/* Column 2: Phone (Sticky) */}
-                <th className="py-2 px-2.5 font-semibold sticky left-[200px] z-30 bg-[#0E0E0E] min-w-[120px] border-r border-[#222222]">
+                <th className="py-2 px-2.5 font-semibold sticky left-[230px] z-30 bg-[#0E0E0E] min-w-[120px] border-r border-[#222222]">
                   Phone
                 </th>
                 {/* Column 3: City */}
@@ -1199,28 +1215,43 @@ function ClientTerritoryTargetsTerminalContent() {
                       }`}
                       style={{ height: "34px" }}
                     >
-                      {/* 1. Business Name (Sticky Col 1) */}
-                      <td className="py-1.5 px-2.5 font-bold text-white whitespace-nowrap sticky left-0 z-10 bg-[#111111] border-r border-[#1F1F1F]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate max-w-[180px]" title={target.name}>
-                            {target.name}
-                          </span>
-                          {target.scopeWarning && (
-                            <span
-                              className="text-[10px] text-[#FF5555] font-bold"
-                              title={target.scopeWarning}
-                            >
-                              [{target.scopeWarning.includes("10T") ? "<10T" : "CHILLER?"}]
+                      {/* 1. Business Name & Google Search Option (Sticky Col 1) */}
+                      <td className="py-1.5 px-2.5 font-bold text-white whitespace-nowrap sticky left-0 z-10 bg-[#111111] min-w-[230px] border-r border-[#1F1F1F]">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="truncate max-w-[135px]" title={target.name}>
+                              {target.name}
                             </span>
-                          )}
-                          {target.isClientAccount && (
-                            <span className="text-[10px] text-[#FFB000]">[OWNED]</span>
-                          )}
+                            {target.scopeWarning && (
+                              <span
+                                className="text-[10px] text-[#FF5555] font-bold shrink-0"
+                                title={target.scopeWarning}
+                              >
+                                [{target.scopeWarning.includes("10T") ? "<10T" : "CHILLER?"}]
+                              </span>
+                            )}
+                            {target.isClientAccount && (
+                              <span className="text-[10px] text-[#FFB000] shrink-0">[OWNED]</span>
+                            )}
+                          </div>
+
+                          {/* Google Search Live Option */}
+                          <a
+                            href={`https://www.google.com/search?q=${encodeURIComponent(`"${target.name}" ${target.city} FL`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] border border-[#2E2E2E] bg-[#161616] text-[10px] font-mono text-[#888888] hover:text-[#FFB000] hover:border-[#FFB000]/60 hover:bg-[#FFB000]/10 transition-colors shrink-0"
+                            title={`Search "${target.name}" on Google (${target.city}, FL)`}
+                          >
+                            <GoogleIcon className="h-2.5 w-2.5 text-[#888888]" />
+                            <span>Google</span>
+                            <ExternalLinkIcon className="h-2 w-2 text-[#666666]" />
+                          </a>
                         </div>
                       </td>
 
                       {/* 2. Phone (Sticky Col 2) */}
-                      <td className="py-1.5 px-2.5 whitespace-nowrap sticky left-[200px] z-10 bg-[#111111] border-r border-[#1F1F1F]">
+                      <td className="py-1.5 px-2.5 whitespace-nowrap sticky left-[230px] z-10 bg-[#111111] border-r border-[#1F1F1F]">
                         {target.verifiedPhone ? (
                           <a
                             href={`tel:${target.verifiedPhone}`}
