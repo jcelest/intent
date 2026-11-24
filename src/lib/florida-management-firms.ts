@@ -405,7 +405,7 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           ${firm.licenseNumber || null}, ${firm.licenseType || null}, ${firm.status},
           ${firm.address}, ${firm.city}, ${firm.state || 'FL'}, ${firm.zipCode || null},
           ${firm.county}, ${firm.phone || null}, ${firm.email || null}, ${firm.website || null},
-          ${firm.qualifierName || null}, ${firm.managedPropertiesCount || 1}, ${firm.managedPortfolioSqft || null},
+          ${firm.qualifierName || null}, ${firm.managedPropertiesCount ?? 0}, ${firm.managedPortfolioSqft || null},
           ${firm.latitude}, ${firm.longitude}, ${firm.source}, ${firm.evidenceUrl || null},
           ${JSON.stringify(firm.metadata || {})}::jsonb, CURRENT_TIMESTAMP
         )
@@ -415,7 +415,15 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           email = COALESCE(EXCLUDED.email, fl_management_firms.email),
           website = COALESCE(EXCLUDED.website, fl_management_firms.website),
           license_number = COALESCE(EXCLUDED.license_number, fl_management_firms.license_number),
-          managed_properties_count = GREATEST(fl_management_firms.managed_properties_count, EXCLUDED.managed_properties_count),
+          license_type = COALESCE(EXCLUDED.license_type, fl_management_firms.license_type),
+          status = EXCLUDED.status,
+          source = EXCLUDED.source,
+          evidence_url = COALESCE(EXCLUDED.evidence_url, fl_management_firms.evidence_url),
+          metadata = EXCLUDED.metadata,
+          managed_properties_count = CASE
+            WHEN EXCLUDED.source = 'FL_DBPR_CAB' THEN EXCLUDED.managed_properties_count
+            ELSE GREATEST(fl_management_firms.managed_properties_count, EXCLUDED.managed_properties_count)
+          END,
           managed_portfolio_sqft = COALESCE(EXCLUDED.managed_portfolio_sqft, fl_management_firms.managed_portfolio_sqft),
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,
@@ -425,6 +433,16 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
 
       // Sync into oi_opportunities so it renders on the Intent Atlas map under 'Property management portfolios'
       const dedupeHash = `mgmt:${firm.county.toLowerCase()}:${firm.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const opportunitySourceId = firm.source === 'FL_DBPR_CAB' ? 'fl-dbpr-open-data' : 'fl-dor-cadastral';
+      const opportunitySourceRecordId = firm.licenseNumber || firm.name;
+      // Earlier seed data assigned two CAB numbers to the wrong firms. Remove a stale
+      // source-key collision before the dedupe-hash upsert so the official DBPR row wins.
+      await sql`
+        DELETE FROM oi_opportunities
+        WHERE source_id = ${opportunitySourceId}
+          AND source_record_id = ${opportunitySourceRecordId}
+          AND dedupe_hash <> ${dedupeHash}
+      `;
       await sql`
         INSERT INTO oi_opportunities (
           source_id, source_record_id, dedupe_hash, title, summary,
@@ -433,8 +451,8 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           evidence_confidence, classification_rationale, source_url,
           discovered_at, last_verified_at, updated_at
         ) VALUES (
-          ${firm.source === 'FL_DBPR_CAB' ? 'fl-dbpr-open-data' : 'fl-dor-cadastral'},
-          ${firm.licenseNumber || firm.name},
+          ${opportunitySourceId},
+          ${opportunitySourceRecordId},
           ${dedupeHash},
           ${firm.name + (firm.dba ? ` (${firm.dba})` : '') + ' - Property & Asset Management'},
           ${(firm.firmType === 'community_association_management' ? 'Licensed Community Association Management (CAB) firm' : 'Commercial Property & Asset Management operator') + ' based in ' + firm.city + ', ' + firm.county + ' County.' + (firm.phone ? ' Contact: ' + firm.phone : '')},
@@ -449,16 +467,29 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           ${firm.zipCode || null},
           ${firm.latitude},
           ${firm.longitude},
-          95,
-          ${'Verified Florida ' + (firm.licenseNumber ? `DBPR License #${firm.licenseNumber}` : 'Statewide Cadastral parcel records') + ' with physical site coordinates.'},
+          ${firm.licenseNumber ? 98 : 70},
+          ${firm.licenseNumber
+            ? `Current Florida DBPR CAB license #${firm.licenseNumber}; office coordinates independently matched by the U.S. Census geocoder.`
+            : 'Florida statewide cadastral record with parcel coordinates; management activity is inferred from the recorded owner name.'},
           ${firm.evidenceUrl || 'https://www.myfloridalicense.com'},
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
         ON CONFLICT (dedupe_hash) DO UPDATE SET
+          source_record_id = EXCLUDED.source_record_id,
+          title = EXCLUDED.title,
+          summary = EXCLUDED.summary,
+          address = EXCLUDED.address,
+          city = EXCLUDED.city,
+          county = EXCLUDED.county,
+          counties = EXCLUDED.counties,
+          zip_code = EXCLUDED.zip_code,
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,
+          evidence_confidence = EXCLUDED.evidence_confidence,
+          classification_rationale = EXCLUDED.classification_rationale,
+          source_url = EXCLUDED.source_url,
           last_verified_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       `;

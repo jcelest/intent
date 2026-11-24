@@ -549,13 +549,17 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const mgmtRows = await queryDb(
       `SELECT id::text, name, dba, firm_type, license_number, license_type, status,
               address, city, county, zip_code, phone, email, website, qualifier_name,
-              managed_properties_count, managed_portfolio_sqft, latitude, longitude, source, evidence_url
+              managed_properties_count, managed_portfolio_sqft, latitude, longitude, source, evidence_url,
+              metadata
        FROM fl_management_firms
        WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${mgmtBboxWhere} ${mgmtCountyWhere}
        ORDER BY managed_properties_count DESC, name ASC LIMIT 5000`,
       mgmtParams,
     );
     for (const row of mgmtRows) {
+      const metadata = row.metadata && typeof row.metadata === "object"
+        ? row.metadata as DbRow
+        : {};
       features.push({
         type: "Feature",
         id: `portfolio:${row.id}`,
@@ -565,12 +569,12 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
           title: String(row.name) + (row.dba ? ` (${row.dba})` : ""),
           name: row.name,
           dba: row.dba,
-          summary: `${row.firm_type === "community_association_management" ? "Licensed Community Association Management (CAB) firm" : "Commercial Property & Asset Management operator"} located at ${row.address}, ${row.city}, FL.`,
+          summary: `${row.firm_type === "community_association_management" ? "Florida DBPR Community Association Management (CAB) firm" : "Commercial Property & Asset Management operator"} located at ${row.address}, ${row.city}, FL.${metadata.google_listing_status === "listing_found" ? " Google Maps listing found." : ""}`,
           classification: "relationship",
           serviceCategory: "Property Management Portfolios",
           tradeSlug: "property_management",
           trade_slug: "property_management",
-          status: "active",
+          status: row.status || "current",
           address: row.address,
           city: row.city,
           county: row.county,
@@ -581,9 +585,13 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
           qualifierName: row.qualifier_name,
           licenseNumber: row.license_number,
           licenseType: row.license_type,
-          portfolioCount: Number(row.managed_properties_count || 1),
-          managedPropertiesCount: Number(row.managed_properties_count || 1),
+          portfolioCount: Number(row.managed_properties_count || 0) || null,
+          managedPropertiesCount: Number(row.managed_properties_count || 0) || null,
           portfolioSqft: row.managed_portfolio_sqft,
+          googlePlaceId: metadata.google_place_id || null,
+          googleListingStatus: metadata.google_listing_status || "not_checked",
+          googleListingCheckedAt: metadata.google_listing_checked_at || null,
+          coordinateSource: metadata.coordinate_source || null,
           sourceUrl: row.evidence_url || "https://www.myfloridalicense.com",
           featureType: "portfolio",
           renderMode: "documented_location",
