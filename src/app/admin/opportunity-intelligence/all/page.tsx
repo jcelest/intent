@@ -1,0 +1,2 @@
+import { OpportunityExplorer } from "@/components/admin/opportunity-intelligence/opportunity-explorer";
+export default function AllOpportunitiesPage() { return <OpportunityExplorer preset={{ eyebrow: "Universal opportunity universe", title: "All opportunities", description: "Search, combine filters, sort, inspect evidence, and export every indexed commercial opportunity. No client overlay or arbitrary top-result cap is applied." }} />; }

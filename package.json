@@ -10,10 +10,13 @@
     "db:migrate": "node --env-file=.env.local scripts/migrate-db.mjs && node --env-file=.env.local scripts/migrate-trade-demand.mjs",
     "db:migrate:trade-demand": "node --env-file=.env.local scripts/migrate-trade-demand.mjs",
     "db:migrate:dialer": "node --env-file=.env.production scripts/migrate-dialer.mjs",
+    "db:migrate:opportunity-hub": "node --env-file=.env.production scripts/migrate-opportunity-hub.mjs",
+    "verify:opportunity-hub": "node --env-file=.env.production scripts/verify-opportunity-hub.mjs",
+    "verify:opportunity-hub-runtime": "node --env-file=.env.production --import tsx scripts/verify-opportunity-hub-runtime.ts",
     "dialer:bootstrap-users": "node --env-file=.env.production scripts/migrate-dialer.mjs --bootstrap-users",
     "dialer:import-leadnet": "node --env-file=.env.production scripts/import-leadnet-dialer.mjs",
     "test:trade-demand": "node --experimental-strip-types --test tests/trade-demand.test.mjs",
-    "test:opportunity-intelligence": "npx tsx --test tests/opportunity-intelligence.test.mjs",
+    "test:opportunity-intelligence": "npx tsx --test tests/opportunity-intelligence.test.mjs tests/opportunity-hub.test.mjs",
     "test:dialer": "node --experimental-strip-types --test tests/dialer-outcomes.test.mjs",
     "test:matrix": "node --env-file=.env.development.local scripts/phase-h-test-matrix.mjs"
   },
@@ -29,6 +32,7 @@
     "google-auth-library": "^10.6.2",
     "jose": "^6.2.10",
     "jszip": "^3.10.2",
+    "maplibre-gl": "^5.24.1",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
@@ -45,6 +49,7 @@
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

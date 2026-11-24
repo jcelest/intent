@@ -1,0 +1,2 @@
+import { OpportunityExplorer } from "@/components/admin/opportunity-intelligence/opportunity-explorer";
+export default function SolicitationsPage() { return <OpportunityExplorer preset={{ eyebrow: "Documented purchasing requests", title: "Active solicitations", description: "Active source-backed solicitations only. Expired, awarded, cancelled, inferred, and timing-based records are excluded from this view.", classifications: ["confirmed"], statuses: ["active"], sort: "deadline" }} />; }

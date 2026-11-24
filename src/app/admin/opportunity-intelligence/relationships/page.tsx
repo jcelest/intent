@@ -1,0 +1,2 @@
+import { OpportunityExplorer } from "@/components/admin/opportunity-intelligence/opportunity-explorer";
+export default function RelationshipsPage() { return <OpportunityExplorer preset={{ eyebrow: "Commercial relationship intelligence", title: "Commercial relationships", description: "Documented property managers, facility operators, developers, contractors, multi-location operators, and portfolios. Shared branding never implies common ownership.", classifications: ["relationship"], sort: "evidence" }} />; }

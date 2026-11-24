@@ -115,6 +115,9 @@ export interface CollectionJobRecord {
 }
 
 /** Realistic verified starter seed bids across Florida trades and jurisdictions */
+// Legacy synthetic fixtures are retained only for historical source compatibility.
+// ensureOpportunitySeedData never writes them to the database.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SEED_BIDS = [
   {
     solicitation_number: "RFP-24-0891-HVAC",
@@ -295,6 +298,7 @@ const SEED_BIDS = [
 ];
 
 /** Realistic commercial network partners (GCs, property managers, developers) */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SEED_NETWORKS = [
   {
     name: "HGR Construction, Inc.",
@@ -441,7 +445,11 @@ const SEED_PRESETS = [
 ];
 
 /**
- * Ensures initial seed data exists in the database
+ * Ensures source and geographic reference registries exist.
+ *
+ * Deliberately does not create bids, contract values, contacts, networks, or
+ * opportunities. Production intelligence must arrive through a traceable
+ * source adapter or an explicitly recorded deterministic discovery rule.
  */
 export async function ensureOpportunitySeedData(): Promise<void> {
   try {
@@ -460,51 +468,6 @@ export async function ensureOpportunitySeedData(): Promise<void> {
             ${s.supportedFormat}, ${s.accessRequirements}, ${s.status}, ${s.collectionFrequency}
           )
           ON CONFLICT (id) DO NOTHING
-        `;
-      }
-    }
-
-    const existingBids = await sql`SELECT count(*)::int as count FROM fl_commercial_bids`;
-    const bidCount = Number((existingBids[0] as Record<string, unknown>)?.count || 0);
-    if (bidCount === 0) {
-      const now = Date.now();
-      for (const b of SEED_BIDS) {
-        const postedDate = new Date(now + b.posted_offset_days * 86400000);
-        const closingDate = new Date(now + b.closing_offset_days * 86400000);
-        await sql`
-          INSERT INTO fl_commercial_bids (
-            solicitation_number, title, description, agency_name, agency_type,
-            county, city, zip_code, trade_slug, estimated_value, estimated_value_display,
-            posted_date, closing_date, status, source_url, submission_method,
-            qualification_requirements, pre_bid_conference, contact_name, contact_email, contact_phone
-          ) VALUES (
-            ${b.solicitation_number}, ${b.title}, ${b.description}, ${b.agency_name}, ${b.agency_type},
-            ${b.county}, ${b.city}, ${b.zip_code}, ${b.trade_slug}, ${b.estimated_value}, ${b.estimated_value_display},
-            ${postedDate}, ${closingDate}, 'open', ${b.source_url}, ${b.submission_method},
-            ${b.qualification_requirements}, ${b.pre_bid_conference}, ${b.contact_name}, ${b.contact_email}, ${b.contact_phone}
-          )
-          ON CONFLICT (solicitation_number, agency_name) DO NOTHING
-        `;
-      }
-    }
-
-    const existingNetworks = await sql`SELECT count(*)::int as count FROM fl_commercial_networks`;
-    const netCount = Number((existingNetworks[0] as Record<string, unknown>)?.count || 0);
-    if (netCount === 0) {
-      for (const n of SEED_NETWORKS) {
-        await sql`
-          INSERT INTO fl_commercial_networks (
-            name, org_type, county, city, zip_code, address,
-            trades_hired, primary_contact_name, primary_contact_title,
-            primary_contact_email, primary_contact_phone, website,
-            vendor_intake_url, annual_commercial_volume, active_projects_count, notes
-          ) VALUES (
-            ${n.name}, ${n.org_type}, ${n.county}, ${n.city}, ${n.zip_code}, ${n.address},
-            ${n.trades_hired}, ${n.primary_contact_name}, ${n.primary_contact_title},
-            ${n.primary_contact_email}, ${n.primary_contact_phone}, ${n.website},
-            ${n.vendor_intake_url}, ${n.annual_commercial_volume}, ${n.active_projects_count}, ${n.notes}
-          )
-          ON CONFLICT (name, county) DO NOTHING
         `;
       }
     }
@@ -1625,4 +1588,3 @@ export async function verifyOutreachTargetGoogle(targetId: string): Promise<Outr
     return null;
   }
 }
-
