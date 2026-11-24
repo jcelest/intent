@@ -14,8 +14,13 @@ const FEEDS: Record<string, { sql: string; search: string[]; county: string | nu
       SELECT p.id::text, 'universal'::text AS record_source, p.name, p.situs_address, p.city, p.county, p.zip_code, p.parcel_id, p.property_use_code, p.property_use_description, p.building_sqft, p.year_built, p.building_count, p.owner_name_raw, p.latitude, p.longitude, p.source_url, p.last_verified_at, p.updated_at
       FROM oi_properties p
       UNION ALL
-      SELECT concat(fp.county, ':', fp.parcel_id), 'legacy_parcel', NULL, fp.situs_address, fp.situs_city, fp.county, fp.situs_zip, fp.parcel_id, fp.use_code, fp.use_description, fp.building_sqft, fp.year_built, NULL, fp.owner_name_raw, NULL, NULL, NULL, fp.updated_at, fp.updated_at
+      SELECT concat(fp.county, ':', fp.parcel_id), 'legacy_parcel', NULL, fp.situs_address, fp.situs_city, fp.county, fp.situs_zip, fp.parcel_id, fp.use_code, fp.use_description, fp.building_sqft, fp.year_built, NULL, fp.owner_name_raw, fp.latitude, fp.longitude, fp.location_source_url, fp.location_verified_at, fp.updated_at
       FROM fl_parcels fp
+      WHERE NOT EXISTS (
+        SELECT 1 FROM oi_properties property
+        WHERE property.source_id = 'fl-dor-cadastral'
+          AND property.source_record_id = concat(fp.county, ':', fp.parcel_id)
+      )
     ) resource_feed`,
     search: ["name", "situs_address", "parcel_id", "owner_name_raw", "property_use_description"], county: "county", order: "updated_at DESC, id DESC",
   },

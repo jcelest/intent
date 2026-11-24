@@ -217,13 +217,19 @@ async function bulkUpsertParcelsFast(rawParcels: ParcelRecord[]): Promise<{ adde
   const channels = parcels.map((p) => p.channel);
   const sqftBands = parcels.map((p) => p.sqft_band);
   const tonnageRisks = parcels.map((p) => p.tonnage_risk);
+  const latitudes = parcels.map((p) => p.latitude ?? null);
+  const longitudes = parcels.map((p) => p.longitude ?? null);
+  const sourceObjectIds = parcels.map((p) => p.source_object_id ?? null);
+  const locationSourceUrls = parcels.map((p) => p.location_source_url || null);
+  const locationMethods = parcels.map((p) => p.location_method || null);
 
   const res = await sql`
     INSERT INTO fl_parcels (
       county, parcel_id, situs_address, situs_city, situs_zip,
       owner_name_raw, owner_mailing_address, use_code, use_description,
       building_sqft, year_built, land_use_category, channel,
-      sqft_band, tonnage_risk
+      sqft_band, tonnage_risk, latitude, longitude, source_object_id,
+      location_source_url, location_method, location_verified_at
     )
     SELECT * FROM UNNEST(
       ${counties}::varchar[],
@@ -240,7 +246,13 @@ async function bulkUpsertParcelsFast(rawParcels: ParcelRecord[]): Promise<{ adde
       ${landCats}::varchar[],
       ${channels}::varchar[],
       ${sqftBands}::varchar[],
-      ${tonnageRisks}::varchar[]
+      ${tonnageRisks}::varchar[],
+      ${latitudes}::double precision[],
+      ${longitudes}::double precision[],
+      ${sourceObjectIds}::bigint[],
+      ${locationSourceUrls}::text[],
+      ${locationMethods}::varchar[],
+      ${latitudes.map((value, index) => value != null && longitudes[index] != null ? new Date() : null)}::timestamptz[]
     )
     ON CONFLICT (county, parcel_id) DO UPDATE SET
       situs_address = EXCLUDED.situs_address,
@@ -253,6 +265,12 @@ async function bulkUpsertParcelsFast(rawParcels: ParcelRecord[]): Promise<{ adde
       channel = EXCLUDED.channel,
       sqft_band = EXCLUDED.sqft_band,
       tonnage_risk = EXCLUDED.tonnage_risk,
+      latitude = COALESCE(EXCLUDED.latitude, fl_parcels.latitude),
+      longitude = COALESCE(EXCLUDED.longitude, fl_parcels.longitude),
+      source_object_id = COALESCE(EXCLUDED.source_object_id, fl_parcels.source_object_id),
+      location_source_url = COALESCE(EXCLUDED.location_source_url, fl_parcels.location_source_url),
+      location_method = COALESCE(EXCLUDED.location_method, fl_parcels.location_method),
+      location_verified_at = COALESCE(EXCLUDED.location_verified_at, fl_parcels.location_verified_at),
       updated_at = CURRENT_TIMESTAMP
     RETURNING (xmax = 0) AS is_insert
   `;

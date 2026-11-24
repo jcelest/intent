@@ -37,6 +37,11 @@ export interface ParcelRecord {
   tonnage_risk: TonnageRiskEstimate;
   last_mechanical_permit_date?: string | null;
   incumbent_contractor?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  source_object_id?: number | null;
+  location_source_url?: string | null;
+  location_method?: string | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -52,7 +52,9 @@ export interface CadastralArcGISFeature {
     PHY_ZIPCD?: string | number;
     TOT_LVG_AR?: number;
     ACT_YR_BLT?: number;
+    OBJECTID?: number;
   };
+  centroid?: { x?: number; y?: number };
 }
 
 /**
@@ -70,7 +72,7 @@ export async function fetchCadastralCommercialParcels(
   const whereClause = `OBJECTID >= ${startOid} AND CO_NO = ${dorCode} AND (DOR_UC LIKE '01%' OR DOR_UC LIKE '02%' OR DOR_UC LIKE '03%' OR DOR_UC LIKE '04%' OR DOR_UC LIKE '07%' OR DOR_UC LIKE '08%') AND OWN_NAME IS NOT NULL`;
   const url = `https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query?where=${encodeURIComponent(
     whereClause
-  )}&outFields=PARCEL_ID,PARCELNO,CO_NO,DOR_UC,OWN_NAME,OWN_ADDR1,OWN_CITY,OWN_STATE,OWN_ZIPCD,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,TOT_LVG_AR,ACT_YR_BLT&returnGeometry=false&resultOffset=${offset}&resultRecordCount=${limit}&f=json`;
+  )}&outFields=OBJECTID,PARCEL_ID,PARCELNO,CO_NO,DOR_UC,OWN_NAME,OWN_ADDR1,OWN_CITY,OWN_STATE,OWN_ZIPCD,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,TOT_LVG_AR,ACT_YR_BLT&returnGeometry=false&returnCentroid=true&outSR=4326&resultOffset=${offset}&resultRecordCount=${limit}&f=json`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -106,6 +108,11 @@ export async function fetchCadastralCommercialParcels(
 
       const city = (a.PHY_CITY || countySeat).trim();
       const zip = a.PHY_ZIPCD ? String(a.PHY_ZIPCD).padStart(5, "0").slice(0, 5) : null;
+      const latitude = Number(f.centroid?.y);
+      const longitude = Number(f.centroid?.x);
+      const hasOfficialCentroid = Number.isFinite(latitude) && Number.isFinite(longitude)
+        && latitude >= 24 && latitude <= 32 && longitude >= -88 && longitude <= -79;
+      const sourceObjectId = Number(a.OBJECTID);
 
       let mailing: string | null = null;
       if (a.OWN_ADDR1) {
@@ -132,6 +139,13 @@ export async function fetchCadastralCommercialParcels(
         tonnage_risk: tonnageRisk,
         last_mechanical_permit_date: null,
         incumbent_contractor: null,
+        latitude: hasOfficialCentroid ? latitude : null,
+        longitude: hasOfficialCentroid ? longitude : null,
+        source_object_id: Number.isInteger(sourceObjectId) ? sourceObjectId : null,
+        location_source_url: Number.isInteger(sourceObjectId)
+          ? `https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/${sourceObjectId}`
+          : null,
+        location_method: hasOfficialCentroid ? "official_arcgis_parcel_centroid" : null,
       });
     }
 
@@ -157,12 +171,15 @@ export async function upsertCadastralParcels(parcels: ParcelRecord[]): Promise<{
           county, parcel_id, situs_address, situs_city, situs_zip,
           owner_name_raw, owner_mailing_address, use_code, use_description,
           building_sqft, year_built, land_use_category, channel,
-          sqft_band, tonnage_risk, last_mechanical_permit_date, incumbent_contractor
+          sqft_band, tonnage_risk, last_mechanical_permit_date, incumbent_contractor,
+          latitude, longitude, source_object_id, location_source_url, location_method, location_verified_at
         ) VALUES (
           ${p.county}, ${p.parcel_id}, ${p.situs_address}, ${p.situs_city || null}, ${p.situs_zip || null},
           ${p.owner_name_raw}, ${p.owner_mailing_address || null}, ${p.use_code}, ${p.use_description},
           ${p.building_sqft || null}, ${p.year_built || null}, ${p.land_use_category}, ${p.channel},
-          ${p.sqft_band}, ${p.tonnage_risk}, ${p.last_mechanical_permit_date || null}, ${p.incumbent_contractor || null}
+          ${p.sqft_band}, ${p.tonnage_risk}, ${p.last_mechanical_permit_date || null}, ${p.incumbent_contractor || null},
+          ${p.latitude ?? null}, ${p.longitude ?? null}, ${p.source_object_id ?? null}, ${p.location_source_url || null}, ${p.location_method || null},
+          ${p.latitude != null && p.longitude != null ? new Date() : null}
         )
         ON CONFLICT (county, parcel_id) DO UPDATE SET
           situs_address = EXCLUDED.situs_address,
@@ -175,6 +192,12 @@ export async function upsertCadastralParcels(parcels: ParcelRecord[]): Promise<{
           channel = EXCLUDED.channel,
           sqft_band = EXCLUDED.sqft_band,
           tonnage_risk = EXCLUDED.tonnage_risk,
+          latitude = COALESCE(EXCLUDED.latitude, fl_parcels.latitude),
+          longitude = COALESCE(EXCLUDED.longitude, fl_parcels.longitude),
+          source_object_id = COALESCE(EXCLUDED.source_object_id, fl_parcels.source_object_id),
+          location_source_url = COALESCE(EXCLUDED.location_source_url, fl_parcels.location_source_url),
+          location_method = COALESCE(EXCLUDED.location_method, fl_parcels.location_method),
+          location_verified_at = COALESCE(EXCLUDED.location_verified_at, fl_parcels.location_verified_at),
           updated_at = CURRENT_TIMESTAMP
         RETURNING (xmax = 0) AS is_insert
       `;

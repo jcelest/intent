@@ -10,17 +10,22 @@ if (!databaseUrl) {
 }
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const migrationPath = resolve(scriptDir, "..", "migrations", "009_universal_opportunity_hub.sql");
-const migrationSql = await readFile(migrationPath, "utf8");
+const migrationPaths = [
+  resolve(scriptDir, "..", "migrations", "009_universal_opportunity_hub.sql"),
+  resolve(scriptDir, "..", "migrations", "010_opportunity_map_activation.sql"),
+];
 const sql = neon(databaseUrl);
 
 try {
-  const statements = migrationSql
-    .split(/;\s*(?:\r?\n|$)/)
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-  for (const statement of statements) {
-    await sql.query(statement);
+  for (const migrationPath of migrationPaths) {
+    const migrationSql = await readFile(migrationPath, "utf8");
+    const statements = migrationSql
+      .split(/;\s*(?:\r?\n|$)/)
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+    for (const statement of statements) {
+      await sql.query(statement);
+    }
   }
   console.log("Universal Opportunity Intelligence Hub migration completed successfully.");
 } catch (error) {

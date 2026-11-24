@@ -375,7 +375,13 @@ export async function getHubOverview(): Promise<HubOverview> {
     ),
     supporting AS (
       SELECT
-        (SELECT count(*) FROM oi_properties) + (SELECT count(*) FROM fl_parcels) AS commercial_properties,
+        (SELECT count(*) FROM fl_parcels) +
+          (SELECT count(*) FROM oi_properties property
+           WHERE NOT EXISTS (
+             SELECT 1 FROM fl_parcels parcel
+             WHERE property.source_id = 'fl-dor-cadastral'
+               AND property.source_record_id = concat(parcel.county, ':', parcel.parcel_id)
+           )) AS commercial_properties,
         (SELECT count(*) FROM oi_equipment) AS documented_equipment,
         (SELECT count(*) FROM oi_permit_records WHERE issue_date >= CURRENT_DATE - INTERVAL '30 days') +
           (SELECT count(*) FROM fl_permits WHERE issue_date >= CURRENT_DATE - INTERVAL '30 days') AS recent_permits
@@ -488,7 +494,25 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const bboxWhere = bboxPredicate(params, "latitude", "longitude", filters.bbox);
     if (counties.length) params.push(counties);
     const countyWhere = counties.length ? `AND county = ANY($${params.length}::text[])` : "";
-    const rows = await queryDb(`SELECT id, name, situs_address, city, county, zip_code, latitude, longitude, property_use_description, building_sqft, year_built, owner_name_raw, source_url FROM oi_properties WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere} ORDER BY updated_at DESC LIMIT 5000`, params);
+    const rows = await queryDb(`
+      SELECT * FROM (
+        SELECT id::text, name, situs_address, city, county, zip_code, latitude, longitude,
+               property_use_description, building_sqft, year_built, owner_name_raw, source_url, updated_at
+        FROM oi_properties
+        UNION ALL
+        SELECT concat(parcel.county, ':', parcel.parcel_id), NULL, parcel.situs_address,
+               parcel.situs_city, parcel.county, parcel.situs_zip, parcel.latitude, parcel.longitude,
+               parcel.use_description, parcel.building_sqft, parcel.year_built, parcel.owner_name_raw,
+               parcel.location_source_url, parcel.updated_at
+        FROM fl_parcels parcel
+        WHERE NOT EXISTS (
+          SELECT 1 FROM oi_properties property
+          WHERE property.source_id = 'fl-dor-cadastral'
+            AND property.source_record_id = concat(parcel.county, ':', parcel.parcel_id)
+        )
+      ) property_feed
+      WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere}
+      ORDER BY updated_at DESC LIMIT 10000`, params);
     for (const row of rows) {
       features.push({ type: "Feature", id: `property:${row.id}`, geometry: { type: "Point", coordinates: [Number(row.longitude), Number(row.latitude)] }, properties: { ...row, featureType: "property", renderMode: "documented_location" } });
     }

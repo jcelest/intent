@@ -22,6 +22,8 @@ async function main() {
   if (sources.countyRegistry.length !== 67) throw new Error("Source coverage did not return all 67 counties.");
   if (opportunities.total !== 0 && opportunities.records.length === 0) throw new Error("Opportunity pagination returned an inconsistent total.");
   if (atlas.type !== "FeatureCollection") throw new Error("Atlas did not return GeoJSON.");
+  if (atlas.metadata.documentedLocations < 1) throw new Error("Atlas did not return any documented map locations.");
+  if (overview.mappedRecords < 1) throw new Error("Overview did not report any mapped opportunity records.");
   if (!analytics.overview) throw new Error("Market analytics did not return overview statistics.");
 
   console.log(JSON.stringify({
