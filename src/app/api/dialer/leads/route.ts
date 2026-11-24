@@ -49,7 +49,7 @@ export async function GET(request: Request) {
           WHERE lm.lead_id = l.id), '{}') AS lists
       FROM dialer_leads l
       LEFT JOIN dialer_users u ON u.id = l.assigned_user_id
-      WHERE (${showArchived} = TRUE ? COALESCE(l.archived, FALSE) = TRUE : COALESCE(l.archived, FALSE) = FALSE)
+      WHERE COALESCE(l.archived, FALSE) = ${showArchived}
         AND (${normalizedStatus}::text IS NULL OR l.status = ${normalizedStatus})
         AND (${search} = '' OR CONCAT_WS(' ', l.first_name, l.last_name, l.company, l.phone_e164, l.email, l.city, l.state) ILIKE ${searchTerm})
         AND (${assignee} = 'all' OR (${assignee} = 'unassigned' AND l.assigned_user_id IS NULL) OR l.assigned_user_id::text = ${assignee})

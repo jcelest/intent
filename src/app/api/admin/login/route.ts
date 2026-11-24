@@ -5,6 +5,7 @@ import {
   createDialerSession,
   DIALER_SESSION_COOKIE,
 } from "@/lib/dialer-auth";
+import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -58,7 +59,28 @@ export async function POST(request: Request) {
 
     // 2. Fallback to master admin credentials (Intent / Tealtent477 or env)
     if (username.toLowerCase() === VALID_MASTER_USER && password === VALID_MASTER_PASS) {
-      const fallbackUser = {
+      let dbOwner = null;
+      try {
+        const ownerRows = await sql`
+          SELECT id, username, display_name, email, role, must_change_password
+          FROM dialer_users
+          WHERE role = 'owner' AND active = TRUE
+          ORDER BY created_at ASC
+          LIMIT 1
+        `;
+        if (ownerRows[0]) {
+          dbOwner = {
+            id: String(ownerRows[0].id),
+            username: String(ownerRows[0].username),
+            displayName: String(ownerRows[0].display_name),
+            email: ownerRows[0].email ? String(ownerRows[0].email) : null,
+            role: "owner" as const,
+            mustChangePassword: Boolean(ownerRows[0].must_change_password),
+          };
+        }
+      } catch {}
+
+      const effectiveUser = dbOwner || {
         id: "admin-root",
         username: "Intent",
         displayName: "Intent Admin",
@@ -67,17 +89,19 @@ export async function POST(request: Request) {
         mustChangePassword: false,
       };
 
-      try {
-        const session = await createDialerSession(fallbackUser.id, request.headers.get("user-agent") || "");
-        cookieStore.set(DIALER_SESSION_COOKIE, session.token, {
-          path: "/",
-          maxAge: session.maxAge,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          httpOnly: true,
-        });
-      } catch {
-        // Fallback when DB is unavailable or user id not in DB
+      if (dbOwner) {
+        try {
+          const session = await createDialerSession(dbOwner.id, request.headers.get("user-agent") || "");
+          cookieStore.set(DIALER_SESSION_COOKIE, session.token, {
+            path: "/",
+            maxAge: session.maxAge,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: true,
+          });
+        } catch (sessionErr) {
+          console.warn("Failed creating db session for master admin", sessionErr);
+        }
       }
 
       cookieStore.set(AUTH_COOKIE, "1", {
@@ -88,7 +112,7 @@ export async function POST(request: Request) {
         httpOnly: true,
       });
 
-      return NextResponse.json({ success: true, user: fallbackUser });
+      return NextResponse.json({ success: true, user: effectiveUser });
     }
 
     return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });

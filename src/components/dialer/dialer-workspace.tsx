@@ -44,8 +44,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
+  if (response.status === 401 && typeof window !== "undefined") {
+    if (!window.location.pathname.includes("/login")) {
+      window.location.href = `/admin/dialer/login?next=${encodeURIComponent(window.location.pathname)}`;
+    }
+    throw new Error("Session expired. Please sign in again.");
+  }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error((data as { error?: string }).error || "Request failed.");
+  if (!response.ok) throw new Error((data as { error?: string }).error || `Request failed (${response.status}).`);
   return data as T;
 }
 
