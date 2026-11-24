@@ -541,6 +541,57 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     }
   }
 
+  if (layers.has("portfolios") || layers.has("relationships") || layers.has("properties")) {
+    const mgmtParams: unknown[] = [];
+    const mgmtBboxWhere = bboxPredicate(mgmtParams, "latitude", "longitude", filters.bbox);
+    if (counties.length) mgmtParams.push(counties);
+    const mgmtCountyWhere = counties.length ? `AND county = ANY($${mgmtParams.length}::text[])` : "";
+    const mgmtRows = await queryDb(
+      `SELECT id::text, name, dba, firm_type, license_number, license_type, status,
+              address, city, county, zip_code, phone, email, website, qualifier_name,
+              managed_properties_count, managed_portfolio_sqft, latitude, longitude, source, evidence_url
+       FROM fl_management_firms
+       WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${mgmtBboxWhere} ${mgmtCountyWhere}
+       ORDER BY managed_properties_count DESC, name ASC LIMIT 5000`,
+      mgmtParams,
+    );
+    for (const row of mgmtRows) {
+      features.push({
+        type: "Feature",
+        id: `portfolio:${row.id}`,
+        geometry: { type: "Point", coordinates: [Number(row.longitude), Number(row.latitude)] },
+        properties: {
+          id: row.id,
+          title: String(row.name) + (row.dba ? ` (${row.dba})` : ""),
+          name: row.name,
+          dba: row.dba,
+          summary: `${row.firm_type === "community_association_management" ? "Licensed Community Association Management (CAB) firm" : "Commercial Property & Asset Management operator"} located at ${row.address}, ${row.city}, FL.`,
+          classification: "relationship",
+          serviceCategory: "Property Management Portfolios",
+          tradeSlug: "property_management",
+          trade_slug: "property_management",
+          status: "active",
+          address: row.address,
+          city: row.city,
+          county: row.county,
+          zipCode: row.zip_code,
+          phone: row.phone,
+          email: row.email,
+          website: row.website,
+          qualifierName: row.qualifier_name,
+          licenseNumber: row.license_number,
+          licenseType: row.license_type,
+          portfolioCount: Number(row.managed_properties_count || 1),
+          managedPropertiesCount: Number(row.managed_properties_count || 1),
+          portfolioSqft: row.managed_portfolio_sqft,
+          sourceUrl: row.evidence_url || "https://www.myfloridalicense.com",
+          featureType: "portfolio",
+          renderMode: "documented_location",
+        },
+      });
+    }
+  }
+
   return {
     type: "FeatureCollection",
     features,
