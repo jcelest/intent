@@ -15,6 +15,7 @@ export async function reserveNextLead(input: {
       LEFT JOIN dialer_settings workspace_settings ON workspace_settings.key = 'workspace'
       LEFT JOIN pg_timezone_names prospect_timezone ON prospect_timezone.name = l.timezone
       WHERE l.do_not_call = FALSE AND d.id IS NULL
+        AND COALESCE(l.archived, FALSE) = FALSE
         AND l.status IN ('to_call', 'try_again')
         AND (l.next_call_at IS NULL OR l.next_call_at <= CURRENT_TIMESTAMP)
         AND (${input.excludeLeadId || null}::uuid IS NULL OR l.id <> ${input.excludeLeadId || null}::uuid)

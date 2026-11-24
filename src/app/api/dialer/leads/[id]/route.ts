@@ -43,6 +43,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       assigned_user_id = CASE WHEN ${body.assignedUserId === undefined} THEN assigned_user_id ELSE ${body.assignedUserId ? String(body.assignedUserId) : null} END,
       status = COALESCE(${status}, status),
       next_call_at = CASE WHEN ${body.nextCallAt === undefined} THEN next_call_at ELSE ${body.nextCallAt ? new Date(String(body.nextCallAt)) : null} END,
+      archived = CASE WHEN ${body.archived === undefined} THEN archived ELSE ${Boolean(body.archived)} END,
+      archived_at = CASE
+        WHEN ${body.archived === undefined} THEN archived_at
+        WHEN ${Boolean(body.archived)} = TRUE THEN CURRENT_TIMESTAMP
+        ELSE NULL
+      END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${params.id} RETURNING *
   `;

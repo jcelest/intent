@@ -37,6 +37,7 @@ export async function GET(request: Request) {
   const assignee = url.searchParams.get("assignee") || "all";
   const listId = url.searchParams.get("listId");
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 250), 1), 1000);
+  const showArchived = url.searchParams.get("archived") === "true" || status === "archived";
   const normalizedStatus = ["to_call", "try_again", "follow_up", "closed"].includes(status) ? status : null;
   const searchTerm = `%${search}%`;
 
@@ -48,7 +49,8 @@ export async function GET(request: Request) {
           WHERE lm.lead_id = l.id), '{}') AS lists
       FROM dialer_leads l
       LEFT JOIN dialer_users u ON u.id = l.assigned_user_id
-      WHERE (${normalizedStatus}::text IS NULL OR l.status = ${normalizedStatus})
+      WHERE (${showArchived} = TRUE ? COALESCE(l.archived, FALSE) = TRUE : COALESCE(l.archived, FALSE) = FALSE)
+        AND (${normalizedStatus}::text IS NULL OR l.status = ${normalizedStatus})
         AND (${search} = '' OR CONCAT_WS(' ', l.first_name, l.last_name, l.company, l.phone_e164, l.email, l.city, l.state) ILIKE ${searchTerm})
         AND (${assignee} = 'all' OR (${assignee} = 'unassigned' AND l.assigned_user_id IS NULL) OR l.assigned_user_id::text = ${assignee})
         AND (${listId}::text IS NULL OR EXISTS (
@@ -62,13 +64,14 @@ export async function GET(request: Request) {
     `,
     sql`
       SELECT
-        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id})::int AS assigned_to_me,
-        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
-        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
-        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
-        COUNT(*) FILTER (WHERE assigned_user_id = ${auth.user.id} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
-        COUNT(*) FILTER (WHERE assigned_user_id IS NOT NULL)::int AS total_assigned,
-        COUNT(*) FILTER (WHERE assigned_user_id IS NULL)::int AS total_unassigned
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${auth.user.id})::int AS assigned_to_me,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${auth.user.id} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${auth.user.id} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${auth.user.id} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${auth.user.id} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id IS NOT NULL)::int AS total_assigned,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id IS NULL)::int AS total_unassigned,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = TRUE)::int AS archived
       FROM dialer_leads
     `,
   ]);
@@ -197,10 +200,51 @@ export async function PATCH(request: Request) {
     assignedUserId?: string | null;
     status?: string;
     priority?: number;
-    action?: "requeue";
+    action?: "requeue" | "archive" | "unarchive" | "restore";
   };
   if (!body.ids?.length) return NextResponse.json({ error: "Lead ids are required." }, { status: 400 });
   if (body.ids.length > 1000) return NextResponse.json({ error: "Bulk updates are limited to 1,000 leads." }, { status: 400 });
+
+  if (body.action === "archive") {
+    const updated = await sql`
+      UPDATE dialer_leads SET
+        archived = TRUE,
+        archived_at = CURRENT_TIMESTAMP,
+        reserved_by = NULL,
+        reserved_at = NULL,
+        reservation_expires_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ANY(${body.ids}::uuid[])
+        AND (${auth.user.role} = 'owner' OR assigned_user_id = ${auth.user.id} OR assigned_user_id IS NULL)
+      RETURNING id
+    `;
+    await addActivity({
+      userId: auth.user.id,
+      type: "leads_archived",
+      summary: `Archived ${updated.length} lead${updated.length === 1 ? "" : "s"}`,
+      metadata: { count: updated.length, ids: body.ids },
+    });
+    return NextResponse.json({ success: true, updated: updated.length });
+  }
+
+  if (body.action === "unarchive" || body.action === "restore") {
+    const updated = await sql`
+      UPDATE dialer_leads SET
+        archived = FALSE,
+        archived_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ANY(${body.ids}::uuid[])
+        AND (${auth.user.role} = 'owner' OR assigned_user_id = ${auth.user.id} OR assigned_user_id IS NULL)
+      RETURNING id
+    `;
+    await addActivity({
+      userId: auth.user.id,
+      type: "leads_unarchived",
+      summary: `Restored ${updated.length} lead${updated.length === 1 ? "" : "s"} to main lead list`,
+      metadata: { count: updated.length, ids: body.ids },
+    });
+    return NextResponse.json({ success: true, updated: updated.length });
+  }
 
   if (body.action === "requeue") {
     const updated = await sql`

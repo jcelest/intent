@@ -16,34 +16,36 @@ export async function GET(request: Request) {
   const counts = owner
     ? await sql`
         SELECT
-          COUNT(*)::int AS all_leads,
-          COUNT(*) FILTER (WHERE status = 'to_call' AND do_not_call = FALSE)::int AS to_call,
-          COUNT(*) FILTER (WHERE status = 'try_again' AND do_not_call = FALSE)::int AS try_again,
-          COUNT(*) FILTER (WHERE status = 'follow_up' AND do_not_call = FALSE)::int AS follow_up,
-          COUNT(*) FILTER (WHERE status = 'closed' OR do_not_call = TRUE)::int AS closed,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId})::int AS assigned_to_me,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
-          COUNT(*) FILTER (WHERE assigned_user_id IS NOT NULL)::int AS total_assigned,
-          COUNT(*) FILTER (WHERE assigned_user_id IS NULL)::int AS total_unassigned
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE)::int AS all_leads,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'to_call' AND do_not_call = FALSE)::int AS to_call,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'try_again' AND do_not_call = FALSE)::int AS try_again,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'follow_up' AND do_not_call = FALSE)::int AS follow_up,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND (status = 'closed' OR do_not_call = TRUE))::int AS closed,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId})::int AS assigned_to_me,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id IS NOT NULL)::int AS total_assigned,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id IS NULL)::int AS total_unassigned,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = TRUE)::int AS archived
         FROM dialer_leads
       `
     : await sql`
         SELECT
-          COUNT(*)::int AS all_leads,
-          COUNT(*) FILTER (WHERE status = 'to_call' AND do_not_call = FALSE)::int AS to_call,
-          COUNT(*) FILTER (WHERE status = 'try_again' AND do_not_call = FALSE)::int AS try_again,
-          COUNT(*) FILTER (WHERE status = 'follow_up' AND do_not_call = FALSE)::int AS follow_up,
-          COUNT(*) FILTER (WHERE status = 'closed' OR do_not_call = TRUE)::int AS closed,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId})::int AS assigned_to_me,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${userId})::int AS total_assigned,
-          COUNT(*) FILTER (WHERE assigned_user_id IS NULL)::int AS total_unassigned
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE)::int AS all_leads,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'to_call' AND do_not_call = FALSE)::int AS to_call,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'try_again' AND do_not_call = FALSE)::int AS try_again,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND status = 'follow_up' AND do_not_call = FALSE)::int AS follow_up,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND (status = 'closed' OR do_not_call = TRUE))::int AS closed,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId})::int AS assigned_to_me,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id = ${userId})::int AS total_assigned,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE AND assigned_user_id IS NULL)::int AS total_unassigned,
+          COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = TRUE AND (assigned_user_id = ${userId} OR assigned_user_id IS NULL))::int AS archived
         FROM dialer_leads WHERE assigned_user_id = ${userId} OR assigned_user_id IS NULL
       `;
 
@@ -168,11 +170,11 @@ export async function GET(request: Request) {
       u.id AS user_id,
       u.display_name,
       u.role,
-      COUNT(l.id)::int AS total,
-      COUNT(l.id) FILTER (WHERE l.status = 'to_call' AND l.do_not_call = FALSE)::int AS to_call,
-      COUNT(l.id) FILTER (WHERE l.status = 'try_again' AND l.do_not_call = FALSE)::int AS try_again,
-      COUNT(l.id) FILTER (WHERE l.status = 'follow_up' AND l.do_not_call = FALSE)::int AS follow_up,
-      COUNT(l.id) FILTER (WHERE l.status = 'closed' OR l.do_not_call = TRUE)::int AS closed
+      COUNT(l.id) FILTER (WHERE COALESCE(l.archived, FALSE) = FALSE)::int AS total,
+      COUNT(l.id) FILTER (WHERE COALESCE(l.archived, FALSE) = FALSE AND l.status = 'to_call' AND l.do_not_call = FALSE)::int AS to_call,
+      COUNT(l.id) FILTER (WHERE COALESCE(l.archived, FALSE) = FALSE AND l.status = 'try_again' AND l.do_not_call = FALSE)::int AS try_again,
+      COUNT(l.id) FILTER (WHERE COALESCE(l.archived, FALSE) = FALSE AND l.status = 'follow_up' AND l.do_not_call = FALSE)::int AS follow_up,
+      COUNT(l.id) FILTER (WHERE COALESCE(l.archived, FALSE) = FALSE AND (l.status = 'closed' OR l.do_not_call = TRUE))::int AS closed
     FROM dialer_users u
     LEFT JOIN dialer_leads l ON l.assigned_user_id = u.id
     WHERE u.active = TRUE

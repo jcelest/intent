@@ -66,6 +66,19 @@ function readableError(cause: unknown, fallback: string) {
   return fallback;
 }
 
+function notifyDialerSync() {
+  try {
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const bc = new BroadcastChannel("intent_dialer_sync");
+      bc.postMessage("refresh");
+      bc.close();
+    }
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem("intent_dialer_sync_ping", String(Date.now()));
+    }
+  } catch {}
+}
+
 function text(row: Row | null | undefined, key: string) {
   return row?.[key] == null ? "" : String(row[key]);
 }
@@ -439,7 +452,64 @@ export function DialerWorkspace() {
     } finally { setLoading(false); }
   }, []);
 
+  const silentSync = useCallback(async () => {
+    try {
+      const [overviewData, leadsData] = await Promise.all([
+        api<Row>("/api/dialer/overview"),
+        api<{ leads: Row[] }>("/api/dialer/leads?limit=1000"),
+      ]);
+      setOverview((prev) => ({ ...prev, ...overviewData }));
+      setLeads((prev) => {
+        const prevKey = prev.map((l) => `${text(l, "id")}:${text(l, "assigned_user_id")}:${text(l, "status")}:${l.archived}`).join(";");
+        const nextKey = leadsData.leads.map((l) => `${text(l, "id")}:${text(l, "assigned_user_id")}:${text(l, "status")}:${l.archived}`).join(";");
+        return prevKey === nextKey ? prev : leadsData.leads;
+      });
+    } catch {
+      // background polling fails silently
+    }
+  }, []);
+
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void silentSync();
+      }
+    }, 6000);
+
+    const onVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void silentSync();
+      }
+    };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        bc = new BroadcastChannel("intent_dialer_sync");
+        bc.onmessage = (ev) => {
+          if (ev.data === "refresh") void silentSync();
+        };
+      }
+    } catch {}
+
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === "intent_dialer_sync_ping") void silentSync();
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("storage", onStorage);
+      bc?.close();
+    };
+  }, [silentSync]);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 3500);
@@ -456,7 +526,14 @@ export function DialerWorkspace() {
   const metrics = (overview.metrics || {}) as Row;
 
   const visibleLeads = useMemo(() => leads.filter((lead) => {
-    const matchesStatus = statusFilter === "all" || (
+    const isArchived = Boolean(lead.archived);
+    if (statusFilter === "archived") {
+      if (!isArchived) return false;
+    } else {
+      if (isArchived) return false;
+    }
+
+    const matchesStatus = statusFilter === "all" || statusFilter === "archived" || (
       (RETRY_DISPOSITIONS as readonly string[]).includes(statusFilter)
         ? text(lead, "disposition") === statusFilter
         : text(lead, "status") === statusFilter
@@ -1061,6 +1138,8 @@ function Icon({ name, className = "h-4 w-4" }: { name: string; className?: strin
     clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
     close: <path d="M18 6L6 18M6 6l12 12"/>, menu: <path d="M4 6h16M4 12h16M4 18h16"/>,
     trash: <><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
+    archive: <><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></>,
+    restore: <><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></>,
     play: <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/>,
     pause: <><rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/></>,
     download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
@@ -1233,6 +1312,12 @@ function useLeadSelectionController(leads: Row[], selectedIds: string[], setSele
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedIds.length === 0) {
+      anchorIdRef.current = null;
+    }
+  }, [selectedIds.length]);
+
   const applySelection = useCallback((ids: string[], selecting: boolean) => {
     const changedIds = new Set(ids);
     setSelectedIds((current) => selecting
@@ -1248,10 +1333,11 @@ function useLeadSelectionController(leads: Row[], selectedIds: string[], setSele
       const start = Math.min(anchorIndex, leadIndex);
       const end = Math.max(anchorIndex, leadIndex);
       applySelection(leads.slice(start, end + 1).map((lead) => text(lead, "id")), selecting);
+      anchorIdRef.current = null; // Clears anchor so next bulk selection interval starts fresh
     } else {
       applySelection([leadId], selecting);
+      anchorIdRef.current = leadId;
     }
-    anchorIdRef.current = leadId;
   }, [applySelection, leads, selectedIds]);
 
   const startDragging = useCallback((leadId: string, shiftKey: boolean) => {
@@ -1336,7 +1422,14 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
   const unassignedLeads = allLeads.filter((l) => !text(l, "assigned_user_id"));
   const unassignedCount = number(counts, "total_unassigned") || unassignedLeads.length;
   const totalAssignedCount = number(counts, "total_assigned") || (allLeads.length - unassignedLeads.length);
-  const filters = [["all", "All", number(counts, "all_leads")], ["to_call", "Ready", number(counts, "to_call")], ["try_again", "Retry", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")]];
+  const filters = [
+    ["all", "All", number(counts, "all_leads")],
+    ["to_call", "Ready", number(counts, "to_call")],
+    ["try_again", "Retry", number(counts, "try_again")],
+    ["follow_up", "Follow up", number(counts, "follow_up")],
+    ["closed", "Closed", number(counts, "closed")],
+    ["archived", "Archived", number(counts, "archived") || allLeads.filter((l) => Boolean(l.archived)).length],
+  ];
   const retryFilters = RETRY_DISPOSITIONS.map((value) => [value, STATUS_LABELS[value], allLeads.filter((lead) => text(lead, "disposition") === value).length] as const);
   const selection = useLeadSelectionController(leads, selectedIds, setSelectedIds);
   const shownIds = leads.map((lead) => text(lead, "id"));
@@ -1352,6 +1445,7 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
       const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
       setSelectedIds([]);
       await onRefresh();
+      notifyDialerSync();
       onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} ${userId ? "assigned" : "unassigned"}`);
     } catch (cause) {
       onNotify?.(cause instanceof Error ? cause.message : "Unable to assign leads.");
@@ -1365,10 +1459,57 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
       setSelectedIds([]);
       setStatusFilter("to_call");
       await onRefresh();
+      notifyDialerSync();
       onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} returned to Ready and unassigned`);
     } catch (cause) {
       onNotify?.(cause instanceof Error ? cause.message : "Unable to return leads to Ready.");
     } finally { setAssigning(false); }
+  };
+  const archiveSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "archive" }) });
+      setSelectedIds([]);
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} archived`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to archive leads.");
+    } finally { setAssigning(false); }
+  };
+  const restoreSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "unarchive" }) });
+      setSelectedIds([]);
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} restored to main lead list`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to restore leads.");
+    } finally { setAssigning(false); }
+  };
+  const archiveSingleLead = async (leadId: string) => {
+    try {
+      await api(`/api/dialer/leads/${leadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived: true }) });
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.("Lead archived");
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to archive lead.");
+    }
+  };
+  const restoreSingleLead = async (leadId: string) => {
+    try {
+      await api(`/api/dialer/leads/${leadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived: false }) });
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.("Lead restored to main lead list");
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to restore lead.");
+    }
   };
   return <>
     <div className="lg:hidden">
@@ -1496,6 +1637,27 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
             <div className="grid min-w-0 gap-2 sm:flex">
               <select disabled={assigning} onChange={(event) => void changeAssignment(event.target.value === "__unassigned__" ? "" : event.target.value)} defaultValue="__choose__" className="min-h-11 flex-1 rounded-xl border border-[#d0dbe7] bg-white px-3 text-sm text-[#0f172a]"><option value="__choose__" disabled>Assign {selectedIds.length} selected...</option><option value="__unassigned__">Unassigned</option>{users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}</select>
               {hasRetrySelection && <button type="button" disabled={assigning} onClick={() => void requeueSelected()} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Ready + unassign</button>}
+              {statusFilter === "archived" ? (
+                <button
+                  type="button"
+                  disabled={assigning}
+                  onClick={() => void restoreSelected()}
+                  className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 sm:shrink-0 disabled:opacity-50"
+                >
+                  <Icon name="restore" className="h-4 w-4" />
+                  <span>Restore ({selectedIds.length}) to Lead List</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={assigning}
+                  onClick={() => void archiveSelected()}
+                  className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-200 sm:shrink-0 disabled:opacity-50"
+                >
+                  <Icon name="archive" className="h-4 w-4" />
+                  <span>Archive ({selectedIds.length})</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => onRequestDeleteBulk && onRequestDeleteBulk()}
@@ -1576,6 +1738,24 @@ function ResponsiveLeadsView(props: LeadsViewProps) {
                 >
                   <Icon name="phone"/>Dial {owner ? owner.split(" ")[0] : leadName(lead).split(" ")[0]}
                 </button>
+                {Boolean(lead.archived) ? (
+                  <button
+                    title="Restore to main lead list"
+                    onClick={() => void restoreSingleLead(leadId)}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition shrink-0"
+                  >
+                    <Icon name="restore" className="h-4 w-4" />
+                    <span>Restore</span>
+                  </button>
+                ) : (
+                  <button
+                    title="Archive lead"
+                    onClick={() => void archiveSingleLead(leadId)}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+                  >
+                    <Icon name="archive" className="h-5 w-5" />
+                  </button>
+                )}
                 <button
                   title="Delete lead"
                   onClick={() => onRequestDeleteLead && onRequestDeleteLead(leadId, leadName(lead))}
@@ -1622,6 +1802,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
       const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, assignedUserId: userId || null }) });
       setSelectedIds([]);
       await onRefresh();
+      notifyDialerSync();
       onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} ${userId ? "assigned" : "unassigned"}`);
     } catch (cause) {
       onNotify?.(cause instanceof Error ? cause.message : "Unable to assign leads.");
@@ -1635,14 +1816,65 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
       setSelectedIds([]);
       setStatusFilter("to_call");
       await onRefresh();
+      notifyDialerSync();
       onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} returned to Ready and unassigned`);
     } catch (cause) {
       onNotify?.(cause instanceof Error ? cause.message : "Unable to return leads to Ready.");
     } finally { setAssigning(false); }
   };
+  const archiveSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "archive" }) });
+      setSelectedIds([]);
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} archived`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to archive leads.");
+    } finally { setAssigning(false); }
+  };
+  const restoreSelected = async () => {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      const result = await api<{ updated: number }>("/api/dialer/leads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selectedIds, action: "unarchive" }) });
+      setSelectedIds([]);
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.(`${result.updated} lead${result.updated === 1 ? "" : "s"} restored to main lead list`);
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to restore leads.");
+    } finally { setAssigning(false); }
+  };
+  const archiveSingleLead = async (leadId: string) => {
+    try {
+      await api(`/api/dialer/leads/${leadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived: true }) });
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.("Lead archived");
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to archive lead.");
+    }
+  };
+  const restoreSingleLead = async (leadId: string) => {
+    try {
+      await api(`/api/dialer/leads/${leadId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived: false }) });
+      await onRefresh();
+      notifyDialerSync();
+      onNotify?.("Lead restored to main lead list");
+    } catch (cause) {
+      onNotify?.(cause instanceof Error ? cause.message : "Unable to restore lead.");
+    }
+  };
   const filters = [
-    ["all", "All leads", number(counts, "all_leads")], ["to_call", "To call", number(counts, "to_call")],
-    ["try_again", "Try again", number(counts, "try_again")], ["follow_up", "Follow up", number(counts, "follow_up")], ["closed", "Closed", number(counts, "closed")],
+    ["all", "All leads", number(counts, "all_leads")],
+    ["to_call", "To call", number(counts, "to_call")],
+    ["try_again", "Try again", number(counts, "try_again")],
+    ["follow_up", "Follow up", number(counts, "follow_up")],
+    ["closed", "Closed", number(counts, "closed")],
+    ["archived", "Archived", number(counts, "archived") || allLeads.filter((l) => Boolean(l.archived)).length],
   ];
   return <>
     <PageHeader eyebrow="Your sheet" title="Leads" description="Everyone you're calling, where each contact stands, and what needs attention next." action={<div className="flex flex-wrap gap-2">{onOpenGuardrails && <SecondaryButton onClick={onOpenGuardrails}><Icon name="sliders"/>Guardrails</SecondaryButton>}<SecondaryButton onClick={onOpenDialpad}><Icon name="dialpad"/>Keypad</SecondaryButton><SecondaryButton onClick={onImport}><Icon name="upload"/>Import CSV</SecondaryButton><PrimaryButton onClick={dialSessionState === "running" ? onPausePowerDial : onStartPowerDial}><Icon name={dialSessionState === "running" ? "pause" : "phone"}/>{dialSessionState === "running" ? "Pause dialing" : dialSessionState === "paused" ? "Resume dialing" : "Start power dial"}</PrimaryButton><SecondaryButton onClick={onAdd}><Icon name="plus"/>Add lead</SecondaryButton></div>}/>
@@ -1790,7 +2022,7 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
       )}
     </div>
 
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, voicemail, busy, failed" : id === "follow_up" ? "Callbacks and interest" : "Completed or suppressed"}</div></button>)}</div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">{filters.map(([id, label, count]) => <button key={String(id)} onClick={() => { setStatusFilter(String(id)); setSelectedIds([]); }} className={`rounded-xl border p-4 text-left transition ${statusFilter === id ? "border-[#1266c4] bg-white shadow-sm ring-2 ring-[#1266c4]" : "border-[#e2e8f0] bg-white/75 hover:bg-white hover:border-[#b8d0e6]"}`}><div className="text-2xl font-bold text-[#0f172a]">{count}</div><div className="mt-1 text-sm font-semibold text-[#0f172a]">{label}</div><div className="mt-1 text-[11px] text-[#64748b]">{id === "all" ? "Everything except deleted" : id === "to_call" ? "Never dialed and ready" : id === "try_again" ? "No answer, voicemail, busy, failed" : id === "follow_up" ? "Callbacks and interest" : id === "archived" ? "Archived and hidden from queue" : "Completed or suppressed"}</div></button>)}</div>
     <div className="mt-3 flex flex-wrap items-center gap-2"><span className="mr-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Retry outcomes</span>{retryFilters.map(([id, label, count]) => <button key={id} onClick={() => { setStatusFilter(id); setSelectedIds([]); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${statusFilter === id ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#b8d0e6]"}`}>{label} ({count})</button>)}</div>
     <section className="mt-5 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_4px_20px_rgba(18,59,112,.035)]">
       <div className="flex flex-col gap-3 border-b border-[#e2e8f0] p-3 sm:flex-row sm:items-center">
@@ -1825,6 +2057,27 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
               {users.filter((user) => Boolean(user.active)).map((user) => <option key={text(user, "id")} value={text(user, "id")}>{text(user, "display_name")}</option>)}
             </select>
             {hasRetrySelection && <button type="button" disabled={assigning} onClick={() => void requeueSelected()} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Ready + unassign</button>}
+            {statusFilter === "archived" ? (
+              <button
+                type="button"
+                disabled={assigning}
+                onClick={() => void restoreSelected()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50"
+              >
+                <Icon name="restore" className="h-3.5 w-3.5" />
+                <span>Restore ({selectedIds.length}) to Lead List</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={assigning}
+                onClick={() => void archiveSelected()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition shadow-xs disabled:opacity-50"
+              >
+                <Icon name="archive" className="h-3.5 w-3.5" />
+                <span>Archive ({selectedIds.length})</span>
+              </button>
+            )}
             <button type="button" onClick={() => setSelectedIds([])} className="rounded-lg px-2 py-2 text-xs font-bold text-[#64748b]">Clear</button>
             <button
               type="button"
@@ -1913,13 +2166,33 @@ function LeadsView({ leads, allLeads, counts, users, lists, statusFilter, setSta
             <td className="px-3 py-3 text-xs text-[#475569]">{text(lead, "assigned_name") || "Unassigned"}</td>
             <td className="px-3 py-3 text-right">
               <div className="flex items-center justify-end gap-1.5">
-                <button
-                  disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"}
-                  onClick={() => onDial(lead)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"
-                >
-                  <Icon name="phone" className="h-3.5 w-3.5"/>Dial
-                </button>
+                {Boolean(lead.archived) ? (
+                  <button
+                    title="Restore lead to active list"
+                    onClick={(e) => { e.stopPropagation(); void restoreSingleLead(text(lead, "id")); }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition shadow-xs"
+                  >
+                    <Icon name="restore" className="h-3.5 w-3.5" />
+                    <span>Restore</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      disabled={Boolean(lead.do_not_call) || text(lead, "status") === "closed"}
+                      onClick={() => onDial(lead)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf5fc] px-3 py-2 text-xs font-bold text-[#1266c4] hover:bg-[#e1effb] transition disabled:cursor-not-allowed disabled:bg-[#f1f5f9] disabled:text-[#94a3b8]"
+                    >
+                      <Icon name="phone" className="h-3.5 w-3.5"/>Dial
+                    </button>
+                    <button
+                      title="Archive lead"
+                      onClick={(e) => { e.stopPropagation(); void archiveSingleLead(text(lead, "id")); }}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-[#94a3b8] hover:bg-slate-100 hover:text-slate-700 transition"
+                    >
+                      <Icon name="archive" className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
                 <button
                   title="Delete lead"
                   onClick={(e) => { e.stopPropagation(); if (onRequestDeleteLead) onRequestDeleteLead(text(lead, "id"), leadName(lead)); }}

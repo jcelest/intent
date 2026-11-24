@@ -69,11 +69,11 @@ test("Dialer Assigned Lead Metrics Verification Suite", async (t) => {
       const testUser = users[0];
       const personalCounts = await sql`
         SELECT
-          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id})::int AS assigned_to_me,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'to_call' AND do_not_call = FALSE)::int AS assigned_to_me_to_call,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'try_again' AND do_not_call = FALSE)::int AS assigned_to_me_try_again,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'follow_up' AND do_not_call = FALSE)::int AS assigned_to_me_follow_up,
-          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND (status = 'closed' OR do_not_call = TRUE))::int AS assigned_to_me_closed
+          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND COALESCE(archived, FALSE) = FALSE)::int AS assigned_to_me,
+          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'to_call' AND do_not_call = FALSE AND COALESCE(archived, FALSE) = FALSE)::int AS assigned_to_me_to_call,
+          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'try_again' AND do_not_call = FALSE AND COALESCE(archived, FALSE) = FALSE)::int AS assigned_to_me_try_again,
+          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND status = 'follow_up' AND do_not_call = FALSE AND COALESCE(archived, FALSE) = FALSE)::int AS assigned_to_me_follow_up,
+          COUNT(*) FILTER (WHERE assigned_user_id = ${testUser.id} AND (status = 'closed' OR do_not_call = TRUE) AND COALESCE(archived, FALSE) = FALSE)::int AS assigned_to_me_closed
         FROM dialer_leads
       `;
       const p = personalCounts[0];
@@ -83,5 +83,26 @@ test("Dialer Assigned Lead Metrics Verification Suite", async (t) => {
         "Setter's sub-breakdowns must equal their total assigned count"
       );
     }
+  });
+
+  await t.test("3. Lead archiving and unarchiving integrity", async () => {
+    // Check that archived column exists
+    const cols = await sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'dialer_leads' AND column_name IN ('archived', 'archived_at')
+    `;
+    assert.strictEqual(cols.length, 2, "dialer_leads must contain archived and archived_at columns");
+
+    // Check counts separating active and archived
+    const counts = await sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = FALSE)::int AS active,
+        COUNT(*) FILTER (WHERE COALESCE(archived, FALSE) = TRUE)::int AS archived
+      FROM dialer_leads
+    `;
+    assert.ok(counts.length > 0);
+    assert.strictEqual(counts[0].active + counts[0].archived, counts[0].total, "active + archived must equal total");
   });
 });
