@@ -87,6 +87,7 @@ export async function createDialerSession(userId: string, userAgent: string) {
 }
 
 export async function getDialerSession(request?: Request): Promise<DialerUser | null> {
+  void request;
   const cookieStore = await cookies();
   const token = cookieStore.get(DIALER_SESSION_COOKIE)?.value;
   if (token) {
