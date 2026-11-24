@@ -28,6 +28,64 @@ type LeadInput = {
   metadata?: Record<string, unknown>;
 };
 
+function extractLeadNames(input: LeadInput): { firstName: string | null; lastName: string | null } {
+  let first = input.firstName?.trim() || null;
+  let last = input.lastName?.trim() || null;
+  if (first || last) return { firstName: first, lastName: last };
+
+  const meta = (input.metadata || {}) as Record<string, unknown>;
+  const rawCandidate = String(
+    meta.owner_name ||
+    meta.business_owner ||
+    meta.raw_contractor_name ||
+    meta.contractor_name ||
+    meta.licensee_owner ||
+    meta.contact ||
+    ""
+  ).trim();
+
+  let targetStr = rawCandidate;
+  if (!targetStr && meta.all_csv_fields && typeof meta.all_csv_fields === "object") {
+    const allCsv = meta.all_csv_fields as Record<string, string>;
+    for (const [key, val] of Object.entries(allCsv)) {
+      const lk = key.toLowerCase();
+      if (
+        (lk.includes("ask for") || lk.includes("licensee") || lk.includes("qualifier") || lk.includes("owner") || lk.includes("contact")) &&
+        !lk.includes("company") && !lk.includes("business name") && !lk.includes("phone") && !lk.includes("email") && !lk.includes("address")
+      ) {
+        const strVal = String(val || "").trim();
+        if (strVal) {
+          targetStr = strVal;
+          break;
+        }
+      }
+    }
+  }
+
+  if (targetStr) {
+    const primaryPart = targetStr.split("/")[0].trim();
+    const cleanName = primaryPart.replace(/\([^)]*\)/g, "").replace(/\b(P:|MGR:|AMBR:|Mana:|AR:|VP:|PRES:|DIR:|OFFI:)\b/gi, "").trim();
+    const toTitleCase = (s: string) => (!s ? "" : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+    if (cleanName.includes(",")) {
+      const [lPart, fPart] = cleanName.split(",").map((s) => s.trim());
+      const fTokens = fPart.split(/\s+/).filter(Boolean);
+      const lTokens = lPart.split(/\s+/).filter(Boolean);
+      first = fTokens.map(toTitleCase).join(" ") || null;
+      last = lTokens.map(toTitleCase).join(" ") || null;
+    } else {
+      const tokens = cleanName.split(/\s+/).filter(Boolean);
+      if (tokens.length === 1) {
+        first = toTitleCase(tokens[0]);
+      } else if (tokens.length > 1) {
+        first = toTitleCase(tokens[0]);
+        last = tokens.slice(1).map(toTitleCase).join(" ");
+      }
+    }
+  }
+
+  return { firstName: first, lastName: last };
+}
+
 export async function GET(request: Request) {
   const auth = await requireDialerSession(request);
   if (auth.response || !auth.user) return auth.response;
@@ -108,6 +166,7 @@ export async function POST(request: Request) {
       continue;
     }
     try {
+      const { firstName, lastName } = extractLeadNames(input);
       const disposition = DISPOSITIONS.includes(input.disposition as Disposition) ? input.disposition as Disposition : null;
       const hasCategory = Boolean(input.status || disposition || input.doNotCall);
       const status = input.doNotCall ? "closed" : disposition ? statusForDisposition(disposition) : LEAD_STATUSES.includes(input.status as LeadStatus) ? input.status as LeadStatus : "to_call";
@@ -125,8 +184,8 @@ export async function POST(request: Request) {
         const metadataJson = JSON.stringify(input.metadata || {});
         const rows = await sql`
           UPDATE dialer_leads SET
-            first_name = COALESCE(${input.firstName?.trim() || null}, first_name),
-            last_name = COALESCE(${input.lastName?.trim() || null}, last_name),
+            first_name = COALESCE(${firstName}, first_name),
+            last_name = COALESCE(${lastName}, last_name),
             company = COALESCE(${input.company?.trim() || null}, company),
             title = COALESCE(${input.title?.trim() || null}, title),
             email = COALESCE(${input.email?.trim() || null}, email),
@@ -157,7 +216,7 @@ export async function POST(request: Request) {
             postal_code, timezone, source, notes, status, disposition, next_call_at, do_not_call,
             assigned_user_id, metadata, created_by
           ) VALUES (
-            ${input.firstName?.trim() || null}, ${input.lastName?.trim() || null}, ${input.company?.trim() || null},
+            ${firstName}, ${lastName}, ${input.company?.trim() || null},
             ${input.title?.trim() || null}, ${phone}, ${input.phone || phone}, ${input.email?.trim() || null},
             ${input.city?.trim() || null}, ${input.state?.trim() || null}, ${input.postalCode?.trim() || null},
             ${input.timezone || timezoneForState(input.state)}, ${input.source?.trim() || "manual"},

@@ -107,7 +107,24 @@ function getBusinessOwner(lead: Row | null | undefined): string {
     || text(meta, "contractor_name")
     || text(meta, "licensee_owner")
     || text(meta, "contact");
-  return fromMeta.trim();
+  if (fromMeta.trim()) return fromMeta.trim();
+
+  const allCsv = (meta.all_csv_fields || {}) as Record<string, string>;
+  for (const [k, v] of Object.entries(allCsv)) {
+    const lk = k.toLowerCase();
+    if (
+      (lk.includes("ask for") || lk.includes("licensee") || lk.includes("qualifier") || lk.includes("owner") || lk.includes("contact")) &&
+      !lk.includes("company") && !lk.includes("business name") && !lk.includes("phone") && !lk.includes("email") && !lk.includes("address")
+    ) {
+      const val = String(v || "").trim();
+      if (val) {
+        const parsed = parseOwnerName(val);
+        return parsed.fullName || val;
+      }
+    }
+  }
+
+  return "";
 }
 
 function googleSearchUrl(company: string, city?: string, state?: string): string {
@@ -117,7 +134,10 @@ function googleSearchUrl(company: string, city?: string, state?: string): string
 
 function leadName(lead: Row | null | undefined) {
   const name = `${text(lead, "first_name")} ${text(lead, "last_name")}`.trim();
-  return name || text(lead, "company") || "Unnamed lead";
+  if (name) return name;
+  const owner = getBusinessOwner(lead);
+  if (owner) return owner;
+  return text(lead, "company") || "Unnamed lead";
 }
 
 function formatPhone(value: unknown) {
@@ -237,12 +257,32 @@ function parseLeadCsv(input: string): ParsedLead[] {
   };
 
   return rows.slice(1).map((row) => {
-    const rawOwner = get(row,
+    let rawOwner = get(row,
+      "ask for (licensee/qualifier)",
+      "ask for (licensee / qualifier)",
+      "ask for (qualifier/licensee)",
+      "ask for (qualifier / licensee)",
+      "ask for licensee",
+      "ask for qualifier",
+      "ask for",
+      "licensee / qualifier",
+      "licensee/qualifier",
+      "qualifier / licensee",
+      "qualifier/licensee",
       "verified licensee / owner (dbpr & sunbiz)",
       "contractor_name",
       "contractor name",
       "licensee / owner",
       "licensee owner",
+      "licensee",
+      "qualifier",
+      "licensee name",
+      "qualifier name",
+      "primary qualifier",
+      "decision maker",
+      "contact person",
+      "prospect name",
+      "lead name",
       "business owner",
       "business owner name",
       "owner",
@@ -252,6 +292,20 @@ function parseLeadCsv(input: string): ParsedLead[] {
       "full name",
       "name"
     );
+
+    if (!rawOwner) {
+      const fuzzyIdx = headers.findIndex((h, idx) => {
+        const rawH = (rawHeaders[idx] || "").toLowerCase();
+        if (rawH.includes("company") || rawH.includes("business name") || rawH.includes("dba") || rawH.includes("email") || rawH.includes("phone") || rawH.includes("address")) {
+          return false;
+        }
+        return h.includes("askfor") || h.includes("licensee") || h.includes("qualifier") || (h.includes("owner") && !h.includes("hours")) || (h.includes("contact") && !h.includes("email") && !h.includes("phone"));
+      });
+      if (fuzzyIdx >= 0) {
+        rawOwner = (row[fuzzyIdx] || "").trim();
+      }
+    }
+
     const explicitFirst = get(row, "first name", "firstname", "contact first name");
     const explicitLast = get(row, "last name", "lastname", "contact last name");
 
