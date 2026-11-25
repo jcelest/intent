@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { createHash } from "node:crypto";
 import {
   opportunityFingerprint,
   validateCanonicalOpportunity,
@@ -20,14 +21,16 @@ export async function ingestOpportunityBatch(sourceId: string, records: Canonica
       const errors = validateCanonicalOpportunity(record);
       if (errors.length) { failed++; continue; }
       const hash = opportunityFingerprint(sourceId, record);
+      const { sourcePayload, ...canonicalRecord } = record;
+      const canonicalHash = createHash("sha256").update(JSON.stringify(canonicalRecord)).digest("hex");
       const existingRows = await queryDb(
         `SELECT id, status, source_payload FROM oi_opportunities WHERE source_id=$1 AND source_record_id=$2 LIMIT 1`,
         [sourceId, record.sourceRecordId],
       );
       const existing = existingRows[0];
       const existingPayload = existing?.source_payload as Row | undefined;
-      const incomingPayload = (record.sourcePayload || {}) as Row;
-      if (existing && existing.status === record.status && existingPayload?.contentHash && existingPayload.contentHash === incomingPayload.contentHash) {
+      const incomingPayload = { ...((sourcePayload || {}) as Row), canonicalHash };
+      if (existing && existingPayload?.canonicalHash === canonicalHash) {
         unchanged++;
         duplicates++;
         await queryDb(
@@ -55,7 +58,7 @@ export async function ingestOpportunityBatch(sourceId: string, records: Canonica
           source_url=EXCLUDED.source_url, source_document_url=EXCLUDED.source_document_url,
           source_payload=EXCLUDED.source_payload, last_verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
         RETURNING id, (xmax = 0) AS was_inserted`,
-        [sourceId, record.sourceRecordId, hash, record.title, record.summary || null, record.tradeSlug || null, record.classification, record.status, record.geographicScopeType, record.address || null, record.city || null, record.county || null, record.county ? [record.county] : [], record.zipCode || null, record.latitude ?? null, record.longitude ?? null, record.documentedValue ?? null, record.estimatedValue ?? null, record.valueEstimationMethodology || null, record.procurementDeadline || null, record.evidenceConfidence ?? null, record.classificationRationale, record.sourceUrl, record.sourceDocumentUrl || null, JSON.stringify(record.sourcePayload || {})],
+        [sourceId, record.sourceRecordId, hash, record.title, record.summary || null, record.tradeSlug || null, record.classification, record.status, record.geographicScopeType, record.address || null, record.city || null, record.county || null, record.county ? [record.county] : [], record.zipCode || null, record.latitude ?? null, record.longitude ?? null, record.documentedValue ?? null, record.estimatedValue ?? null, record.valueEstimationMethodology || null, record.procurementDeadline || null, record.evidenceConfidence ?? null, record.classificationRationale, record.sourceUrl, record.sourceDocumentUrl || null, JSON.stringify(incomingPayload)],
       );
       if (rows[0]?.was_inserted) inserted++; else { updated++; duplicates++; }
       if (existing && existing.status !== record.status) {
