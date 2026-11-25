@@ -123,19 +123,21 @@ export function IntentAtlas() {
     const properties = active.has("properties") ? all.filter((feature) => feature.properties?.featureType === "property" && withinGeoFilter(feature)) : [];
     const permits = all.filter((feature) => feature.properties?.featureType === "permit" && matchesPermit(feature, active) && withinGeoFilter(feature));
     const equipment = all.filter((feature) => feature.properties?.featureType === "equipment" && (active.has("automation") || active.has("hvac_equipment") || active.has("refrigeration")) && withinGeoFilter(feature));
+    const portfolios = active.has("portfolios") ? all.filter((feature) => feature.properties?.featureType === "portfolio" && withinGeoFilter(feature)) : [];
     (map.getSource("oi-opportunities") as GeoJSONSource | undefined)?.setData(asCollection(opportunities));
     (map.getSource("oi-density") as GeoJSONSource | undefined)?.setData(asCollection(opportunities));
     (map.getSource("oi-regional") as GeoJSONSource | undefined)?.setData(asCollection(regional));
     (map.getSource("oi-properties") as GeoJSONSource | undefined)?.setData(asCollection(properties));
     (map.getSource("oi-permits") as GeoJSONSource | undefined)?.setData(asCollection(permits));
     (map.getSource("oi-equipment") as GeoJSONSource | undefined)?.setData(asCollection(equipment));
-    setRecordCount(opportunities.length + properties.length + permits.length + equipment.length);
+    (map.getSource("oi-portfolios") as GeoJSONSource | undefined)?.setData(asCollection(portfolios));
+    setRecordCount(opportunities.length + properties.length + permits.length + equipment.length + portfolios.length);
     setRegionalCount(regional.length);
   }, []);
 
   const installDataLayers = useCallback((map: MapLibreMap) => {
     const source = (id: string, clustered = false) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: EMPTY, ...(clustered ? { cluster: true, clusterRadius: 52, clusterMaxZoom: 12 } : {}) }); };
-    source("oi-opportunities", true); source("oi-density"); source("oi-regional"); source("oi-properties", true); source("oi-permits", true); source("oi-equipment", true);
+    source("oi-opportunities", true); source("oi-density"); source("oi-regional"); source("oi-properties", true); source("oi-permits", true); source("oi-equipment", true); source("oi-portfolios", true);
     if (!map.getSource("oi-drawn-area")) map.addSource("oi-drawn-area", { type: "geojson", data: EMPTY });
     const add = (layer: Parameters<MapLibreMap["addLayer"]>[0]) => { if (!map.getLayer(layer.id)) map.addLayer(layer); };
     add({ id: "oi-density-heat", type: "heatmap", source: "oi-density", layout: { visibility: "none" }, paint: { "heatmap-weight": 1, "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 4, 0.6, 13, 2.2], "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.2, "#475569", 0.45, "#0ea5e9", 0.72, "#f59e0b", 1, "#34d399"], "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 4, 13, 13, 45], "heatmap-opacity": 0.82 } });
@@ -149,6 +151,8 @@ export function IntentAtlas() {
     add({ id: "oi-regional-labels", type: "symbol", source: "oi-regional", layout: { "text-field": ["to-string", ["get", "opportunityCount"]], "text-size": 10 }, paint: { "text-color": "#ffffff" } });
     add({ id: "oi-permit-points", type: "circle", source: "oi-permits", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#f97316", "circle-radius": 5, "circle-stroke-color": "#431407", "circle-stroke-width": 1 } });
     add({ id: "oi-equipment-points", type: "circle", source: "oi-equipment", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#38bdf8", "circle-radius": 6, "circle-stroke-color": "#082f49", "circle-stroke-width": 1.2 } });
+    add({ id: "oi-portfolio-clusters", type: "circle", source: "oi-portfolios", filter: ["has", "point_count"], paint: { "circle-color": "#c084fc", "circle-radius": 14, "circle-opacity": 0.7, "circle-stroke-color": "#3b0764", "circle-stroke-width": 1.5 } });
+    add({ id: "oi-portfolio-points", type: "circle", source: "oi-portfolios", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#c084fc", "circle-radius": 5, "circle-stroke-color": "#3b0764", "circle-stroke-width": 1.2 } });
     add({ id: "oi-drawn-fill", type: "fill", source: "oi-drawn-area", paint: { "fill-color": "#fbbf24", "fill-opacity": 0.1 } });
     add({ id: "oi-drawn-line", type: "line", source: "oi-drawn-area", paint: { "line-color": "#fbbf24", "line-width": 2, "line-dasharray": [2, 2] } });
   }, []);
@@ -158,7 +162,7 @@ export function IntentAtlas() {
     if (!map) return;
     setLoading(true);
     const bounds = map.getBounds();
-    const params = new URLSearchParams({ bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(","), layers: "opportunities,solicitations,renewals,relationships,properties,permits,equipment" });
+    const params = new URLSearchParams({ bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(","), layers: "opportunities,solicitations,renewals,relationships,properties,portfolios,permits,equipment" });
     selectedCountiesRef.current.forEach((county) => params.append("county", county));
     try {
       const response = await fetch(`/api/opportunity-intelligence/hub/atlas?${params}`, { cache: "no-store" });
@@ -206,7 +210,7 @@ export function IntentAtlas() {
       });
       map.on("click", (event: MapMouseEvent) => {
         if (drawModeRef.current) return;
-        const layers = ["oi-points", "oi-regional-points", "oi-properties-points", "oi-permit-points", "oi-equipment-points", "oi-clusters", "oi-property-clusters"].filter((id) => map.getLayer(id));
+        const layers = ["oi-points", "oi-regional-points", "oi-properties-points", "oi-permit-points", "oi-equipment-points", "oi-portfolio-points", "oi-clusters", "oi-property-clusters", "oi-portfolio-clusters"].filter((id) => map.getLayer(id));
         const features = map.queryRenderedFeatures(event.point, { layers });
         const feature = features[0];
         if (!feature) { setSelected(null); setInspectorCollapsed(true); return; }

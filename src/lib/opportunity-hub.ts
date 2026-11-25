@@ -41,6 +41,8 @@ export interface OpportunityRecord {
   sourceName: string | null;
   sourceUrl: string | null;
   sourceDocumentUrl: string | null;
+  isStale: boolean;
+  amendmentCount: number;
   discoveredAt: string;
   lastVerifiedAt: string | null;
 }
@@ -124,6 +126,8 @@ const UNIVERSAL_FEED_SQL = `
     s.source_name,
     o.source_url,
     o.source_document_url,
+    o.is_stale,
+    o.amendment_count,
     o.discovered_at,
     o.last_verified_at
   FROM oi_opportunities o
@@ -169,6 +173,8 @@ const UNIVERSAL_FEED_SQL = `
     ps.agency_name AS source_name,
     b.source_url,
     NULL::text AS source_document_url,
+    FALSE AS is_stale,
+    0::integer AS amendment_count,
     b.created_at AS discovered_at,
     ps.last_successful_at AS last_verified_at
   FROM fl_commercial_bids b
@@ -232,6 +238,8 @@ function mapOpportunity(row: DbRow): OpportunityRecord {
     sourceName: text(row.source_name),
     sourceUrl: text(row.source_url),
     sourceDocumentUrl: text(row.source_document_url),
+    isStale: Boolean(row.is_stale),
+    amendmentCount: number(row.amendment_count) || 0,
     discoveredAt: iso(row.discovered_at) || new Date(0).toISOString(),
     lastVerifiedAt: iso(row.last_verified_at),
   };
@@ -344,16 +352,18 @@ export async function getOpportunityDetail(id: string) {
   const opportunity = mapOpportunity(rows[0]);
 
   if (opportunity.sourceType === "legacy_procurement") {
-    return { opportunity, properties: [], organizations: [], evidence: [], equipment: [] };
+    return { opportunity, properties: [], organizations: [], evidence: [], equipment: [], documents: [], statusHistory: [] };
   }
 
-  const [properties, organizations, evidence, equipment] = await Promise.all([
+  const [properties, organizations, evidence, equipment, documents, statusHistory] = await Promise.all([
     queryDb(`SELECT p.*, op.relationship_type FROM oi_opportunity_properties op JOIN oi_properties p ON p.id = op.property_id WHERE op.opportunity_id = $1 ORDER BY p.situs_address`, [id]),
     queryDb(`SELECT org.*, oo.relationship_type FROM oi_opportunity_organizations oo JOIN oi_organizations org ON org.id = oo.organization_id WHERE oo.opportunity_id = $1 ORDER BY org.legal_name`, [id]),
     queryDb(`SELECT * FROM oi_opportunity_evidence WHERE opportunity_id = $1 ORDER BY is_direct_evidence DESC, verified_at DESC NULLS LAST`, [id]),
     queryDb(`SELECT e.* FROM oi_equipment e JOIN oi_opportunity_properties op ON op.property_id = e.property_id WHERE op.opportunity_id = $1 ORDER BY e.equipment_type`, [id]),
+    queryDb(`SELECT id, title, document_type, version_label, version_number, document_url, published_at, fetched_at, extraction_status, sha256, is_current FROM oi_source_documents WHERE opportunity_id = $1 ORDER BY published_at DESC NULLS LAST, title`, [id]),
+    queryDb(`SELECT previous_status, new_status, reason, source_event_at, detected_at FROM oi_opportunity_status_history WHERE opportunity_id = $1 ORDER BY detected_at DESC`, [id]),
   ]);
-  return { opportunity, properties, organizations, evidence, equipment };
+  return { opportunity, properties, organizations, evidence, equipment, documents, statusHistory };
 }
 
 export async function getHubOverview(): Promise<HubOverview> {
@@ -439,11 +449,17 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const bboxWhere = bboxPredicate(params, "latitude", "longitude", filters.bbox);
     if (counties.length) params.push(counties);
     const countyWhere = counties.length ? `AND county = ANY($${params.length}::text[])` : "";
+    const opportunityFilters: string[] = [];
+    if (filters.classifications?.length) { params.push(filters.classifications); opportunityFilters.push(`classification = ANY($${params.length}::text[])`); }
+    if (filters.statuses?.length) { params.push(filters.statuses); opportunityFilters.push(`status = ANY($${params.length}::text[])`); }
+    if (filters.trades?.length) { params.push(filters.trades); opportunityFilters.push(`trade_slug = ANY($${params.length}::text[])`); }
+    if (filters.search?.trim()) { params.push(`%${filters.search.trim()}%`); opportunityFilters.push(`(title ILIKE $${params.length} OR summary ILIKE $${params.length})`); }
+    const opportunityWhere = opportunityFilters.length ? `AND ${opportunityFilters.join(" AND ")}` : "";
     const rows = await queryDb(
       `WITH opportunity_feed AS (${UNIVERSAL_FEED_SQL})
        SELECT * FROM opportunity_feed
-       WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere}
-       ORDER BY discovered_at DESC LIMIT 5000`,
+       WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere} ${opportunityWhere}
+       ORDER BY discovered_at DESC`,
       params,
     );
     for (const row of rows) {
@@ -459,31 +475,40 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const regionalParams: unknown[] = [];
     if (counties.length) regionalParams.push(counties);
     const regionalCountyWhere = counties.length ? `AND county = ANY($1::text[])` : "";
+    const regionalFilters: string[] = [];
+    if (filters.classifications?.length) { regionalParams.push(filters.classifications); regionalFilters.push(`classification = ANY($${regionalParams.length}::text[])`); }
+    if (filters.statuses?.length) { regionalParams.push(filters.statuses); regionalFilters.push(`status = ANY($${regionalParams.length}::text[])`); }
+    if (filters.trades?.length) { regionalParams.push(filters.trades); regionalFilters.push(`trade_slug = ANY($${regionalParams.length}::text[])`); }
+    if (filters.search?.trim()) { regionalParams.push(`%${filters.search.trim()}%`); regionalFilters.push(`(title ILIKE $${regionalParams.length} OR summary ILIKE $${regionalParams.length})`); }
+    const regionalFilterWhere = regionalFilters.length ? `AND ${regionalFilters.join(" AND ")}` : "";
     const regionalRows = await queryDb(
       `WITH opportunity_feed AS (${UNIVERSAL_FEED_SQL})
-       SELECT county, classification, count(*)::int AS opportunity_count,
+       SELECT CASE WHEN county IS NULL AND geographic_scope_type = 'statewide' THEN 'Statewide' ELSE county END AS region,
+              classification, count(*)::int AS opportunity_count,
               COALESCE(sum(documented_value), 0)::numeric AS documented_value
        FROM opportunity_feed
-       WHERE (latitude IS NULL OR longitude IS NULL) AND county IS NOT NULL ${regionalCountyWhere}
-       GROUP BY county, classification`,
+       WHERE (latitude IS NULL OR longitude IS NULL)
+         AND (county IS NOT NULL OR geographic_scope_type = 'statewide') ${regionalCountyWhere} ${regionalFilterWhere}
+       GROUP BY region, classification`,
       regionalParams,
     );
     for (const row of regionalRows) {
-      const county = COUNTY_BY_NAME.get(String(row.county).toLowerCase());
-      if (!county) continue;
+      const statewide = String(row.region) === "Statewide";
+      const county = statewide ? null : COUNTY_BY_NAME.get(String(row.region).toLowerCase());
+      if (!statewide && !county) continue;
       features.push({
         type: "Feature",
-        id: `regional:${county.fips}:${row.classification}`,
-        geometry: { type: "Point", coordinates: [county.lng, county.lat] },
+        id: `regional:${statewide ? "fl" : county?.fips}:${row.classification}`,
+        geometry: { type: "Point", coordinates: statewide ? [-82.3, 28.15] : [county!.lng, county!.lat] },
         properties: {
           featureType: "regional_aggregate",
-          renderMode: "county_aggregate",
-          county: county.name,
+          renderMode: statewide ? "statewide_aggregate" : "county_aggregate",
+          county: county?.name || null,
           classification: String(row.classification),
           opportunityCount: Number(row.opportunity_count || 0),
           documentedValue: Number(row.documented_value || 0),
-          title: `${county.name} County regional records`,
-          geographicScopeType: "county",
+          title: statewide ? "Florida statewide records" : `${county!.name} County regional records`,
+          geographicScopeType: statewide ? "statewide" : "county",
         },
       });
     }
@@ -530,13 +555,12 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
   }
 
   if (layers.has("equipment")) {
-    const rows = await queryDb(`SELECT e.id, e.equipment_type, e.manufacturer, e.model, e.unit_count, e.individual_capacity_tons, e.aggregate_capacity_tons, e.capacity_is_estimated, e.installation_date, e.controls_platform, e.evidence_url, p.name, p.situs_address, p.city, p.county, p.zip_code, p.latitude, p.longitude FROM oi_equipment e JOIN oi_properties p ON p.id = e.property_id WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL ORDER BY e.updated_at DESC LIMIT 5000`);
+    const equipmentParams: unknown[] = [];
+    const equipmentBboxWhere = bboxPredicate(equipmentParams, "p.latitude", "p.longitude", filters.bbox);
+    if (counties.length) equipmentParams.push(counties);
+    const equipmentCountyWhere = counties.length ? `AND p.county = ANY($${equipmentParams.length}::text[])` : "";
+    const rows = await queryDb(`SELECT e.id, e.equipment_type, e.manufacturer, e.model, e.unit_count, e.individual_capacity_tons, e.aggregate_capacity_tons, e.capacity_is_estimated, e.installation_date, e.controls_platform, e.evidence_url, p.name, p.situs_address, p.city, p.county, p.zip_code, p.latitude, p.longitude FROM oi_equipment e JOIN oi_properties p ON p.id = e.property_id WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL AND ${equipmentBboxWhere} ${equipmentCountyWhere} ORDER BY e.updated_at DESC LIMIT 5000`, equipmentParams);
     for (const row of rows) {
-      if (filters.bbox) {
-        const [west, south, east, north] = filters.bbox;
-        if (Number(row.longitude) < west || Number(row.longitude) > east || Number(row.latitude) < south || Number(row.latitude) > north) continue;
-      }
-      if (counties.length && !counties.includes(String(row.county))) continue;
       features.push({ type: "Feature", id: `equipment:${row.id}`, geometry: { type: "Point", coordinates: [Number(row.longitude), Number(row.latitude)] }, properties: { ...row, featureType: "equipment", classification: "equipment", renderMode: "documented_location" } });
     }
   }
@@ -608,7 +632,7 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
       documentedLocations: features.filter((feature) => (feature.properties as DbRow).renderMode === "documented_location").length,
       regionalAggregates: features.filter((feature) => (feature.properties as DbRow).renderMode === "county_aggregate").length,
       generatedAt: new Date().toISOString(),
-      notice: "County centroids are used only for clearly labeled regional aggregates, never as property coordinates.",
+      notice: "County and statewide centroids are used only for clearly labeled aggregates, never as property coordinates.",
     },
   };
 }

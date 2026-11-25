@@ -18,6 +18,10 @@ export async function GET(request: Request) {
       bbox,
       counties: url.searchParams.getAll("county").flatMap((value) => value.split(",")).filter(Boolean),
       layers: (url.searchParams.get("layers") || "").split(",").filter(Boolean),
+      trades: url.searchParams.getAll("trade").flatMap((value) => value.split(",")).filter(Boolean),
+      classifications: url.searchParams.getAll("classification").flatMap((value) => value.split(",")).filter(Boolean) as Array<"confirmed" | "timing_based" | "asset_based" | "relationship" | "inferred">,
+      statuses: url.searchParams.getAll("status").flatMap((value) => value.split(",")).filter(Boolean),
+      search: url.searchParams.get("search") || undefined,
     });
     return NextResponse.json({ ok: true, data: result });
   } catch (error) {

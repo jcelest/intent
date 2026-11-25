@@ -138,23 +138,11 @@ class SerperSearchProvider implements PluggableSearchProvider {
  * Used when external API keys are not provided in environment.
  * Generates verified official result items with legitimate evidence URLs.
  */
-class DeterministicVerifiedProvider implements PluggableSearchProvider {
-  async search(query: string): Promise<SearchResultItem[]> {
-    const clean = query.replace(/["]/g, "");
-    const slug = clean.toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, "-");
-
-    return [
-      {
-        title: `${clean} - Official Portal & Business Information`,
-        link: `https://www.${slug.slice(0, 30)}.com/`,
-        snippet: `${clean} official operations in Florida. Verified commercial trade licensing and active regional presence.`,
-      },
-      {
-        title: `${clean} - Florida Division of Corporations`,
-        link: `https://search.sunbiz.org/Inquiry/CorporationSearch/ByName?search=${encodeURIComponent(clean)}`,
-        snippet: `Florida active entity filing records and registered agent information for ${clean}.`,
-      },
-    ];
+class UnconfiguredSearchProvider implements PluggableSearchProvider {
+  async search(): Promise<SearchResultItem[]> {
+    throw new Error(
+      "SEARCH_PROVIDER_NOT_CONFIGURED: set GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX, or SERPER_API_KEY",
+    );
   }
 }
 
@@ -171,7 +159,7 @@ export function getPluggableSearchProvider(): PluggableSearchProvider {
   if (process.env.SERPER_API_KEY) {
     return new SerperSearchProvider(process.env.SERPER_API_KEY);
   }
-  return new DeterministicVerifiedProvider();
+  return new UnconfiguredSearchProvider();
 }
 
 /**

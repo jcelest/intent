@@ -465,7 +465,7 @@ export async function ensureOpportunitySeedData(): Promise<void> {
           ) VALUES (
             ${s.id}, ${s.agencyName}, ${s.agencyType}, ${s.county || null}, ${s.city || null}, ${s.state},
             ${s.portalUrl}, ${s.publishingPlatform}, ${s.collectionMethod},
-            ${s.supportedFormat}, ${s.accessRequirements}, ${s.status}, ${s.collectionFrequency}
+            ${s.supportedFormat}, ${s.accessRequirements}, 'discovered', ${s.collectionFrequency}
           )
           ON CONFLICT (id) DO NOTHING
         `;
@@ -522,7 +522,7 @@ export async function getOpportunityOverviewStats(): Promise<OpportunityOverview
       activeOutreachCount: Number(row.active_outreach || 0),
       activeSourcesCount: Number(row.active_sources || 0),
       failedSourcesCount: Number(row.failed_sources || 0),
-      lastSuccessfulRefresh: row.last_refresh ? new Date(String(row.last_refresh)).toISOString() : new Date().toISOString(),
+      lastSuccessfulRefresh: row.last_refresh ? new Date(String(row.last_refresh)).toISOString() : null,
     };
   } catch (error) {
     console.error("Failed calculating opportunity stats:", error);
@@ -1004,32 +1004,22 @@ export async function runCollectionJob(jobType: string, targetSourceId?: string)
     `;
     const jobId = String((jobRows[0] as Record<string, unknown>).id);
 
-    let seen = 0;
-    let added = 0;
-    let updated = 0;
-
-    if (jobType === "all_sources" || jobType === "county_procurement") {
-      seen = ALL_FLORIDA_PROCUREMENT_SOURCES.length;
-      added = 2;
-      updated = 14;
-    } else {
-      seen = 12;
-      added = 1;
-      updated = 3;
-    }
+    const errorMessage = "No operational collector is registered for job type: " + jobType;
 
     await sql`
       UPDATE fl_collection_jobs
       SET 
-        status = 'completed',
-        records_seen = ${seen},
-        records_added = ${added},
-        records_updated = ${updated},
+        status = 'failed',
+        records_seen = 0,
+        records_added = 0,
+        records_updated = 0,
+        records_failed = 0,
+        error_message = ${errorMessage},
         finished_at = CURRENT_TIMESTAMP
       WHERE id = ${jobId}
     `;
 
-    return { success: true, jobId };
+    return { success: false, jobId };
   } catch (error) {
     console.error("Failed running collection job:", error);
     return { success: false, jobId: "" };

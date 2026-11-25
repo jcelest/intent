@@ -13,6 +13,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const migrationPaths = [
   resolve(scriptDir, "..", "migrations", "009_universal_opportunity_hub.sql"),
   resolve(scriptDir, "..", "migrations", "010_opportunity_map_activation.sql"),
+  resolve(scriptDir, "..", "migrations", "011_opportunity_operational_integrity.sql"),
 ];
 const sql = neon(databaseUrl);
 

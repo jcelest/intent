@@ -89,49 +89,6 @@ export default function B2BPage() {
           </div>
         </section>
 
-        <section
-          aria-labelledby="result-heading"
-          className="border-y border-border bg-slate-950/80 px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
-        >
-          <div className="mx-auto max-w-6xl">
-            <p className="font-mono text-xs font-semibold uppercase tracking-[0.24em] text-accent sm:text-sm">
-              One Central Florida HVAC client
-            </p>
-            <h2
-              id="result-heading"
-              className="mt-5 max-w-5xl text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl"
-            >
-              Two accounts alone generated over $24,000 in sales in just over four months.
-            </h2>
-            <p className="mt-7 max-w-4xl text-lg leading-8 text-slate-300">
-              Intent B2B helped one Central Florida HVAC contractor land five business accounts. All five sent repeat work. From late June to early November 2026, two accounts alone generated at least $24,588 in documented sales.
-            </p>
-
-            <div className="mt-9 overflow-hidden rounded-2xl border border-border bg-black/40">
-              <div className="grid gap-2 border-b border-border p-5 sm:grid-cols-[9rem_1fr] sm:items-center sm:gap-6 sm:p-6">
-                <p className="font-mono text-sm font-semibold uppercase tracking-wider text-accent">
-                  Account 1
-                </p>
-                <p className="text-base leading-7 text-slate-200 sm:text-lg">
-                  <strong className="font-semibold text-white">$21,088</strong> from late June through early November.
-                </p>
-              </div>
-              <div className="grid gap-2 p-5 sm:grid-cols-[9rem_1fr] sm:items-center sm:gap-6 sm:p-6">
-                <p className="font-mono text-sm font-semibold uppercase tracking-wider text-accent">
-                  Account 2
-                </p>
-                <p className="text-base leading-7 text-slate-200 sm:text-lg">
-                  <strong className="font-semibold text-white">$3,500</strong> documented in July and August alone. Later sales from this account are excluded from the total.
-                </p>
-              </div>
-            </div>
-
-            <p className="mt-5 max-w-4xl text-sm leading-6 text-slate-400">
-              These are documented sales for one HVAC client. The $12,000 from three installs is already included in Account 1. Client and buyer identities remain private.
-            </p>
-          </div>
-        </section>
-
         <section aria-labelledby="process-heading" className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="max-w-3xl">
