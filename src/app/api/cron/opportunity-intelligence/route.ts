@@ -11,7 +11,9 @@ export async function GET(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
-  const lane = new URL(request.url).searchParams.get("lane") || "scheduled";
+  const searchParams = new URL(request.url).searchParams;
+  const lane = searchParams.get("lane") || "scheduled";
+  const force = searchParams.get("force") === "1";
   const lanes: Record<string, string[]> = {
     hourly: ["mfmp"],
     periodic: ["sam-gov", "fdot-lettings", "miamidade", "ucf-solicitations"],
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
   }
   if (!(lane in lanes)) return NextResponse.json({ ok: false, error: "Unknown scheduler lane" }, { status: 400 });
   const adapters = lanes[lane];
-  const sources = await syncDueOpportunitySources({ limitPerSource: lane === "daily" ? 500 : 1000, adapters: adapters.length ? adapters : undefined });
+  const sources = await syncDueOpportunitySources({ force, limitPerSource: lane === "daily" ? 500 : 1000, adapters: adapters.length ? adapters : undefined });
   const documents = await fetchPendingOpportunityDocuments({ limit: 20, maxPerSource: 4 });
-  return NextResponse.json({ ok: true, lane, sources, documents });
+  return NextResponse.json({ ok: true, lane, force, sources, documents });
 }
