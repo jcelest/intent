@@ -46,7 +46,7 @@ async function extractText(buffer: Buffer, contentType: string, url: string, tit
   const declared = contentType.toLowerCase();
   const isHtml = declared.includes("text/html") || /^\s*<!doctype html|^\s*<html/i.test(buffer.subarray(0, 200).toString("utf8"));
   if (isHtml) {
-    return { status: "html_response", text: null };
+    return { status: "unsupported", text: null };
   }
   if (buffer.subarray(0, 5).toString("ascii") === "%PDF-" || declared.includes("application/pdf")) {
     return { status: "extracted", text: (await pdf(buffer)).text.trim() };

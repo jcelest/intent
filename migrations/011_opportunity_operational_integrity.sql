@@ -159,10 +159,14 @@ ON CONFLICT (source_id) DO UPDATE SET
   stale_after_minutes = EXCLUDED.stale_after_minutes,
   updated_at = CURRENT_TIMESTAMP;
 
--- Retry files classified before filename and file-signature detection was available.
+-- MFMP's public attachment route currently returns its HTML application shell, not file bytes.
 UPDATE oi_source_documents
-SET extraction_status = 'pending', updated_at = CURRENT_TIMESTAMP
-WHERE extraction_status = 'unsupported';
+SET extraction_status = 'unsupported',
+    extraction_error = 'Official MFMP attachment endpoint returned the portal application instead of document bytes.',
+    updated_at = CURRENT_TIMESTAMP
+WHERE source_id = 'fl-mfmp'
+  AND extraction_status = 'failed'
+  AND document_url LIKE 'https://vendor.myfloridamarketplace.com/mfmp/bids/detail/attachment/download%';
 
 -- Previously generated fallback domains used a hyphenated search query as the host.
 DELETE FROM fl_search_verifications
