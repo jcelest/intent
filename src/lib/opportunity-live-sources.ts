@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+// @ts-expect-error pdf-parse direct path avoids index.js debug execution
+import pdf from "pdf-parse/lib/pdf-parse.js";
 import { sql } from "@/lib/db";
 import { ingestOpportunityBatch, type CanonicalOpportunityInput } from "@/lib/opportunity-ingestion";
 import { syncOrlandoPermits } from "@/lib/trade-demand";
@@ -132,6 +134,22 @@ function dollars(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(String(value).replace(/[^0-9.-]/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function htmlCells(row: string) {
+  return Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi), (match) => match[1]);
+}
+
+function htmlLinks(fragment: string, baseUrl: string) {
+  return Array.from(fragment.matchAll(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi), (match) => ({
+    url: new URL(match[1].replace(/&amp;/gi, "&"), baseUrl).toString(),
+    title: decodeHtml(match[2]),
+  })).filter((link) => link.title && !link.url.startsWith("mailto:"));
+}
+
+function stableRecordId(prefix: string, title: string, fallback: string) {
+  const match = title.match(/\b(?:ITN|ITB|RFP|RFQ|BID|SOLE\s+SOURCE)\s*[-#:]?\s*([A-Z0-9][A-Z0-9._-]{2,})/i);
+  return `${prefix}:${match?.[1] || fallback}`.replace(/\s+/g, "-").toUpperCase();
 }
 
 const TRADE_RULES: Array<[string, RegExp]> = [
@@ -561,7 +579,9 @@ const samAdapter: SourceAdapter = {
       const title = String(item.title || item.solicitationNumber || noticeId);
       const performance = item.placeOfPerformance as Row | undefined;
       const city = performance?.city as Row | undefined;
-      const deadline = cleanDate(item.reponseDeadLine);
+      // SAM's v2 payload uses the unusually-cased `responseDeadLine` field.
+      // Retain the historical misspelling as a defensive fallback for stored/test fixtures.
+      const deadline = cleanDate(item.responseDeadLine || item.reponseDeadLine);
       const active = String(item.active).toLowerCase() === "yes" && (!deadline || new Date(deadline) >= new Date());
       const sourceUrl = `https://sam.gov/opp/${noticeId}/view`;
       const resources = Array.isArray(item.resourceLinks) ? item.resourceLinks.map(String) : [];
@@ -650,8 +670,237 @@ const orlandoPermitsAdapter: SourceAdapter = {
   },
 };
 
+const ucfSolicitationsAdapter: SourceAdapter = {
+  sourceId: "ucf-solicitations",
+  adapterKey: "ucf-solicitations",
+  async fetchRecords(limit) {
+    const sourceUrl = "https://procurement.ucf.edu/solicitations/";
+    const response = await fetchWithRetry(sourceUrl, { headers: { Accept: "text/html" } });
+    const html = await response.text();
+    const table = html.match(/<table[^>]*id=["']tablepress-1["'][^>]*>([\s\S]*?)<\/table>/i)?.[1];
+    if (!table) throw new Error("UCF_SCHEMA_CHANGED: solicitation table was not found");
+    const rows = Array.from(table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi), (match) => match[1]);
+    const records: LiveSourceRecord[] = [];
+    for (const row of rows) {
+      const cells = htmlCells(row);
+      if (cells.length < 4 || records.length >= limit) continue;
+      const links = htmlLinks(cells[0], sourceUrl);
+      if (!links.length) continue;
+      const title = links[0].title;
+      const dateText = decodeHtml(cells[3]).replace(/~~/g, "").trim();
+      const publishedDates = Array.from(dateText.matchAll(/\b(?:0?[1-9]|1[0-2])[\/-](?:0?[1-9]|[12]\d|3[01])[\/-]20\d{2}\b/g), (match) => match[0]);
+      const effectiveDate = publishedDates.at(-1) || dateText;
+      const notes = decodeHtml(cells[2]);
+      const timedDates = Array.from(notes.matchAll(/\b(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}\s+(?:at\s+|@\s*)?\d{1,2}:\d{2}\s*(?:AM|PM)/gi), (match) => match[0]);
+      const exactDeadline = timedDates.at(-1)?.replace(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+/i, "").replace(/\s+(?:at|@)\s+/i, " ");
+      const deadline = cleanDate(exactDeadline ? `${exactDeadline} -05:00` : `${effectiveDate} 23:59:59 -05:00`);
+      if (!deadline || new Date(deadline) < new Date() || /\bON HOLD\b/i.test(notes)) continue;
+      const contactName = decodeHtml(cells[1]);
+      const contactEmail = cells[1].match(/href=["']mailto:([^"']+)/i)?.[1] || null;
+      const sourceRecordId = stableRecordId("UCF", title, hash(title).slice(0, 16));
+      const documents = links.map((link, index): SourceDocumentInput => ({
+        url: link.url,
+        title: link.title,
+        type: /addend|amend|revis/i.test(link.title) ? "amendment" : index === 0 ? "solicitation" : "attachment",
+      }));
+      const siteVisit = notes.match(/(?:site visit|pre[- ]?(?:bid|proposal)[^:]*)(?:\s*[-–:]\s*|:\s*)([^.]+?(?:EST|EDT|ET|AM|PM))/i)?.[0] || null;
+      const scope = `${title}. ${notes}`.trim();
+      records.push({
+        opportunity: {
+          sourceRecordId, title, summary: scope, tradeSlug: classifyTrade(scope),
+          classification: "confirmed", status: "active", geographicScopeType: "city",
+          city: "Orlando", county: "Orange", zipCode: "32816", procurementDeadline: deadline,
+          evidenceConfidence: 100, classificationRationale: authoritativeRationale("University of Central Florida Procurement Services"),
+          sourceUrl, sourceDocumentUrl: documents[0]?.url || null,
+          sourcePayload: { title, notes, dateText, contactName, contactEmail, documents, contentHash: hash({ title, notes, dateText, deadline, documents }) },
+        },
+        procurement: {
+          solicitationNumber: sourceRecordId.replace(/^UCF:/, ""), purchasingOrganization: "University of Central Florida",
+          scopeOfWork: scope, mandatorySiteVisit: siteVisit,
+          contact: { name: contactName || null, email: contactEmail },
+          amendments: documents.filter((document) => document.type === "amendment").map((document) => ({ title: document.title, url: document.url })),
+        },
+        documents,
+      });
+    }
+    if (!records.length) throw new Error("UCF_SCHEMA_CHANGED: no future active solicitation rows were parsed");
+    return { records, sourceCount: records.length, cursor: { checkedAt: new Date().toISOString() } };
+  },
+};
+
+const browardCollegeForecastAdapter: SourceAdapter = {
+  sourceId: "broward-college-forecast",
+  adapterKey: "broward-college-forecast",
+  async fetchRecords(limit) {
+    const sourceUrl = "https://www.broward.edu/about/community/vendor/forecast-opportunities.html";
+    const response = await fetchWithRetry(sourceUrl, { headers: { Accept: "text/html" } });
+    const html = await response.text();
+    const table = html.match(/<caption>\s*Forecast of Procurement Opportunities\s*<\/caption>([\s\S]*?)<\/table>/i)?.[1];
+    if (!table) throw new Error("BROWARD_COLLEGE_SCHEMA_CHANGED: forecast table was not found");
+    const forecastPdf = html.match(/href=["']([^"']*forecast-opportunities\.pdf)["']/i)?.[1];
+    const records: LiveSourceRecord[] = [];
+    const now = new Date();
+    for (const match of Array.from(table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi))) {
+      const cells = htmlCells(match[1]).map(decodeHtml);
+      if (cells.length < 7 || records.length >= limit) continue;
+      const [title, scope, contractNumber, expirationText, officer, currentStatus, estimateText] = cells;
+      const estimatedDate = cleanDate(estimateText.replace(/^Due Date\s*/i, ""));
+      const expirationDate = cleanDate(expirationText);
+      if ((!estimatedDate || new Date(estimatedDate) < now) && (!expirationDate || new Date(expirationDate) < now)) continue;
+      const sourceRecordId = stableRecordId("BROWARD-COLLEGE", title, hash(`${title}:${contractNumber}`).slice(0, 16));
+      const documents = forecastPdf ? [{
+        url: new URL(forecastPdf, sourceUrl).toString(), title: "Broward College Procurement Forecast", type: "forecast",
+      }] : [];
+      const summary = `${scope} Current status: ${currentStatus}. Estimated release or due date: ${estimateText}.${contractNumber !== "No existing contract" ? ` Current contract ${contractNumber}${expirationDate ? ` expires ${expirationText}` : ""}.` : ""}`;
+      records.push({
+        opportunity: {
+          sourceRecordId, title: `Planned procurement: ${title}`, summary,
+          tradeSlug: classifyTrade(`${title} ${scope}`), classification: "timing_based", status: "upcoming",
+          geographicScopeType: "county", city: "Fort Lauderdale", county: "Broward",
+          evidenceConfidence: 98,
+          classificationRationale: "Broward College publishes this item in its official six-month procurement forecast. It is a documented planning or renewal signal, not a confirmed open solicitation.",
+          sourceUrl, sourceDocumentUrl: documents[0]?.url || null,
+          sourcePayload: { title, scope, contractNumber, expirationText, officer, currentStatus, estimateText, estimatedDate, contentHash: hash(cells) },
+        },
+        procurement: {
+          solicitationNumber: contractNumber === "No existing contract" ? sourceRecordId : contractNumber,
+          purchasingOrganization: "Broward College", scopeOfWork: scope,
+          contact: { name: officer, email: "procurement@broward.edu" },
+        },
+        documents,
+        award: contractNumber !== "No existing contract" && expirationDate ? {
+          sourceRecordId: `${sourceRecordId}:CURRENT-CONTRACT`, purchasingOrganization: "Broward College",
+          title, contractExpirationDate: dateOnly(expirationDate), sourceUrl,
+          payload: { contractNumber, expirationText, currentStatus },
+        } : undefined,
+      });
+    }
+    if (!records.length) throw new Error("BROWARD_COLLEGE_SCHEMA_CHANGED: no current forecast rows were parsed");
+    return { records, sourceCount: records.length, cursor: { checkedAt: new Date().toISOString() } };
+  },
+};
+
+const FLORIDA_CITY_COUNTIES: Array<[RegExp, string, string]> = [
+  [/jacksonville|duval/i, "Jacksonville", "Duval"],
+  [/st\.?\s*augustine|st\.?\s*johns/i, "St. Augustine", "St. Johns"],
+  [/fort lauderdale|broward/i, "Fort Lauderdale", "Broward"],
+  [/orlando|orange county/i, "Orlando", "Orange"],
+  [/tampa|hillsborough/i, "Tampa", "Hillsborough"],
+  [/miami[- ]dade|\bmiami\b/i, "Miami", "Miami-Dade"],
+  [/tallahassee|leon county/i, "Tallahassee", "Leon"],
+  [/gainesville|alachua/i, "Gainesville", "Alachua"],
+  [/west palm beach|palm beach/i, "West Palm Beach", "Palm Beach"],
+];
+
+function responseDeadline(text: string) {
+  const matches = Array.from(text.matchAll(/\b(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2}(?:\s*(?:,|at|@)?\s*\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\s*(?:EST|EDT|ET)?)?/gi));
+  const candidates = matches.map((match) => {
+    const before = text.slice(Math.max(0, Number(match.index) - 140), Number(match.index)).toLowerCase();
+    const relevant = /(?:bids?|responses?|proposals?|submittals?|qualifications?).{0,70}(?:due|received|accepted|deadline|until)|(?:due|deadline).{0,45}$/.test(before);
+    const normalized = match[0].replace(/(\d)(?:st|nd|rd|th)/i, "$1").replace(/\b(a|p)\.?m\.?/i, "$1m").replace(/\s+(?:at|@)\s+/i, " ");
+    const parsed = cleanDate(`${normalized} -05:00`);
+    return { relevant, parsed };
+  }).filter((item): item is { relevant: boolean; parsed: string } => Boolean(item.parsed) && new Date(String(item.parsed)) >= new Date());
+  return candidates.filter((item) => item.relevant).sort((a, b) => new Date(a.parsed).getTime() - new Date(b.parsed).getTime()).at(-1)?.parsed || null;
+}
+
+const floridaAdministrativeRegisterAdapter: SourceAdapter = {
+  sourceId: "fl-administrative-register-bids",
+  adapterKey: "fl-administrative-register-bids",
+  async fetchRecords(limit) {
+    const indexUrl = "https://flrules.org/bigDoc/Default.asp";
+    const indexResponse = await fetchWithRetry(indexUrl, { headers: { Accept: "text/html" } });
+    const indexHtml = await indexResponse.text();
+    const issues = Array.from(indexHtml.matchAll(/href=["']([^"']*View_Faw\.asp\?IID=(\d+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi), (match) => {
+      const label = decodeHtml(match[3]);
+      const volume = label.match(/Vol\/No\s*(\d+)\/(\d+)/i);
+      const year = label.match(/\b(20\d{2})\b/)?.[1] || String(new Date().getFullYear());
+      return { id: Number(match[2]), label, year, volume: volume?.[1], number: volume?.[2] };
+    }).filter((issue, index, all) => issue.volume && issue.number && all.findIndex((item) => item.id === issue.id) === index)
+      .sort((a, b) => b.id - a.id);
+    if (!issues.length) throw new Error("FL_REGISTER_SCHEMA_CHANGED: recent issue links were not found");
+    const stateRows = await queryDb("SELECT cursor FROM oi_source_sync_state WHERE source_id=$1", ["fl-administrative-register-bids"]);
+    const cursor = stateRows[0]?.cursor as Row | undefined;
+    const lastIssueId = Number(cursor?.latestIssueId || 0);
+    // Recheck the newest known issue so corrections published under the same issue
+    // are detected, while older issues remain behind the incremental cursor.
+    const selected = lastIssueId ? issues.filter((issue) => issue.id >= lastIssueId) : issues.slice(0, 15);
+    const records: LiveSourceRecord[] = [];
+    let noticesSeen = 0;
+    for (const issue of selected) {
+      if (records.length >= limit) break;
+      const sectionUrl = `https://flrules.org/BigDoc/View_Section.asp?Issue=${issue.id}&Section=11`;
+      const sectionResponse = await fetchWithRetry(sectionUrl, { headers: { Accept: "text/html" } });
+      const sectionHtml = await sectionResponse.text();
+      const notices = Array.from(sectionHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi), (row) => {
+        const cells = htmlCells(row[1]);
+        const noticeLink = row[1].match(/href=["']([^"']*View_notice\.asp\?id=(\d+)[^"']*)["']/i);
+        return noticeLink && cells.length >= 4 ? {
+          id: noticeLink[2], title: decodeHtml(cells[2]),
+          url: new URL(noticeLink[1].replace(/&amp;/gi, "&"), sectionUrl).toString(),
+        } : null;
+      }).filter((notice): notice is { id: string; title: string; url: string } => Boolean(notice?.id && notice.title));
+      if (!notices.length) continue;
+      noticesSeen += notices.length;
+      const folder = `${issue.volume}${String(issue.number).padStart(3, "0")}`;
+      const documentUrl = `https://flrules.org/Faw/FAWDocuments/FAWVOLUMEFOLDERS${issue.year}/${folder}/${folder}doc.pdf`;
+      const documentResponse = await fetchWithRetry(documentUrl, { headers: { Accept: "application/pdf" } });
+      const buffer = Buffer.from(await documentResponse.arrayBuffer());
+      if (buffer.length > 30 * 1024 * 1024) throw new Error(`FL_REGISTER_DOCUMENT_TOO_LARGE: ${documentUrl}`);
+      const documentText = (await pdf(buffer)).text.replace(/\s+/g, " ").trim();
+      const located = notices.map((notice) => ({ ...notice, offset: documentText.toLowerCase().indexOf(notice.title.toLowerCase()) }))
+        .filter((notice) => notice.offset >= 0).sort((a, b) => a.offset - b.offset);
+      for (let index = 0; index < located.length && records.length < limit; index += 1) {
+        const notice = located[index];
+        const segment = documentText.slice(notice.offset, located[index + 1]?.offset || Math.min(documentText.length, notice.offset + 15_000));
+        const deadline = responseDeadline(segment);
+        if (!deadline) continue;
+        const location = FLORIDA_CITY_COUNTIES.find(([pattern]) => pattern.test(segment));
+        const combined = `${notice.title} ${segment}`;
+        const privateInvitation = /subcontract|trade contractor|construction manager|general contractor/i.test(segment)
+          && !/department|authority|county|city of|university|school district/i.test(notice.title);
+        records.push({
+          opportunity: {
+            sourceRecordId: notice.id, title: notice.title, summary: segment.slice(0, 4000),
+            tradeSlug: classifyTrade(combined), classification: "confirmed", status: "active",
+            geographicScopeType: location ? "city" : "statewide", city: location?.[1] || null,
+            county: location?.[2] || null, procurementDeadline: deadline, evidenceConfidence: 100,
+            classificationRationale: privateInvitation
+              ? "A named contractor published an active subcontractor invitation in Section XI of the official Florida Administrative Register."
+              : authoritativeRationale("Florida Administrative Register Section XI"),
+            sourceUrl: notice.url, sourceDocumentUrl: documentUrl,
+            sourcePayload: { issueId: issue.id, issue: issue.label, noticeId: notice.id, privateInvitation, contentHash: hash({ notice, segment }) },
+          },
+          publishedAt: cleanDate(issue.label.replace(/\s*-\s*Vol[\s\S]*$/i, "")),
+          procurement: {
+            solicitationNumber: notice.title.match(/\b(?:ITB|RFP|RFQ|IFB|RFSQ)[-_ ]?[A-Z0-9.-]+/i)?.[0] || notice.id,
+            purchasingOrganization: segment.slice(notice.title.length).match(/^\s*([A-Z][A-Z &.,'-]{3,100})/)?.[1]?.trim() || "Organization named in official notice",
+            scopeOfWork: segment.slice(0, 12_000),
+          },
+          documents: [{
+            // A register issue contains many unrelated notices. The fragment keeps one
+            // source-document row per notice while still resolving to the official PDF.
+            url: `${documentUrl}#notice=${notice.id}`,
+            title: `${notice.title} — Florida Administrative Register ${issue.label}`,
+            type: "official_notice",
+            publishedAt: cleanDate(issue.label.replace(/\s*-\s*Vol[\s\S]*$/i, "")),
+            metadata: { canonicalDocumentUrl: documentUrl, scopedText: segment, noticeId: notice.id },
+          }],
+        });
+      }
+    }
+    return {
+      records, sourceCount: noticesSeen,
+      cursor: { latestIssueId: issues[0].id, latestIssue: issues[0].label, checkedAt: new Date().toISOString() },
+      metadata: { issuesExamined: selected.length, noticesSeen },
+    };
+  },
+};
+
 const ADAPTERS: SourceAdapter[] = [
   mfmpAdapter, factsAdapter, samAdapter, usaspendingAdapter, fdotAdapter, miamiDadeAdapter, orlandoPermitsAdapter,
+  ucfSolicitationsAdapter, browardCollegeForecastAdapter,
+  floridaAdministrativeRegisterAdapter,
 ];
 
 export function getOpportunitySourceAdapters() {
@@ -718,6 +967,14 @@ async function persistSupplemental(sourceId: string, records: LiveSourceRecord[]
       procurementId = rows[0]?.id;
     }
     const sourceDocuments = record.documents || [];
+    if (sourceDocuments.length) {
+      await queryDb(
+        `UPDATE oi_source_documents SET is_current=FALSE, updated_at=CURRENT_TIMESTAMP
+         WHERE source_id=$1 AND source_record_id=$2 AND is_current=TRUE
+           AND NOT (document_url = ANY($3::text[]))`,
+        [sourceId, record.opportunity.sourceRecordId, sourceDocuments.map((document) => document.url)],
+      );
+    }
     for (let index = 0; index < sourceDocuments.length; index += 1) {
       const document = sourceDocuments[index];
       documentsSeen += 1;
@@ -829,6 +1086,18 @@ export async function syncOpportunitySource(adapterKey: string, limit = 250) {
   }
 }
 
+export async function resetOpportunitySourceCursors(sourceIds: string[]) {
+  const requested = sourceIds.filter(Boolean);
+  if (!requested.length) return 0;
+  const rows = await queryDb(
+    `UPDATE oi_source_sync_state
+     SET cursor='{}'::jsonb, next_run_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+     WHERE source_id=ANY($1::text[]) RETURNING source_id`,
+    [requested],
+  );
+  return rows.length;
+}
+
 export async function syncDueOpportunitySources(options: { force?: boolean; limitPerSource?: number; adapters?: string[] } = {}) {
   const allowed = options.adapters?.length ? new Set(options.adapters) : null;
   const dueRows = await queryDb(
@@ -854,5 +1123,98 @@ export async function syncDueOpportunitySources(options: { force?: boolean; limi
        AND state.last_successful_at < CURRENT_TIMESTAMP - (state.stale_after_minutes::text || ' minutes')::interval
        AND source.status='connected_current'`,
   );
-  return { attempted: outcomes.length, outcomes, completedAt: new Date().toISOString() };
+  const health = await evaluateOpportunitySourceHealth();
+  return { attempted: outcomes.length, outcomes, health, completedAt: new Date().toISOString() };
+}
+
+export async function evaluateOpportunitySourceHealth() {
+  const states = await queryDb(
+    `SELECT state.*, source.source_name, source.status AS source_status,
+            COALESCE(document.failed_documents, 0)::int AS failed_documents,
+            COALESCE(document.unsupported_documents, 0)::int AS unsupported_documents
+     FROM oi_source_sync_state state
+     JOIN oi_data_sources source ON source.id=state.source_id
+     LEFT JOIN (
+       SELECT source_id,
+              count(*) FILTER (WHERE extraction_status='failed') AS failed_documents,
+              count(*) FILTER (WHERE extraction_status='unsupported') AS unsupported_documents
+       FROM oi_source_documents WHERE is_current=TRUE GROUP BY source_id
+     ) document ON document.source_id=state.source_id
+     WHERE state.enabled=TRUE`,
+  );
+  const opened: Row[] = [];
+  let resolved = 0;
+  for (const state of states) {
+    const conditions: Array<{ code: string; severity: string; message: string; details: Row }> = [];
+    const sourceName = String(state.source_name);
+    if (["failed", "access_restricted"].includes(String(state.last_status)) || Number(state.consecutive_failures || 0) > 0) {
+      conditions.push({
+        code: "sync_failure",
+        severity: Number(state.consecutive_failures || 0) >= 3 ? "critical" : "warning",
+        message: `${sourceName} synchronization is ${String(state.last_status).replace(/_/g, " ")}.`,
+        details: { consecutiveFailures: Number(state.consecutive_failures || 0), lastError: state.last_error || null },
+      });
+    }
+    if (state.last_started_at && !state.last_successful_at) {
+      conditions.push({
+        code: "never_succeeded", severity: "warning",
+        message: `${sourceName} has been attempted but has never completed successfully.`,
+        details: { lastStartedAt: state.last_started_at, lastStatus: state.last_status },
+      });
+    }
+    if (state.last_successful_at && new Date(String(state.last_successful_at)).getTime() < Date.now() - Number(state.stale_after_minutes) * 60_000) {
+      conditions.push({
+        code: "source_stale", severity: "critical",
+        message: `${sourceName} is beyond its configured freshness window.`,
+        details: { lastSuccessfulAt: state.last_successful_at, staleAfterMinutes: Number(state.stale_after_minutes) },
+      });
+    }
+    if (Number(state.failed_documents || 0) > 0 || Number(state.unsupported_documents || 0) > 0) {
+      conditions.push({
+        code: "document_retrieval", severity: Number(state.failed_documents || 0) > 0 ? "warning" : "info",
+        message: `${sourceName} has documents that could not be extracted through the published link.`,
+        details: { failed: Number(state.failed_documents || 0), unsupported: Number(state.unsupported_documents || 0) },
+      });
+    }
+    const activeCodes = conditions.map((condition) => condition.code);
+    const resolvedRows = await queryDb(
+      `UPDATE oi_source_alerts SET resolved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+       WHERE source_id=$1 AND resolved_at IS NULL AND NOT (alert_code=ANY($2::text[])) RETURNING id`,
+      [state.source_id, activeCodes],
+    );
+    resolved += resolvedRows.length;
+    for (const condition of conditions) {
+      const rows = await queryDb(
+        `INSERT INTO oi_source_alerts (source_id, alert_code, severity, message, details)
+         VALUES ($1,$2,$3,$4,$5::jsonb)
+         ON CONFLICT (source_id, alert_code) WHERE resolved_at IS NULL DO UPDATE SET
+           severity=EXCLUDED.severity, message=EXCLUDED.message, details=EXCLUDED.details,
+           occurrence_count=oi_source_alerts.occurrence_count+1, last_seen_at=CURRENT_TIMESTAMP,
+           updated_at=CURRENT_TIMESTAMP
+         RETURNING *`,
+        [state.source_id, condition.code, condition.severity, condition.message, JSON.stringify(condition.details)],
+      );
+      if (rows[0] && !rows[0].notified_at) opened.push(rows[0]);
+    }
+  }
+  const webhook = process.env.OPPORTUNITY_ALERT_WEBHOOK_URL;
+  if (webhook && opened.length) {
+    try {
+      const response = await fetch(webhook, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "opportunity_source_health", generatedAt: new Date().toISOString(), alerts: opened }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (response.ok) {
+        await queryDb("UPDATE oi_source_alerts SET notified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=ANY($1::uuid[])", [opened.map((alert) => alert.id)]);
+      }
+    } catch {
+      // Alerts remain visible in the source dashboard and unnotified for a later retry.
+    }
+  }
+  const counts = await queryDb(
+    `SELECT severity, count(*)::int AS count FROM oi_source_alerts
+     WHERE resolved_at IS NULL GROUP BY severity ORDER BY severity`,
+  );
+  return { active: counts, newlyUnnotified: opened.length, resolved };
 }

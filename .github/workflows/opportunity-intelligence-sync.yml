@@ -1,0 +1,58 @@
+name: Opportunity intelligence sync
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+    - cron: "37 */6 * * *"
+    - cron: "57 6 * * *"
+    - cron: "47 * * * *"
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: Scheduler lane to execute
+        required: true
+        default: scheduled
+        type: choice
+        options:
+          - scheduled
+          - hourly
+          - periodic
+          - daily
+          - documents
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Select scheduler lane
+        id: lane
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_LANE: ${{ inputs.lane }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            lane="$MANUAL_LANE"
+          else
+            case "$SCHEDULE" in
+              "17 * * * *") lane="hourly" ;;
+              "37 */6 * * *") lane="periodic" ;;
+              "57 6 * * *") lane="daily" ;;
+              "47 * * * *") lane="documents" ;;
+              *) lane="scheduled" ;;
+            esac
+          fi
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+      - name: Run authenticated production sync
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          LANE: ${{ steps.lane.outputs.lane }}
+        run: |
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --retry 3 --retry-all-errors --max-time 290 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://intentrev.net/api/cron/opportunity-intelligence?lane=$LANE"

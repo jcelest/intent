@@ -355,15 +355,21 @@ export async function getOpportunityDetail(id: string) {
     return { opportunity, properties: [], organizations: [], evidence: [], equipment: [], documents: [], statusHistory: [] };
   }
 
-  const [properties, organizations, evidence, equipment, documents, statusHistory] = await Promise.all([
+  const [properties, organizations, evidence, equipment, documents, statusHistory, procurement] = await Promise.all([
     queryDb(`SELECT p.*, op.relationship_type FROM oi_opportunity_properties op JOIN oi_properties p ON p.id = op.property_id WHERE op.opportunity_id = $1 ORDER BY p.situs_address`, [id]),
     queryDb(`SELECT org.*, oo.relationship_type FROM oi_opportunity_organizations oo JOIN oi_organizations org ON org.id = oo.organization_id WHERE oo.opportunity_id = $1 ORDER BY org.legal_name`, [id]),
     queryDb(`SELECT * FROM oi_opportunity_evidence WHERE opportunity_id = $1 ORDER BY is_direct_evidence DESC, verified_at DESC NULLS LAST`, [id]),
     queryDb(`SELECT e.* FROM oi_equipment e JOIN oi_opportunity_properties op ON op.property_id = e.property_id WHERE op.opportunity_id = $1 ORDER BY e.equipment_type`, [id]),
     queryDb(`SELECT id, title, document_type, version_label, version_number, document_url, published_at, fetched_at, extraction_status, sha256, is_current FROM oi_source_documents WHERE opportunity_id = $1 ORDER BY published_at DESC NULLS LAST, title`, [id]),
-    queryDb(`SELECT previous_status, new_status, reason, source_event_at, detected_at FROM oi_opportunity_status_history WHERE opportunity_id = $1 ORDER BY detected_at DESC`, [id]),
+    queryDb(`SELECT previous_status, new_status, change_reason, source_url, observed_at, metadata FROM oi_opportunity_status_history WHERE opportunity_id = $1 ORDER BY observed_at DESC`, [id]),
+    queryDb(`SELECT solicitation_number, purchasing_organization, scope_of_work, publication_date,
+                    submission_deadline, status, procurement_contact, required_licenses,
+                    required_certifications, mandatory_site_visit, amendments, source_url,
+                    last_status_checked_at
+             FROM oi_procurement_records WHERE opportunity_id = $1
+             ORDER BY updated_at DESC LIMIT 5`, [id]),
   ]);
-  return { opportunity, properties, organizations, evidence, equipment, documents, statusHistory };
+  return { opportunity, properties, organizations, evidence, equipment, documents, statusHistory, procurement };
 }
 
 export async function getHubOverview(): Promise<HubOverview> {
@@ -483,13 +489,12 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const regionalFilterWhere = regionalFilters.length ? `AND ${regionalFilters.join(" AND ")}` : "";
     const regionalRows = await queryDb(
       `WITH opportunity_feed AS (${UNIVERSAL_FEED_SQL})
-       SELECT CASE WHEN county IS NULL AND geographic_scope_type = 'statewide' THEN 'Statewide' ELSE county END AS region,
-              classification, count(*)::int AS opportunity_count,
+       SELECT CASE WHEN county IS NULL THEN 'Statewide' ELSE county END AS region,
+              classification, status, trade_slug, service_category, count(*)::int AS opportunity_count,
               COALESCE(sum(documented_value), 0)::numeric AS documented_value
        FROM opportunity_feed
-       WHERE (latitude IS NULL OR longitude IS NULL)
-         AND (county IS NOT NULL OR geographic_scope_type = 'statewide') ${regionalCountyWhere} ${regionalFilterWhere}
-       GROUP BY region, classification`,
+       WHERE (latitude IS NULL OR longitude IS NULL) ${regionalCountyWhere} ${regionalFilterWhere}
+       GROUP BY region, classification, status, trade_slug, service_category`,
       regionalParams,
     );
     for (const row of regionalRows) {
@@ -498,17 +503,20 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
       if (!statewide && !county) continue;
       features.push({
         type: "Feature",
-        id: `regional:${statewide ? "fl" : county?.fips}:${row.classification}`,
+        id: `regional:${statewide ? "fl" : county?.fips}:${row.classification}:${row.status}:${row.trade_slug || "none"}:${row.service_category || "none"}`,
         geometry: { type: "Point", coordinates: statewide ? [-82.3, 28.15] : [county!.lng, county!.lat] },
         properties: {
           featureType: "regional_aggregate",
           renderMode: statewide ? "statewide_aggregate" : "county_aggregate",
           county: county?.name || null,
           classification: String(row.classification),
+          status: row.status ? String(row.status) : null,
+          tradeSlug: row.trade_slug ? String(row.trade_slug) : null,
+          serviceCategory: row.service_category ? String(row.service_category) : null,
           opportunityCount: Number(row.opportunity_count || 0),
           documentedValue: Number(row.documented_value || 0),
-          title: statewide ? "Florida statewide records" : `${county!.name} County regional records`,
-          geographicScopeType: statewide ? "statewide" : "county",
+          title: statewide ? "Florida records without documented coordinates" : `${county!.name} County regional records`,
+          geographicScopeType: statewide ? "regional" : "county",
         },
       });
     }
@@ -632,19 +640,23 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
       documentedLocations: features.filter((feature) => (feature.properties as DbRow).renderMode === "documented_location").length,
       regionalAggregates: features.filter((feature) => (feature.properties as DbRow).renderMode === "county_aggregate").length,
       generatedAt: new Date().toISOString(),
-      notice: "County and statewide centroids are used only for clearly labeled aggregates, never as property coordinates.",
+      notice: "County and statewide centroids are used only for clearly labeled aggregates when exact coordinates are unavailable, never as property coordinates.",
     },
   };
 }
 
 export async function getSourceCoverage() {
-  const [sources, procurementSources, countyRegistry, syncHistory] = await Promise.all([
+  const [sources, procurementSources, countyRegistry, syncHistory, syncState, alerts] = await Promise.all([
     queryDb(`SELECT * FROM oi_data_sources ORDER BY source_category, source_name`),
     queryDb(`SELECT id, agency_name AS source_name, portal_url AS source_url, 'procurement' AS source_category, collection_method AS access_method, supported_format AS data_format, collection_frequency AS update_frequency, status, (last_successful_at IS NOT NULL) AS is_operational, last_attempted_at, last_successful_at, indexed_bids_count AS records_ingested, error_status AS limitations FROM fl_procurement_sources ORDER BY agency_type, agency_name`),
     queryDb(`SELECT county, fips, official_portal_url, gis_download_url, file_format, status, commercial_parcels_count, last_parcels_pull_at, last_permits_pull_at, last_licenses_pull_at FROM fl_county_parcel_registry ORDER BY population_rank`),
     queryDb(`SELECT * FROM oi_source_sync_history ORDER BY started_at DESC LIMIT 100`),
+    queryDb(`SELECT * FROM oi_source_sync_state ORDER BY next_run_at, source_id`),
+    queryDb(`SELECT alert.*, source.source_name
+             FROM oi_source_alerts alert JOIN oi_data_sources source ON source.id=alert.source_id
+             ORDER BY (alert.resolved_at IS NULL) DESC, alert.last_seen_at DESC LIMIT 100`),
   ]);
-  return { sources, procurementSources, countyRegistry, syncHistory };
+  return { sources, procurementSources, countyRegistry, syncHistory, syncState, alerts };
 }
 
 export async function getTaxonomy() {

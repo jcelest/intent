@@ -41,6 +41,35 @@ async function extractDocx(buffer: Buffer) {
     .trim();
 }
 
+function decodeXml(value: string) {
+  return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+}
+
+async function extractXlsx(buffer: Buffer) {
+  const archive = await JSZip.loadAsync(buffer);
+  const sharedXml = await archive.file("xl/sharedStrings.xml")?.async("string");
+  const shared = sharedXml
+    ? Array.from(sharedXml.matchAll(/<si[^>]*>([\s\S]*?)<\/si>/gi), (item) =>
+        decodeXml(Array.from(item[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/gi), (text) => text[1]).join("")))
+    : [];
+  const sheetNames = Object.keys(archive.files).filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(name)).sort();
+  const rows: string[] = [];
+  for (const sheetName of sheetNames) {
+    const xml = await archive.file(sheetName)?.async("string");
+    if (!xml) continue;
+    for (const row of Array.from(xml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/gi))) {
+      const values = Array.from(row[1].matchAll(/<c([^>]*)>([\s\S]*?)<\/c>/gi), (cell) => {
+        const raw = cell[2].match(/<v[^>]*>([\s\S]*?)<\/v>/i)?.[1]
+          || cell[2].match(/<t[^>]*>([\s\S]*?)<\/t>/i)?.[1] || "";
+        return /\bt=["']s["']/i.test(cell[1]) ? shared[Number(raw)] || raw : decodeXml(raw);
+      }).filter(Boolean);
+      if (values.length) rows.push(values.join("\t"));
+    }
+  }
+  if (!rows.length) throw new Error("XLSX workbook contained no readable cells");
+  return rows.join("\n");
+}
+
 async function extractText(buffer: Buffer, contentType: string, url: string, title: string) {
   const lower = `${contentType} ${url} ${title}`.toLowerCase();
   const declared = contentType.toLowerCase();
@@ -51,8 +80,11 @@ async function extractText(buffer: Buffer, contentType: string, url: string, tit
   if (buffer.subarray(0, 5).toString("ascii") === "%PDF-" || declared.includes("application/pdf")) {
     return { status: "extracted", text: (await pdf(buffer)).text.trim() };
   }
-  if ((buffer[0] === 0x50 && buffer[1] === 0x4b && lower.includes("doc")) || lower.includes("wordprocessingml") || lower.includes(".docx")) {
+  if (buffer[0] === 0x50 && buffer[1] === 0x4b && (lower.includes("wordprocessingml") || lower.includes(".docx"))) {
     return { status: "extracted", text: await extractDocx(buffer) };
+  }
+  if (buffer[0] === 0x50 && buffer[1] === 0x4b && (lower.includes("spreadsheetml") || lower.includes(".xlsx"))) {
+    return { status: "extracted", text: await extractXlsx(buffer) };
   }
   if (/text\/|json|xml|csv/.test(lower)) {
     return { status: "extracted", text: buffer.toString("utf8").trim() };
@@ -60,13 +92,52 @@ async function extractText(buffer: Buffer, contentType: string, url: string, tit
   return { status: "unsupported", text: null };
 }
 
-export async function fetchPendingOpportunityDocuments(limit = 25) {
+export interface DocumentFetchOptions {
+  limit?: number;
+  sourceIds?: string[];
+  maxPerSource?: number;
+}
+
+export async function requeueFailedOpportunityDocuments(sourceIds: string[] = []) {
+  const rows = await queryDb(
+    `UPDATE oi_source_documents SET extraction_status='pending', extraction_error=NULL,
+       fetched_at=NULL, updated_at=CURRENT_TIMESTAMP
+     WHERE is_current=TRUE AND extraction_status='failed'
+       AND ($1::text[] = '{}'::text[] OR source_id=ANY($1::text[]))
+     RETURNING id`,
+    [sourceIds.filter(Boolean)],
+  );
+  return rows.length;
+}
+
+export async function fetchPendingOpportunityDocuments(options: number | DocumentFetchOptions = 25) {
+  const requested = typeof options === "number" ? { limit: options } : options;
+  const limit = Math.min(100, Math.max(1, requested.limit || 25));
+  const sourceIds = requested.sourceIds?.filter(Boolean) || [];
+  const maxPerSource = Math.min(50, Math.max(1, requested.maxPerSource || 10));
   const documents = await queryDb(
-    `SELECT * FROM oi_source_documents
-     WHERE is_current=TRUE AND (extraction_status='pending' OR fetched_at < CURRENT_TIMESTAMP - INTERVAL '24 hours')
-     ORDER BY CASE WHEN extraction_status='pending' THEN 0 ELSE 1 END, published_at DESC NULLS LAST
+    `WITH candidates AS (
+       SELECT document.*,
+              row_number() OVER (
+                PARTITION BY source_id
+                ORDER BY CASE extraction_status WHEN 'pending' THEN 0 WHEN 'failed' THEN 1 WHEN 'extracted' THEN 2 ELSE 3 END,
+                         published_at DESC NULLS LAST, created_at
+              ) AS source_rank
+       FROM oi_source_documents document
+       WHERE is_current=TRUE
+         AND ($2::text[] = '{}'::text[] OR source_id = ANY($2::text[]))
+         AND (
+           extraction_status='pending'
+           OR (extraction_status='failed' AND fetched_at < CURRENT_TIMESTAMP - INTERVAL '6 hours')
+           OR (extraction_status='extracted' AND fetched_at < CURRENT_TIMESTAMP - INTERVAL '24 hours')
+           OR (extraction_status='unsupported' AND fetched_at < CURRENT_TIMESTAMP - INTERVAL '7 days')
+         )
+     )
+     SELECT * FROM candidates WHERE source_rank <= $3
+     ORDER BY CASE extraction_status WHEN 'pending' THEN 0 WHEN 'failed' THEN 1 WHEN 'extracted' THEN 2 ELSE 3 END,
+              source_rank, published_at DESC NULLS LAST
      LIMIT $1`,
-    [Math.min(100, Math.max(1, limit))],
+    [limit, sourceIds, maxPerSource],
   );
   let fetched = 0;
   let extracted = 0;
@@ -112,6 +183,11 @@ export async function fetchPendingOpportunityDocuments(limit = 25) {
       }
       const contentType = response.headers.get("content-type") || "application/octet-stream";
       const result = await extractText(buffer, contentType, String(document.document_url), String(document.title || ""));
+      const scopedText = document.metadata && typeof document.metadata === "object"
+        ? (document.metadata as Row).scopedText
+        : null;
+      if (typeof scopedText === "string" && scopedText.trim()) result.text = scopedText.trim();
+      if (result.text) result.text = result.text.replace(/\u0000/g, "");
       if (document.sha256) {
         const nextVersion = Number(document.version_number || 1) + 1;
         await queryDb("UPDATE oi_source_documents SET is_current=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=$1", [document.id]);
@@ -183,6 +259,15 @@ export async function buildOpportunityBrief(opportunityId: string, question?: st
     excerpt: document.extracted_text ? excerpt(String(document.extracted_text), terms) : null,
   }));
   const evidence = Array.isArray(detail.evidence) ? detail.evidence : [];
+  const procurement = Array.isArray(detail.procurement) ? detail.procurement[0] as Row | undefined : undefined;
+  const extractedDocuments = citations.filter((citation) => citation.excerpt);
+  const requirements = {
+    licenses: Array.isArray(procurement?.required_licenses) ? procurement.required_licenses : [],
+    certifications: Array.isArray(procurement?.required_certifications) ? procurement.required_certifications : [],
+    mandatorySiteVisit: procurement?.mandatory_site_visit || null,
+    contact: procurement?.procurement_contact || null,
+    submissionDeadline: procurement?.submission_deadline || opportunity.procurementDeadline || null,
+  };
   return {
     opportunityId,
     title: opportunity.title,
@@ -199,6 +284,9 @@ export async function buildOpportunityBrief(opportunityId: string, question?: st
     pursuit: {
       originalSource: opportunity.sourceUrl,
       sourceDocument: opportunity.sourceDocumentUrl,
+      solicitationNumber: procurement?.solicitation_number || null,
+      purchasingOrganization: procurement?.purchasing_organization || null,
+      requirements,
       nextSteps: [
         "Open the original source and confirm the status and submission deadline.",
         "Review every current solicitation document and amendment listed in the citations.",
@@ -207,6 +295,12 @@ export async function buildOpportunityBrief(opportunityId: string, question?: st
       ],
     },
     answerMode: "deterministic_source_grounded",
+    sourceGrounding: {
+      currentDocuments: citations.length,
+      extractedDocuments: extractedDocuments.length,
+      hasOriginalScope: Boolean(procurement?.scope_of_work),
+      verifiedAt: opportunity.lastVerifiedAt || null,
+    },
     question: question || null,
     warning: opportunity.classification === "confirmed"
       ? "Confirmed means an authoritative source documents purchasing activity; it does not guarantee eligibility or award."
