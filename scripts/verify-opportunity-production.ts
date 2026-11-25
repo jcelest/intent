@@ -8,7 +8,7 @@ const queryDb = (query: string, params: unknown[] = []) =>
   (sql as unknown as Queryable).query(query, params);
 
 async function main() {
-  const [totals, sources, documents, documentFailures, categories, categoryRepresentatives, representatives, samples, explorer, atlas, samVerification, sourceCounts] = await Promise.all([
+  const [totals, sources, documents, documentFailures, categories, categoryRepresentatives, representatives, samples, explorer, atlas, samVerification, samNoticeTypes, sourceCounts] = await Promise.all([
     queryDb(`SELECT count(*)::int AS total,
                     count(*) FILTER (WHERE classification='confirmed' AND status='active')::int AS confirmed_active,
                     count(*) FILTER (WHERE classification='timing_based' AND status='upcoming')::int AS timing_upcoming,
@@ -128,8 +128,20 @@ async function main() {
                     count(*) FILTER (WHERE status='active')::int AS active,
                     count(*) FILTER (WHERE procurement_deadline IS NOT NULL)::int AS with_deadline,
                     count(*) FILTER (WHERE procurement_deadline >= CURRENT_TIMESTAMP)::int AS future_deadline,
-                    count(*) FILTER (WHERE source_document_url IS NOT NULL)::int AS with_source_document
+                    count(*) FILTER (WHERE classification='confirmed' AND status='active'
+                      AND (procurement_deadline IS NULL OR procurement_deadline < CURRENT_TIMESTAMP))::int AS active_without_future_deadline,
+                    count(*) FILTER (WHERE source_document_url IS NOT NULL)::int AS with_source_document,
+                    min(source_published_at) AS oldest_published_at,
+                    max(source_published_at) AS newest_published_at,
+                    min(procurement_deadline) AS earliest_deadline,
+                    max(procurement_deadline) AS latest_deadline
              FROM oi_opportunities WHERE source_id='sam-gov'`),
+    queryDb(`SELECT COALESCE(source_payload->>'type', source_payload->>'noticeType', 'unknown') AS notice_type,
+                    count(*)::int AS records,
+                    count(*) FILTER (WHERE status='active')::int AS active,
+                    count(*) FILTER (WHERE procurement_deadline >= CURRENT_TIMESTAMP)::int AS future_deadline
+             FROM oi_opportunities WHERE source_id='sam-gov'
+             GROUP BY 1 ORDER BY records DESC`),
     queryDb(`SELECT source_id, count(*)::int AS records,
                     count(*) FILTER (WHERE classification='confirmed' AND status='active')::int AS confirmed_active,
                     count(*) FILTER (WHERE classification='timing_based' AND status='upcoming')::int AS timing_upcoming,
@@ -150,6 +162,9 @@ async function main() {
   if (Number(samResult?.florida_records || 0) > 0 && Number(samResult?.with_deadline || 0) === 0) {
     throw new Error("SAM.gov records are present, but no response deadlines were parsed.");
   }
+  if (Number(samResult?.active_without_future_deadline || 0) > 0) {
+    throw new Error("SAM.gov has confirmed active records without a verified future response deadline.");
+  }
   const sample = samples[0];
   const assistant = sample ? await buildOpportunityBrief(String(sample.id), "requirements deadline submission eligibility contact value") : null;
   if (!assistant || !assistant.citations.some((citation) => citation.excerpt)) {
@@ -157,7 +172,7 @@ async function main() {
   }
   console.log(JSON.stringify({
     verifiedAt: new Date().toISOString(), totals: totals[0], sources, sourceCounts, documents, documentFailures,
-    samVerification: samVerification[0],
+    samVerification: samVerification[0], samNoticeTypes,
     categories, categoryRepresentatives, representatives,
     surfaces: { explorerTotal: explorer.total, atlasOpportunityCount, atlasFeatures: atlas.features.length },
     assistant: {

@@ -582,18 +582,33 @@ const samAdapter: SourceAdapter = {
       // SAM's v2 payload uses the unusually-cased `responseDeadLine` field.
       // Retain the historical misspelling as a defensive fallback for stored/test fixtures.
       const deadline = cleanDate(item.responseDeadLine || item.reponseDeadLine);
-      const active = String(item.active).toLowerCase() === "yes" && (!deadline || new Date(deadline) >= new Date());
+      const noticeType = String(item.type || item.noticeType || "");
+      const actionableSolicitation = /^(?:Solicitation|Combined Synopsis\/Solicitation)$/i.test(noticeType);
+      const planningNotice = /^(?:Sources Sought|Presolicitation)$/i.test(noticeType);
+      const awardNotice = /^Award Notice$/i.test(noticeType);
+      const apiActive = String(item.active).toLowerCase() === "yes";
+      const futureDeadline = Boolean(deadline && new Date(deadline) >= new Date());
+      const cancelled = String(item.archiveType || "").toLowerCase().includes("cancel");
+      const status: CanonicalOpportunityInput["status"] = cancelled ? "cancelled"
+        : awardNotice ? "awarded"
+        : deadline && !futureDeadline ? "expired"
+        : !apiActive ? "archived"
+        : actionableSolicitation && futureDeadline ? "active"
+        : planningNotice && futureDeadline ? "upcoming"
+        : "needs_review";
       const sourceUrl = `https://sam.gov/opp/${noticeId}/view`;
       const resources = Array.isArray(item.resourceLinks) ? item.resourceLinks.map(String) : [];
       return {
         opportunity: {
           sourceRecordId: noticeId, title, summary: String(item.description || item.fullParentPathName || ""),
-          tradeSlug: classifyTrade(title + " " + String(item.description || "")), classification: "confirmed",
-          status: active ? "active" : String(item.archiveType).toLowerCase().includes("cancel") ? "cancelled" : "expired",
+          tradeSlug: classifyTrade(title + " " + String(item.description || "")),
+          classification: actionableSolicitation ? "confirmed" : "timing_based", status,
           geographicScopeType: performance ? "city" : "statewide",
           city: city?.name ? String(city.name) : null, zipCode: performance?.zip ? String(performance.zip) : null,
           procurementDeadline: deadline, evidenceConfidence: 100,
-          classificationRationale: authoritativeRationale("SAM.gov"),
+          classificationRationale: actionableSolicitation
+            ? "SAM.gov documents a federal solicitation. It is presented as active only when a future response deadline is verified."
+            : `${noticeType || "This SAM.gov notice"} is an authoritative federal notice, but not a verified open solicitation; it is retained as a timing signal.`,
           sourceUrl, sourceDocumentUrl: resources[0] || null, sourcePayload: { ...item, contentHash: hash(item) },
         },
         publishedAt: cleanDate(item.postedDate),
