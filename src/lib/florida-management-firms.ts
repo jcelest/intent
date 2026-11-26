@@ -405,7 +405,7 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           ${firm.licenseNumber || null}, ${firm.licenseType || null}, ${firm.status},
           ${firm.address}, ${firm.city}, ${firm.state || 'FL'}, ${firm.zipCode || null},
           ${firm.county}, ${firm.phone || null}, ${firm.email || null}, ${firm.website || null},
-          ${firm.qualifierName || null}, ${firm.managedPropertiesCount ?? 0}, ${firm.managedPortfolioSqft || null},
+          ${firm.qualifierName || null}, ${null}, ${firm.managedPortfolioSqft || null},
           ${firm.latitude}, ${firm.longitude}, ${firm.source}, ${firm.evidenceUrl || null},
           ${JSON.stringify(firm.metadata || {})}::jsonb, CURRENT_TIMESTAMP
         )
@@ -420,10 +420,7 @@ export async function saveManagementFirms(firms: ManagementFirmRecord[]): Promis
           source = EXCLUDED.source,
           evidence_url = COALESCE(EXCLUDED.evidence_url, fl_management_firms.evidence_url),
           metadata = EXCLUDED.metadata,
-          managed_properties_count = CASE
-            WHEN EXCLUDED.source = 'FL_DBPR_CAB' THEN EXCLUDED.managed_properties_count
-            ELSE GREATEST(fl_management_firms.managed_properties_count, EXCLUDED.managed_properties_count)
-          END,
+          managed_properties_count = NULL,
           managed_portfolio_sqft = COALESCE(EXCLUDED.managed_portfolio_sqft, fl_management_firms.managed_portfolio_sqft),
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,

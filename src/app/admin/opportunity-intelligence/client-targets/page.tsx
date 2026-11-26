@@ -50,13 +50,14 @@ function ClientTerritoryTargetsTerminalContent() {
 
   // Mode: "call_list" (default) or "browse_all"
   const [mode, setMode] = useState<"call_list" | "browse_all">("call_list");
-  const [callListLimit, setCallListLimit] = useState<number>(50);
+  const [callListLimit, setCallListLimit] = useState<number>(25);
   const [hasMoreCallList, setHasMoreCallList] = useState<boolean>(false);
 
   // Client Overlay (Optional Lens - Never Reduces Dataset)
   const [clients, setClients] = useState<RegisteredClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("all");
   const [hideExistingAccounts, setHideExistingAccounts] = useState<boolean>(false);
+  const [portfolioScreen, setPortfolioScreen] = useState<"all" | "100_plus" | "200_plus">("all");
 
   // Saved Views State
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -179,6 +180,7 @@ function ClientTerritoryTargetsTerminalContent() {
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
       if (needsReviewOnly) params.set("needsReviewOnly", "true");
       if (hideExistingAccounts) params.set("hideExistingAccounts", "true");
+      if (portfolioScreen !== "all") params.set("portfolioScreen", portfolioScreen);
 
       const res = await fetch(`/api/opportunity-intelligence/client-targets?${params.toString()}`);
       const data = await res.json();
@@ -224,6 +226,7 @@ function ClientTerritoryTargetsTerminalContent() {
     searchQuery,
     needsReviewOnly,
     hideExistingAccounts,
+    portfolioScreen,
   ]);
 
   useEffect(() => {
@@ -438,7 +441,8 @@ function ClientTerritoryTargetsTerminalContent() {
     setPermitWithinDaysFilter(f.permitWithinDays || "all");
     setSearchQuery(f.search || "");
     setAdvancedFiltersOpen(false); // Collapsed when saved view active
-    setCallListLimit(50);
+    setCallListLimit(25);
+    setPortfolioScreen("all");
     setPage(1);
   };
 
@@ -509,7 +513,7 @@ function ClientTerritoryTargetsTerminalContent() {
     setSearchQuery("");
     setNeedsReviewOnly(false);
     setHideExistingAccounts(false);
-    setCallListLimit(50);
+    setCallListLimit(25);
     setPage(1);
   };
 
@@ -669,7 +673,7 @@ function ClientTerritoryTargetsTerminalContent() {
             <button
               onClick={() => {
                 setMode("call_list");
-                setCallListLimit(50);
+                setCallListLimit(25);
               }}
               className={`px-2.5 py-1 rounded-[2px] transition-colors ${
                 mode === "call_list"
@@ -677,7 +681,7 @@ function ClientTerritoryTargetsTerminalContent() {
                   : "text-[#888888] hover:text-white"
               }`}
             >
-              Top 50 Call List
+              Next 25 To Work
             </button>
             <button
               onClick={() => setMode("browse_all")}
@@ -823,7 +827,7 @@ function ClientTerritoryTargetsTerminalContent() {
               value={selectedClientId}
               onChange={(e) => {
                 setSelectedClientId(e.target.value);
-                setCallListLimit(50);
+                setCallListLimit(25);
                 setPage(1);
               }}
               className="rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
@@ -835,6 +839,23 @@ function ClientTerritoryTargetsTerminalContent() {
                 </option>
               ))}
             </select>
+
+            <div className="inline-flex border border-[#262626] bg-[#0A0A0A] p-0.5 text-[10px]">
+              {([['all', 'All'], ['200_plus', '200+'], ['100_plus', '100+']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setPortfolioScreen(value);
+                    setCallListLimit(25);
+                    setPage(1);
+                  }}
+                  className={`px-2 py-1 ${portfolioScreen === value ? 'bg-[#FFB000] font-bold text-black' : 'text-[#777777] hover:text-white'}`}
+                  title={value === 'all' ? 'No portfolio screen' : `Prioritize firms with a verified portfolio floor of ${label} inside the selected client service area`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
             {selectedClient && (
               <label className="inline-flex items-center gap-1.5 text-xs text-[#888888] ml-2 cursor-pointer select-none">
@@ -881,7 +902,7 @@ function ClientTerritoryTargetsTerminalContent() {
                     onChange={(e) => {
                       setCountyFilter(e.target.value);
                       setActiveSavedViewId(null);
-                      setCallListLimit(50);
+                      setCallListLimit(25);
                       setPage(1);
                     }}
                     className="w-full rounded-[2px] border border-[#262626] bg-[#0A0A0A] px-2 py-1 text-xs text-white focus:outline-none focus:border-[#FFB000] focus:ring-1 focus:ring-[#FFB000]"
@@ -1175,6 +1196,7 @@ function ClientTerritoryTargetsTerminalContent() {
                 <th className="py-2 px-2 font-semibold min-w-[110px]">Channel</th>
                 {/* Column 6: Fit Score */}
                 <th className="py-2 px-2 font-semibold min-w-[70px]">Fit</th>
+                <th className="py-2 px-2 font-semibold min-w-[150px]">Portfolio</th>
                 {/* Column 7: Reviews */}
                 <th className="py-2 px-2 font-semibold min-w-[70px]">Reviews</th>
                 {/* Column 8: Website (Y/N) */}
@@ -1191,14 +1213,14 @@ function ClientTerritoryTargetsTerminalContent() {
             <tbody className="divide-y divide-[#1D1D1D]">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-14 text-center text-[#666666]">
+                  <td colSpan={12} className="py-14 text-center text-[#666666]">
                     <RefreshIcon className="h-5 w-5 animate-spin mx-auto mb-2 text-[#FFB000]" />
                     Loading ranked Call List records from Florida database...
                   </td>
                 </tr>
               ) : targets.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-10 text-center text-[#666666]">
+                  <td colSpan={12} className="py-10 text-center text-[#666666]">
                     No commercial outreach targets match the active filter criteria.
                   </td>
                 </tr>
@@ -1212,7 +1234,7 @@ function ClientTerritoryTargetsTerminalContent() {
                       key={target.targetId}
                       className={`hover:bg-[#181818] transition-colors ${
                         isVerified ? "border-l-2 border-l-[#FFB000]" : "opacity-75 hover:opacity-100"
-                      }`}
+                      } ${portfolioScreen !== "all" && !target.portfolioScreenMatch ? "opacity-35" : ""}`}
                       style={{ height: "34px" }}
                     >
                       {/* 1. Business Name & Google Search Option (Sticky Col 1) */}
@@ -1283,6 +1305,17 @@ function ClientTerritoryTargetsTerminalContent() {
                         </span>
                       </td>
 
+                      <td className="py-1.5 px-2 whitespace-nowrap">
+                        {target.portfolioTier && target.portfolioTier !== "UNKNOWN" && target.portfolioRangeLow !== null && target.portfolioRangeLow !== undefined ? (
+                          <a href={target.recordType === "firm" ? `/admin/opportunity-intelligence/management-firms?firmId=${target.targetId.replace("firm_", "")}` : undefined} className="inline-block border border-[#FFB000]/30 bg-[#FFB000]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#FFB000]">
+                            {target.portfolioTier === "OVER_300" ? "300+" : target.portfolioTier === "FROM_100_TO_300" ? "100 to 300" : "Under 100"}
+                            {target.portfolioRangeHigh ? ` · est. ${target.portfolioRangeLow} to ${target.portfolioRangeHigh}` : ` · at least ${target.portfolioRangeLow}`}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-[10px] text-[#555555]">No data</span>
+                        )}
+                      </td>
+
                       {/* 7. Reviews */}
                       <td className="py-1.5 px-2 text-[#888888] whitespace-nowrap font-mono">
                         {target.reviewCount && target.reviewCount > 0 ? (
@@ -1291,7 +1324,7 @@ function ClientTerritoryTargetsTerminalContent() {
                             {target.reviewCount}
                           </span>
                         ) : (
-                          <span className="text-[#444444]">—</span>
+                          <span className="text-[#444444]">No data</span>
                         )}
                       </td>
 
@@ -1405,7 +1438,7 @@ function ClientTerritoryTargetsTerminalContent() {
           <div className="text-[#888888]">
             {mode === "call_list" ? (
               <span>
-                Showing Top {Math.min(targets.length, total)} Ranked Call Targets of {total.toLocaleString()} Total
+                Showing Next {Math.min(targets.length, 25)} To Work of {total.toLocaleString()} Total
               </span>
             ) : (
               <span>

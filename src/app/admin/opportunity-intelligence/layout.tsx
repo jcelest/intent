@@ -15,6 +15,7 @@ const PRIMARY_NAV = [
   ["/admin/opportunity-intelligence/awards", "Historical Awards"],
   ["/admin/opportunity-intelligence/properties", "Properties"],
   ["/admin/opportunity-intelligence/relationships", "Relationships"],
+  ["/admin/opportunity-intelligence/management-firms", "Management Firms"],
   ["/admin/opportunity-intelligence/equipment", "Equipment"],
   ["/admin/opportunity-intelligence/permits", "Permits"],
   ["/admin/opportunity-intelligence/analytics", "Market Analytics"],

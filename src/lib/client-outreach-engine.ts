@@ -8,7 +8,7 @@ import { parseFloridaGeoSearch } from "@/lib/florida-geo";
 
 export interface UnifiedClientTargetRow {
   targetId: string;
-  recordType: "parcel" | "network" | "licensee" | "business";
+  recordType: "parcel" | "network" | "licensee" | "business" | "firm";
   parcelId: string | null;
   name: string;
   channel: OutreachChannel;
@@ -41,6 +41,11 @@ export interface UnifiedClientTargetRow {
   pipelineStage: string | null;
   inClientTerritory: boolean;
   isClientAccount: boolean;
+  portfolioFloor?: number | null;
+  portfolioRangeLow?: number | null;
+  portfolioRangeHigh?: number | null;
+  portfolioTier?: "UNDER_100" | "FROM_100_TO_300" | "OVER_300" | "UNKNOWN";
+  portfolioScreenMatch?: boolean;
 }
 
 export interface ClientOutreachQueryParams {
@@ -67,6 +72,7 @@ export interface ClientOutreachQueryParams {
   pageSize?: number;
   limit?: number;
   mode?: "call_list" | "browse_all";
+  portfolioScreen?: "100_plus" | "200_plus";
 }
 
 export interface ClientOutreachQueryResult {
@@ -267,7 +273,7 @@ export async function getClientTerritoryOutreachTargets(
   }
 
   // 4. Query All Ingested Florida Commercial Data (Parcels, Networks, Licenses, Verifications)
-  const [parcelRows, networkRows, licenseRows, verificationRows] = await Promise.all([
+  const [parcelRows, networkRows, licenseRows, verificationRows, firmRows] = await Promise.all([
     sql`
       SELECT 
         p.county,
@@ -332,6 +338,13 @@ export async function getClientTerritoryOutreachTargets(
         has_website, gbp_signal, rating, review_count, phone, evidence, needs_review
       FROM fl_search_verifications
       ORDER BY business_name, city, verified_at DESC
+    `,
+    sql`
+      SELECT id, name, firm_type, license_type, license_number, status,
+             address, city, county, zip_code, phone, website, evidence_url,
+             portfolio_floor, portfolio_range_low, portfolio_range_high, portfolio_tier
+      FROM fl_management_firms
+      ORDER BY portfolio_floor DESC NULLS LAST, name
     `,
   ]);
 
@@ -600,6 +613,73 @@ export async function getClientTerritoryOutreachTargets(
     });
   }
 
+  // 4d. Evidence-backed property management and CAM firms
+  for (const firm of (firmRows as Array<Record<string, unknown>>)) {
+    const name = String(firm.name);
+    const city = String(firm.city || "Unknown");
+    const county = String(firm.county || "Unknown");
+    const inClientTerritory = clientCounties.length > 0
+      ? clientCounties.some((item) => item.toLowerCase() === county.toLowerCase())
+      : true;
+    const isActive = !String(firm.status || "").toLowerCase().includes("inactive");
+    const portfolioFloor = firm.portfolio_floor === null ? null : Number(firm.portfolio_floor);
+    const threshold = params.portfolioScreen === "200_plus" ? 200 : params.portfolioScreen === "100_plus" ? 100 : null;
+    const portfolioScreenMatch = threshold === null
+      ? true
+      : inClientTerritory && portfolioFloor !== null && portfolioFloor >= threshold;
+    const isClientAccount = exclusions.some((item) => item.toLowerCase() === name.toLowerCase());
+    const inPipeline = pipelineMap.has(name.toLowerCase());
+    const evidenceUrl = firm.evidence_url ? String(firm.evidence_url) : null;
+
+    allRecords.push({
+      targetId: `firm_${firm.id}`,
+      recordType: "firm",
+      parcelId: null,
+      name,
+      channel: "association_cam",
+      situsAddress: String(firm.address || `${city}, FL`),
+      city,
+      county,
+      zip: firm.zip_code ? String(firm.zip_code) : null,
+      buildingSqft: null,
+      sqftBand: "OVER_10T_POSSIBLE",
+      tonnageRisk: "OVER_10T_POSSIBLE",
+      entityStatus: isActive ? "Active" : "Inactive",
+      sunbizDocNumber: null,
+      matchConfidence: evidenceUrl ? 100 : 0,
+      licenseType: firm.license_type ? String(firm.license_type) : null,
+      licenseNumber: firm.license_number ? String(firm.license_number) : null,
+      lastMechanicalPermitDate: null,
+      incumbentContractor: null,
+      verificationStatus: isActive && evidenceUrl ? "VERIFIED_ACTIVE" : "LIKELY_ACTIVE",
+      hasWebsite: Boolean(firm.website),
+      officialWebsiteUrl: firm.website ? String(firm.website) : null,
+      gbpSignal: "NOT_SEEN",
+      reviewCount: null,
+      rating: null,
+      verifiedPhone: firm.phone ? String(firm.phone) : null,
+      evidence: evidenceUrl ? [{ url: evidenceUrl, query: "Official firm record", verified_at: new Date().toISOString() }] : [],
+      needsReview: !evidenceUrl,
+      fitScore: calculateTargetFitScore({
+        targetChannel: "association_cam",
+        targetCounty: county,
+        clientTrades,
+        clientCounties: clientCounties.length > 0 ? clientCounties : [county],
+        entityActive: isActive,
+      }),
+      scopeWarning: null,
+      inPipeline,
+      pipelineStage: inPipeline ? pipelineMap.get(name.toLowerCase()) || "identified" : null,
+      inClientTerritory,
+      isClientAccount,
+      portfolioFloor,
+      portfolioRangeLow: firm.portfolio_range_low === null ? null : Number(firm.portfolio_range_low),
+      portfolioRangeHigh: firm.portfolio_range_high === null ? null : Number(firm.portfolio_range_high),
+      portfolioTier: (firm.portfolio_tier || "UNKNOWN") as UnifiedClientTargetRow["portfolioTier"],
+      portfolioScreenMatch,
+    });
+  }
+
   // 5. Apply Manual Filters (All Optional, Combined via AND)
   let filtered = allRecords;
 
@@ -719,6 +799,10 @@ export async function getClientTerritoryOutreachTargets(
     // (3) most recent permit date;
     // (4) Google review count descending.
     filtered.sort((a, b) => {
+      if (params.portfolioScreen) {
+        const screenDiff = Number(Boolean(b.portfolioScreenMatch)) - Number(Boolean(a.portfolioScreenMatch));
+        if (screenDiff !== 0) return screenDiff;
+      }
       const verifRank = (v: string) => {
         if (v === "VERIFIED_ACTIVE") return 1;
         if (v === "LIKELY_ACTIVE") return 2;

@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     const pageSize = searchParams.get("pageSize") ? Number(searchParams.get("pageSize")) : 25;
     const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : 50;
     const mode = (searchParams.get("mode") as "call_list" | "browse_all") || "call_list";
+    const portfolioScreen = searchParams.get("portfolioScreen") as "100_plus" | "200_plus" | null;
 
     const [outreachData, registeredClients] = await Promise.all([
       getClientTerritoryOutreachTargets({
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
         pageSize,
         limit,
         mode,
+        portfolioScreen: portfolioScreen || undefined,
       }),
       getRegisteredClientsList(),
     ]);

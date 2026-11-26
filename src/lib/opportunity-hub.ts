@@ -604,11 +604,15 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const mgmtRows = await queryDb(
       `SELECT id::text, name, dba, firm_type, license_number, license_type, status,
               address, city, county, zip_code, phone, email, website, qualifier_name,
-              managed_properties_count, managed_portfolio_sqft, latitude, longitude, source, evidence_url,
+              portfolio_floor, portfolio_range_low, portfolio_range_high, portfolio_tier,
+              parcels_matched_by_mailing_address, eviction_filings_trailing_12mo,
+              permit_properties_trailing_12mo, sunbiz_associations_managed,
+              association_units_total, managed_portfolio_sqft, latitude, longitude, source, evidence_url,
               metadata
        FROM fl_management_firms
        WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${mgmtBboxWhere} ${mgmtCountyWhere}
-       ORDER BY managed_properties_count DESC, name ASC LIMIT 5000`,
+         AND latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY portfolio_floor DESC NULLS LAST, name ASC LIMIT 5000`,
       mgmtParams,
     );
     for (const row of mgmtRows) {
@@ -640,8 +644,15 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
           qualifierName: row.qualifier_name,
           licenseNumber: row.license_number,
           licenseType: row.license_type,
-          portfolioCount: Number(row.managed_properties_count || 0) || null,
-          managedPropertiesCount: Number(row.managed_properties_count || 0) || null,
+          portfolioFloor: row.portfolio_floor === null ? null : Number(row.portfolio_floor),
+          portfolioRangeLow: row.portfolio_range_low === null ? null : Number(row.portfolio_range_low),
+          portfolioRangeHigh: row.portfolio_range_high === null ? null : Number(row.portfolio_range_high),
+          portfolioTier: row.portfolio_tier || "UNKNOWN",
+          parcelsMatchedByMailingAddress: row.parcels_matched_by_mailing_address,
+          evictionFilingsTrailing12mo: row.eviction_filings_trailing_12mo,
+          permitPropertiesTrailing12mo: row.permit_properties_trailing_12mo,
+          sunbizAssociationsManaged: row.sunbiz_associations_managed,
+          associationUnitsTotal: row.association_units_total,
           portfolioSqft: row.managed_portfolio_sqft,
           googlePlaceId: metadata.google_place_id || null,
           googleListingStatus: metadata.google_listing_status || "not_checked",
