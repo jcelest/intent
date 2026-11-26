@@ -17,6 +17,7 @@ const migrationPaths = [
   resolve(scriptDir, "..", "migrations", "012_opportunity_source_automation.sql"),
   resolve(scriptDir, "..", "migrations", "013_procurement_notification_inbox.sql"),
   resolve(scriptDir, "..", "migrations", "014_commercial_channel_coverage.sql"),
+  resolve(scriptDir, "..", "migrations", "015_permit_property_screen.sql"),
 ];
 const sql = neon(databaseUrl);
 

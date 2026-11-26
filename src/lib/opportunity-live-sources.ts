@@ -639,28 +639,49 @@ const orlandoPermitsAdapter: SourceAdapter = {
         `INSERT INTO oi_permit_records (
           source_id, source_record_id, permit_number, permit_type, permit_status, description,
           issue_date, final_date, job_value, contractor_name, address, city, county,
-          latitude, longitude, source_url, source_payload, record_hash
-        ) VALUES ('orlando-permits',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Orlando','Orange',$11,$12,$13,$14::jsonb,$15)
+          latitude, longitude, source_url, source_payload, record_hash, parcel_id, property_type,
+          parcel_use_code, parcel_use_description, parcel_evidence_url, parcel_match_method, parcel_matched_at
+        ) VALUES ('orlando-permits',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Orlando','Orange',$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22)
         ON CONFLICT (source_id, source_record_id) DO UPDATE SET
           permit_type=EXCLUDED.permit_type, permit_status=EXCLUDED.permit_status,
           description=EXCLUDED.description, issue_date=EXCLUDED.issue_date, final_date=EXCLUDED.final_date,
           job_value=EXCLUDED.job_value, contractor_name=EXCLUDED.contractor_name,
           address=EXCLUDED.address, latitude=EXCLUDED.latitude, longitude=EXCLUDED.longitude,
           source_url=EXCLUDED.source_url, source_payload=EXCLUDED.source_payload,
-          record_hash=EXCLUDED.record_hash, updated_at=CURRENT_TIMESTAMP`,
+          record_hash=EXCLUDED.record_hash, parcel_id=EXCLUDED.parcel_id,
+          property_type=EXCLUDED.property_type, parcel_use_code=EXCLUDED.parcel_use_code,
+          parcel_use_description=EXCLUDED.parcel_use_description,
+          parcel_evidence_url=EXCLUDED.parcel_evidence_url,
+          parcel_match_method=EXCLUDED.parcel_match_method,
+          parcel_matched_at=EXCLUDED.parcel_matched_at, updated_at=CURRENT_TIMESTAMP`,
         [permit.source_record_id, permit.permit_number, permit.work_type || permit.application_type || "permit",
           permit.status || null, permit.description || null, dateOnly(permit.issued_at), dateOnly(permit.finaled_at),
           permit.estimated_cost || null, permit.contractor_business_name || permit.contractor_name || null,
           permit.address || null, permit.latitude || null, permit.longitude || null, permit.source_url,
-          JSON.stringify(permit.raw_data || {}), permit.content_hash || null],
+          JSON.stringify(permit.raw_data || {}), permit.content_hash || null,
+          permit.parcel_number || null, permit.property_type || "UNKNOWN", permit.parcel_use_code || null,
+          permit.parcel_use_description || null, permit.parcel_evidence_url || null,
+          permit.parcel_match_method || null, permit.parcel_matched_at || null],
       );
     }
-    const inferred = await queryDb(
-      `SELECT opportunity.*, permit.latitude, permit.longitude, permit.estimated_cost,
-              permit.processed_at, permit.issued_at, permit.raw_data
+    await queryDb(
+      `UPDATE oi_opportunities canonical
+       SET status='archived', updated_at=CURRENT_TIMESTAMP
        FROM trade_demand_opportunities opportunity
        JOIN trade_demand_permits permit ON permit.id=opportunity.primary_permit_id
-       WHERE opportunity.evidence_type='permit_activity' AND opportunity.trade_slug IS NOT NULL
+       WHERE canonical.source_id='orlando-permits'
+         AND canonical.source_record_id=opportunity.origin_key
+         AND permit.property_type <> 'COMMERCIAL'`,
+    );
+    const inferred = await queryDb(
+      `SELECT opportunity.*, permit.latitude, permit.longitude, permit.estimated_cost,
+              permit.processed_at, permit.issued_at, permit.raw_data, permit.property_type,
+              permit.parcel_use_code, permit.parcel_use_description, permit.parcel_evidence_url
+       FROM trade_demand_opportunities opportunity
+       JOIN trade_demand_permits permit ON permit.id=opportunity.primary_permit_id
+       WHERE opportunity.evidence_type='permit_activity'
+         AND opportunity.trade_slug IS NOT NULL
+         AND permit.property_type='COMMERCIAL'
        ORDER BY opportunity.updated_at DESC LIMIT $1`,
       [Math.min(limit, 1000)],
     );
@@ -672,12 +693,23 @@ const orlandoPermitsAdapter: SourceAdapter = {
         tradeSlug: item.trade_slug ? String(item.trade_slug) : null,
         classification: "inferred", status: "discovered", geographicScopeType: "address",
         address: item.address ? String(item.address) : null, city: "Orlando", county: "Orange",
+        parcelId: item.parcel_number ? String(item.parcel_number) : null,
+        propertyType: "COMMERCIAL",
+        parcelUseCode: item.parcel_use_code ? String(item.parcel_use_code) : null,
+        parcelUseDescription: item.parcel_use_description ? String(item.parcel_use_description) : null,
+        parcelEvidenceUrl: item.parcel_evidence_url ? String(item.parcel_evidence_url) : null,
         latitude: item.latitude === null ? null : Number(item.latitude),
         longitude: item.longitude === null ? null : Number(item.longitude),
         documentedValue: item.estimated_cost === null ? null : Number(item.estimated_cost),
         evidenceConfidence: 75,
         classificationRationale: "A City of Orlando permit documents project activity and trade relevance. It does not establish an open solicitation, unawarded work, or a present purchasing decision.",
-        sourceUrl: String(item.source_url), sourcePayload: { ...(item.raw_data as Row || {}), contentHash: hash(item.raw_data || item) },
+        sourceUrl: String(item.source_url), sourcePayload: {
+          ...(item.raw_data as Row || {}),
+          propertyType: item.property_type,
+          parcelUseCode: item.parcel_use_code,
+          parcelEvidenceUrl: item.parcel_evidence_url,
+          contentHash: hash({ rawData: item.raw_data || item, propertyType: item.property_type, parcelUseCode: item.parcel_use_code }),
+        },
       },
       publishedAt: cleanDate(item.processed_at || item.issued_at),
     }));

@@ -14,6 +14,11 @@ export interface CanonicalOpportunityInput {
   zipCode?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  parcelId?: string | null;
+  propertyType?: "COMMERCIAL" | "RESIDENTIAL" | "UNKNOWN" | null;
+  parcelUseCode?: string | null;
+  parcelUseDescription?: string | null;
+  parcelEvidenceUrl?: string | null;
   documentedValue?: number | null;
   estimatedValue?: number | null;
   valueEstimationMethodology?: string | null;

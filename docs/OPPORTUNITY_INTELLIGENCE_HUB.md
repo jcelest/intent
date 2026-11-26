@@ -82,6 +82,12 @@ The coverage dashboard exposes these limitations rather than substituting mock d
 - SAM.gov requires an authorized API key and place-of-performance filtering.
 - MyFloridaMarketPlace and many local procurement portals require source-specific document parsers; some provide no stable public API.
 - Florida has no single statewide permit API. Each county and municipality has its own ArcGIS service, export, document portal, or public-record procedure.
+
+## Permit property-type screen
+
+Permit-derived records fail closed. A permit enters commercial Explorer, Atlas, hub-count, and client-targeting paths only after an authoritative parcel match classifies it as `COMMERCIAL`. City of Orlando permits are reconciled by parcel ID first and normalized address second against the Orange County Property Appraiser dynamic parcel layer. OCPA DOR use codes beginning with `01` are stored as `RESIDENTIAL`; unmatched records remain `UNKNOWN`. Both are excluded from commercial views.
+
+Each permit stores the deciding parcel use code, property type, match method, and parcel evidence URL. `trade_demand_permit_classification_runs` records before/after commercial counts, while `trade_demand_permit_classification_audit` preserves record-level decisions. Sources & Coverage exposes the current commercial, residential, unknown, excluded, and parcel-evidence totals.
 - Parcel geometry and field mappings vary by county; some jurisdictions require a Florida public-records request.
 - AHCA, school districts, universities, housing authorities, airports, ports, hospitals, and utilities require separate official adapters and licensing review.
 - CAPTCHA, authenticated, access-restricted, or prohibited sources are never bypassed.

@@ -30,11 +30,12 @@ const FEEDS: Record<string, { sql: string; search: string[]; county: string | nu
   },
   permits: {
     sql: `SELECT * FROM (
-      SELECT p.id::text, 'universal'::text AS record_source, p.permit_number, p.permit_type, p.permit_status, p.description, p.issue_date, p.final_date, p.job_value, p.contractor_name, p.contractor_license_number, p.address, p.city, p.county, p.zip_code, p.latitude, p.longitude, p.source_url, p.updated_at
+      SELECT p.id::text, 'universal'::text AS record_source, p.permit_number, p.permit_type, p.permit_status, p.description, p.issue_date, p.final_date, p.job_value, p.contractor_name, p.contractor_license_number, p.address, p.city, p.county, p.zip_code, p.latitude, p.longitude, p.source_url, p.parcel_id, p.property_type, p.parcel_use_code, p.parcel_use_description, p.parcel_evidence_url, p.updated_at
       FROM oi_permit_records p
+      WHERE p.property_type = 'COMMERCIAL'
       UNION ALL
-      SELECT fp.id::text, 'legacy_permit', fp.permit_number, fp.permit_type, NULL, fp.description, fp.issue_date, NULL, fp.job_value, fp.contractor_name, fp.contractor_license_number, parcel.situs_address, parcel.situs_city, fp.parcel_county, parcel.situs_zip, NULL, NULL, NULL, fp.created_at
-      FROM fl_permits fp LEFT JOIN fl_parcels parcel ON parcel.county = fp.parcel_county AND parcel.parcel_id = fp.parcel_id
+      SELECT fp.id::text, 'legacy_permit', fp.permit_number, fp.permit_type, NULL, fp.description, fp.issue_date, NULL, fp.job_value, fp.contractor_name, fp.contractor_license_number, parcel.situs_address, parcel.situs_city, fp.parcel_county, parcel.situs_zip, parcel.latitude, parcel.longitude, NULL, parcel.parcel_id, 'COMMERCIAL', parcel.use_code, parcel.use_description, parcel.location_source_url, fp.created_at
+      FROM fl_permits fp JOIN fl_parcels parcel ON parcel.county = fp.parcel_county AND parcel.parcel_id = fp.parcel_id
     ) resource_feed`,
     search: ["permit_number", "permit_type", "description", "contractor_name", "address"], county: "county", order: "issue_date DESC NULLS LAST, id DESC",
   },

@@ -20,6 +20,12 @@ import {
   ORLANDO_DATASET_URL,
 } from "@/lib/trade-demand-orlando";
 import { TRADE_DEMAND_SOURCE_SHORTCUTS } from "@/lib/trade-demand-sources";
+import {
+  getPermitPropertyScreenSummary,
+  resolveOrangePermitParcels,
+  type PermitParcelDecision,
+  type PermitPropertyType,
+} from "@/lib/permit-property-screen";
 
 type DbRow = Record<string, unknown>;
 
@@ -141,7 +147,7 @@ export async function ensureAgreementClients(): Promise<void> {
 
 export async function getTradeDemandMeta(): Promise<DbRow> {
   await ensureAgreementClients();
-  const [trades, clients, syncRuns] = await Promise.all([
+  const [trades, clients, syncRuns, permitPropertyScreen] = await Promise.all([
     sql`SELECT slug, name, active, sort_order FROM trade_demand_trades ORDER BY sort_order, name`,
     sql`
       SELECT id, agreement_id, name, contact_name, contact_email, contact_phone,
@@ -158,8 +164,9 @@ export async function getTradeDemandMeta(): Promise<DbRow> {
       ORDER BY started_at DESC
       LIMIT 10
     `,
+    getPermitPropertyScreenSummary(),
   ]);
-  return { trades, clients, syncRuns, sourceShortcuts: TRADE_DEMAND_SOURCE_SHORTCUTS };
+  return { trades, clients, syncRuns, permitPropertyScreen, sourceShortcuts: TRADE_DEMAND_SOURCE_SHORTCUTS };
 }
 
 export async function listOpportunities(filters: QueueFilters = {}): Promise<DbRow[]> {
@@ -172,6 +179,7 @@ export async function listOpportunities(filters: QueueFilters = {}): Promise<DbR
   };
 
   if (!filters.includeInactive) clauses.push("o.active = TRUE");
+  clauses.push("(o.evidence_type <> 'permit_activity' OR p.property_type = 'COMMERCIAL')");
   if (filters.trade) add("o.trade_slug = ?", filters.trade);
   if (filters.location) {
     params.push(`%${filters.location}%`);
@@ -197,6 +205,11 @@ export async function listOpportunities(filters: QueueFilters = {}): Promise<DbR
   const query = `
     SELECT o.*,
       p.permit_number,
+      p.property_type,
+      p.parcel_use_code,
+      p.parcel_use_description,
+      p.parcel_evidence_url,
+      p.parcel_match_method,
       COALESCE((
         SELECT json_agg(json_build_object('id', c.id, 'name', c.name, 'status', a.status) ORDER BY c.name)
         FROM trade_demand_assignments a
@@ -455,6 +468,15 @@ export async function addActivity(id: string, input: DbRow): Promise<DbRow> {
 export async function assignClient(id: string, input: DbRow): Promise<DbRow> {
   const clientId = cleanText(input.clientId);
   if (!clientId) throw new TradeDemandValidationError(["Client is required."]);
+  const eligibility = await sql`
+    SELECT opportunity.evidence_type, permit.property_type
+    FROM trade_demand_opportunities opportunity
+    LEFT JOIN trade_demand_permits permit ON permit.id = opportunity.primary_permit_id
+    WHERE opportunity.id = ${id} LIMIT 1
+  `;
+  if (eligibility[0]?.evidence_type === "permit_activity" && eligibility[0]?.property_type !== "COMMERCIAL") {
+    throw new TradeDemandValidationError(["This permit has no parcel-backed commercial classification and cannot enter a client target overlay."]);
+  }
   const competitors = await sql`
     SELECT a.id, a.client_id, c.name AS client_name
     FROM trade_demand_assignments a
@@ -519,12 +541,16 @@ export async function upsertTrade(input: DbRow): Promise<DbRow> {
   return rows[0] as DbRow;
 }
 
-async function upsertPermitRecord(record: OrlandoPermitRecord): Promise<"added" | "updated" | "unchanged"> {
+async function upsertPermitRecord(
+  record: OrlandoPermitRecord,
+  parcelDecision: PermitParcelDecision,
+  classificationRunId?: string,
+): Promise<"added" | "updated" | "unchanged"> {
   const permitNumber = cleanText(record.permit_number);
   if (!permitNumber) throw new Error("Orlando record is missing permit_number.");
   const hash = permitContentHash(record);
   const existingRows = await sql`
-    SELECT id, content_hash FROM trade_demand_permits
+    SELECT id, content_hash, property_type FROM trade_demand_permits
     WHERE source_system = 'orlando_socrata' AND source_record_id = ${permitNumber}
     LIMIT 1
   `;
@@ -538,6 +564,8 @@ async function upsertPermitRecord(record: OrlandoPermitRecord): Promise<"added" 
       project_name, description, status, processed_at, issued_at, finaled_at,
       contractor_name, contractor_business_name, contractor_phone, contractor_address,
       property_owner_name, estimated_cost, square_footage, neighborhood, latitude, longitude, raw_data
+      ,property_type, parcel_use_code, parcel_use_description, parcel_evidence_url,
+      parcel_source_name, parcel_match_method, parcel_matched_at
     ) VALUES (
       'orlando_socrata', ${permitNumber}, ${sourceUrl}, ${hash}, 'City of Orlando',
       ${permitNumber}, ${cleanText(record.application_type)}, ${cleanText(record.worktype)},
@@ -548,6 +576,9 @@ async function upsertPermitRecord(record: OrlandoPermitRecord): Promise<"added" 
       ${cleanText(record.contractor_address)}, ${cleanText(record.property_owner_name)},
       ${asNumber(record.estimated_cost)}, ${asNumber(record.square_footage)}, ${cleanText(record.neighborhood)},
       ${asNumber(record.geocoded_column?.latitude)}, ${asNumber(record.geocoded_column?.longitude)}, ${JSON.stringify(record)}::jsonb
+      ,${parcelDecision.propertyType}, ${parcelDecision.parcelUseCode}, ${parcelDecision.parcelUseDescription},
+      ${parcelDecision.parcelEvidenceUrl}, ${parcelDecision.parcelSourceName}, ${parcelDecision.parcelMatchMethod},
+      ${parcelDecision.parcelMatchMethod ? new Date() : null}
     )
     ON CONFLICT (source_system, source_record_id) DO UPDATE SET
       source_url = EXCLUDED.source_url,
@@ -573,6 +604,13 @@ async function upsertPermitRecord(record: OrlandoPermitRecord): Promise<"added" 
       latitude = EXCLUDED.latitude,
       longitude = EXCLUDED.longitude,
       raw_data = EXCLUDED.raw_data,
+      property_type = EXCLUDED.property_type,
+      parcel_use_code = EXCLUDED.parcel_use_code,
+      parcel_use_description = EXCLUDED.parcel_use_description,
+      parcel_evidence_url = EXCLUDED.parcel_evidence_url,
+      parcel_source_name = EXCLUDED.parcel_source_name,
+      parcel_match_method = EXCLUDED.parcel_match_method,
+      parcel_matched_at = EXCLUDED.parcel_matched_at,
       last_seen_at = CURRENT_TIMESTAMP,
       source_changed_at = CASE
         WHEN trade_demand_permits.content_hash <> EXCLUDED.content_hash THEN CURRENT_TIMESTAMP
@@ -613,6 +651,23 @@ async function upsertPermitRecord(record: OrlandoPermitRecord): Promise<"added" 
     RETURNING id
   `;
   const opportunityId = opportunityRows[0].id as string;
+  const priorPropertyType = String(existing?.property_type || "UNKNOWN") as PermitPropertyType;
+  if (!existing || priorPropertyType !== parcelDecision.propertyType) {
+    await sql`
+      INSERT INTO trade_demand_permit_classification_audit (
+        run_id, permit_id, opportunity_id, prior_property_type, property_type,
+        parcel_id, parcel_use_code, parcel_use_description, parcel_evidence_url,
+        parcel_match_method, was_commercial_visible, is_commercial_visible
+      ) VALUES (
+        ${classificationRunId || null}, ${permitId}, ${opportunityId}, ${priorPropertyType},
+        ${parcelDecision.propertyType}, ${parcelDecision.parcelId || cleanText(record.parcel_number)},
+        ${parcelDecision.parcelUseCode}, ${parcelDecision.parcelUseDescription},
+        ${parcelDecision.parcelEvidenceUrl}, ${parcelDecision.parcelMatchMethod},
+        ${Boolean(existing ? priorPropertyType === "COMMERCIAL" : true)},
+        ${parcelDecision.propertyType === "COMMERCIAL"}
+      )
+    `;
+  }
   await sql`
     INSERT INTO trade_demand_evidence (
       opportunity_id, permit_id, source_system, source_record_id, evidence_type,
@@ -657,6 +712,35 @@ export async function syncOrlandoPermits(options: OrlandoSyncOptions = {}): Prom
   `;
   const runId = runRows[0].id as string;
   const stats = { seen: 0, added: 0, updated: 0, unchanged: 0 };
+  const priorScreenRows = await sql`
+    SELECT id FROM trade_demand_permit_classification_runs
+    WHERE source_system = 'orlando_socrata' AND status = 'succeeded'
+    LIMIT 1
+  `;
+  const beforeRows = priorScreenRows.length
+    ? await sql`
+        SELECT count(*)::int AS count
+        FROM trade_demand_opportunities opportunity
+        JOIN trade_demand_permits permit ON permit.id = opportunity.primary_permit_id
+        WHERE opportunity.evidence_type = 'permit_activity'
+          AND opportunity.active = TRUE
+          AND permit.property_type = 'COMMERCIAL'
+      `
+    : await sql`
+        SELECT count(*)::int AS count
+        FROM trade_demand_opportunities opportunity
+        JOIN trade_demand_permits permit ON permit.id = opportunity.primary_permit_id
+        WHERE opportunity.evidence_type = 'permit_activity' AND opportunity.active = TRUE
+      `;
+  const classificationRunRows = await sql`
+    INSERT INTO trade_demand_permit_classification_runs (
+      source_system, commercial_count_before, details
+    ) VALUES (
+      'orlando_socrata', ${Number(beforeRows[0]?.count || 0)},
+      ${JSON.stringify({ trigger: "orlando_sync", windowDays, maxRecords, pageSize })}::jsonb
+    ) RETURNING id
+  `;
+  const classificationRunId = String(classificationRunRows[0].id);
 
   try {
     const fields = await inspectOrlandoSchema();
@@ -665,8 +749,13 @@ export async function syncOrlandoPermits(options: OrlandoSyncOptions = {}): Prom
       const limit = Math.min(pageSize, maxRecords - stats.seen);
       const page = await fetchOrlandoPermitPage({ startDate: windowStart, limit, offset });
       if (!page.length) break;
-      for (const record of page) {
-        const outcome = await upsertPermitRecord(record);
+      const decisions = await resolveOrangePermitParcels(page.map((record) => ({
+        parcelNumber: cleanText(record.parcel_number),
+        address: cleanText(record.permit_address),
+      })));
+      for (let index = 0; index < page.length; index += 1) {
+        const record = page[index];
+        const outcome = await upsertPermitRecord(record, decisions[index], classificationRunId);
         stats.seen += 1;
         stats[outcome] += 1;
       }
@@ -683,6 +772,30 @@ export async function syncOrlandoPermits(options: OrlandoSyncOptions = {}): Prom
       WHERE id = ${runId}
       RETURNING *
     `;
+    const classificationCounts = await sql`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE permit.property_type = 'COMMERCIAL')::int AS commercial,
+        count(*) FILTER (WHERE permit.property_type = 'RESIDENTIAL')::int AS residential,
+        count(*) FILTER (WHERE permit.property_type = 'UNKNOWN')::int AS unknown
+      FROM trade_demand_opportunities opportunity
+      JOIN trade_demand_permits permit ON permit.id = opportunity.primary_permit_id
+      WHERE opportunity.evidence_type = 'permit_activity' AND opportunity.active = TRUE
+    `;
+    const counts = classificationCounts[0] || {};
+    const commercialBefore = Number(beforeRows[0]?.count || 0);
+    const commercialAfter = Number(counts.commercial || 0);
+    await sql`
+      UPDATE trade_demand_permit_classification_runs SET
+        status = 'succeeded', finished_at = CURRENT_TIMESTAMP,
+        permit_records_seen = ${stats.seen},
+        parcel_records_matched = ${Number(counts.commercial || 0) + Number(counts.residential || 0)},
+        commercial_count_after = ${commercialAfter},
+        reclassified_count = ${Math.max(0, commercialBefore - commercialAfter)},
+        residential_count = ${Number(counts.residential || 0)},
+        unknown_count = ${Number(counts.unknown || 0)}
+      WHERE id = ${classificationRunId}
+    `;
     return finishedRows[0] as DbRow;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown sync error";
@@ -693,6 +806,11 @@ export async function syncOrlandoPermits(options: OrlandoSyncOptions = {}): Prom
         records_updated = ${stats.updated}, records_unchanged = ${stats.unchanged},
         error_message = ${message}
       WHERE id = ${runId}
+    `;
+    await sql`
+      UPDATE trade_demand_permit_classification_runs SET
+        status = 'failed', finished_at = CURRENT_TIMESTAMP, error_message = ${message}
+      WHERE id = ${classificationRunId}
     `;
     throw error;
   }

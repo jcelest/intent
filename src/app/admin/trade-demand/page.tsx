@@ -42,6 +42,8 @@ type Opportunity = {
   bid_open: boolean;
   active: boolean;
   permit_number?: string | null;
+  property_type?: string | null;
+  parcel_use_code?: string | null;
   assignments: Array<{ id: string; name: string; status: string }>;
 };
 type Meta = { trades: Trade[]; clients: Client[]; syncRuns: SyncRun[]; sourceShortcuts: Shortcut[] };
@@ -348,6 +350,7 @@ export default function TradeDemandPage() {
                   <div className="flex flex-wrap gap-2"><span className="rounded bg-cyan-400/10 px-2 py-1 text-[11px] font-bold uppercase text-cyan-300">{opportunity.trade_slug || "Classify trade"}</span><span className="rounded bg-slate-800 px-2 py-1 text-[11px] uppercase text-slate-400">{evidenceLabels[opportunity.evidence_type] || opportunity.evidence_type}</span>{opportunity.source_is_manual && <span className="rounded bg-amber-400/10 px-2 py-1 text-[11px] text-amber-300">MANUAL</span>}</div>
                   <h4 className="mt-3 font-semibold text-white group-hover:text-cyan-200">{opportunity.buyer_name}</h4>
                   <p className="mt-1 text-sm text-slate-400">{opportunity.project_name || opportunity.service_territory || opportunity.address || "Project needs verification"}</p>
+                  {opportunity.evidence_type === "permit_activity" && <p className="mt-2 text-[11px] text-emerald-300">{opportunity.property_type} parcel · use {opportunity.parcel_use_code || "not recorded"}</p>}
                   <p className="mt-1 text-xs text-slate-600">{[opportunity.city, opportunity.county && `${opportunity.county} County`, opportunity.permit_number].filter(Boolean).join(" · ")}</p>
                 </div>
                 <div>

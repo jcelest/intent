@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "@/lib/db";
 import { COUNTY_BY_NAME, FLORIDA_COUNTIES } from "@/lib/florida-geo";
+import { getPermitPropertyScreenSummary } from "@/lib/permit-property-screen";
 
 export type OpportunityClassification =
   | "confirmed"
@@ -26,6 +27,11 @@ export interface OpportunityRecord {
   zipCode: string | null;
   latitude: number | null;
   longitude: number | null;
+  parcelId: string | null;
+  propertyType: string | null;
+  parcelUseCode: string | null;
+  parcelUseDescription: string | null;
+  parcelEvidenceUrl: string | null;
   documentedValue: number | null;
   estimatedValue: number | null;
   valueEstimationMethodology: string | null;
@@ -111,6 +117,11 @@ const UNIVERSAL_FEED_SQL = `
     o.zip_code,
     o.latitude,
     o.longitude,
+    o.parcel_id,
+    o.property_type,
+    o.parcel_use_code,
+    o.parcel_use_description,
+    o.parcel_evidence_url,
     o.documented_value,
     o.estimated_value,
     o.value_estimation_methodology,
@@ -133,6 +144,8 @@ const UNIVERSAL_FEED_SQL = `
   FROM oi_opportunities o
   LEFT JOIN oi_taxonomy_categories t ON t.id = o.service_category_id
   LEFT JOIN oi_data_sources s ON s.id = o.source_id
+  WHERE s.source_category IS DISTINCT FROM 'permits'
+     OR o.property_type = 'COMMERCIAL'
 
   UNION ALL
 
@@ -158,6 +171,11 @@ const UNIVERSAL_FEED_SQL = `
     b.zip_code,
     NULL::double precision AS latitude,
     NULL::double precision AS longitude,
+    NULL::text AS parcel_id,
+    NULL::text AS property_type,
+    NULL::text AS parcel_use_code,
+    NULL::text AS parcel_use_description,
+    NULL::text AS parcel_evidence_url,
     NULL::numeric AS documented_value,
     b.estimated_value,
     CASE WHEN b.estimated_value IS NOT NULL THEN 'Legacy source-provided estimate; verify against the linked procurement document before use.' ELSE NULL END AS value_estimation_methodology,
@@ -223,6 +241,11 @@ function mapOpportunity(row: DbRow): OpportunityRecord {
     zipCode: text(row.zip_code),
     latitude: number(row.latitude),
     longitude: number(row.longitude),
+    parcelId: text(row.parcel_id),
+    propertyType: text(row.property_type),
+    parcelUseCode: text(row.parcel_use_code),
+    parcelUseDescription: text(row.parcel_use_description),
+    parcelEvidenceUrl: text(row.parcel_evidence_url),
     documentedValue: number(row.documented_value),
     estimatedValue: number(row.estimated_value),
     valueEstimationMethodology: text(row.value_estimation_methodology),
@@ -399,8 +422,8 @@ export async function getHubOverview(): Promise<HubOverview> {
                AND property.source_record_id = concat(parcel.county, ':', parcel.parcel_id)
            )) AS commercial_properties,
         (SELECT count(*) FROM oi_equipment) AS documented_equipment,
-        (SELECT count(*) FROM oi_permit_records WHERE issue_date >= CURRENT_DATE - INTERVAL '30 days') +
-          (SELECT count(*) FROM fl_permits WHERE issue_date >= CURRENT_DATE - INTERVAL '30 days') AS recent_permits
+        (SELECT count(*) FROM oi_permit_records WHERE property_type = 'COMMERCIAL' AND issue_date >= CURRENT_DATE - INTERVAL '30 days') +
+          (SELECT count(*) FROM fl_permits permit JOIN fl_parcels parcel ON parcel.county=permit.parcel_county AND parcel.parcel_id=permit.parcel_id WHERE permit.issue_date >= CURRENT_DATE - INTERVAL '30 days') AS recent_permits
     )
     SELECT * FROM stats CROSS JOIN supporting
   `);
@@ -556,7 +579,7 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
     const bboxWhere = bboxPredicate(params, "latitude", "longitude", filters.bbox);
     if (counties.length) params.push(counties);
     const countyWhere = counties.length ? `AND county = ANY($${params.length}::text[])` : "";
-    const rows = await queryDb(`SELECT id, permit_number, permit_type, permit_status, description, issue_date, job_value, contractor_name, address, city, county, zip_code, latitude, longitude, source_url FROM oi_permit_records WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere} ORDER BY issue_date DESC NULLS LAST LIMIT 5000`, params);
+    const rows = await queryDb(`SELECT id, permit_number, permit_type, permit_status, description, issue_date, job_value, contractor_name, address, city, county, zip_code, latitude, longitude, source_url, parcel_id, property_type, parcel_use_code, parcel_use_description, parcel_evidence_url FROM oi_permit_records WHERE property_type = 'COMMERCIAL' AND latitude IS NOT NULL AND longitude IS NOT NULL AND ${bboxWhere} ${countyWhere} ORDER BY issue_date DESC NULLS LAST LIMIT 5000`, params);
     for (const row of rows) {
       features.push({ type: "Feature", id: `permit:${row.id}`, geometry: { type: "Point", coordinates: [Number(row.longitude), Number(row.latitude)] }, properties: { ...row, featureType: "permit", classification: "permit", renderMode: "documented_location" } });
     }
@@ -646,7 +669,7 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
 }
 
 export async function getSourceCoverage() {
-  const [sources, procurementSources, countyRegistry, syncHistory, syncState, alerts] = await Promise.all([
+  const [sources, procurementSources, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen] = await Promise.all([
     queryDb(`SELECT * FROM oi_data_sources ORDER BY source_category, source_name`),
     queryDb(`SELECT id, agency_name AS source_name, portal_url AS source_url, 'procurement' AS source_category, collection_method AS access_method, supported_format AS data_format, collection_frequency AS update_frequency, status, (last_successful_at IS NOT NULL) AS is_operational, last_attempted_at, last_successful_at, indexed_bids_count AS records_ingested, error_status AS limitations FROM fl_procurement_sources ORDER BY agency_type, agency_name`),
     queryDb(`SELECT county, fips, official_portal_url, gis_download_url, file_format, status, commercial_parcels_count, last_parcels_pull_at, last_permits_pull_at, last_licenses_pull_at FROM fl_county_parcel_registry ORDER BY population_rank`),
@@ -655,8 +678,9 @@ export async function getSourceCoverage() {
     queryDb(`SELECT alert.*, source.source_name
              FROM oi_source_alerts alert JOIN oi_data_sources source ON source.id=alert.source_id
              ORDER BY (alert.resolved_at IS NULL) DESC, alert.last_seen_at DESC LIMIT 100`),
+    getPermitPropertyScreenSummary(),
   ]);
-  return { sources, procurementSources, countyRegistry, syncHistory, syncState, alerts };
+  return { sources, procurementSources, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen };
 }
 
 export async function getTaxonomy() {

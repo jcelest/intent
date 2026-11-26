@@ -44,21 +44,25 @@ export async function ingestOpportunityBatch(sourceId: string, records: Canonica
         `INSERT INTO oi_opportunities (
           source_id, source_record_id, dedupe_hash, title, summary, trade_slug, classification, status,
           geographic_scope_type, address, city, county, counties, zip_code, latitude, longitude,
+          parcel_id, property_type, parcel_use_code, parcel_use_description, parcel_evidence_url,
           documented_value, estimated_value, value_estimation_methodology, procurement_deadline,
           evidence_confidence, classification_rationale, source_url, source_document_url, source_payload, last_verified_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text[],$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,CURRENT_TIMESTAMP)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text[],$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30::jsonb,CURRENT_TIMESTAMP)
         ON CONFLICT (source_id, source_record_id) DO UPDATE SET
           title=EXCLUDED.title, summary=EXCLUDED.summary, trade_slug=EXCLUDED.trade_slug,
           classification=EXCLUDED.classification, status=EXCLUDED.status, geographic_scope_type=EXCLUDED.geographic_scope_type,
           address=EXCLUDED.address, city=EXCLUDED.city, county=EXCLUDED.county, counties=EXCLUDED.counties,
           zip_code=EXCLUDED.zip_code, latitude=EXCLUDED.latitude, longitude=EXCLUDED.longitude,
+          parcel_id=EXCLUDED.parcel_id, property_type=EXCLUDED.property_type,
+          parcel_use_code=EXCLUDED.parcel_use_code, parcel_use_description=EXCLUDED.parcel_use_description,
+          parcel_evidence_url=EXCLUDED.parcel_evidence_url,
           documented_value=EXCLUDED.documented_value, estimated_value=EXCLUDED.estimated_value,
           value_estimation_methodology=EXCLUDED.value_estimation_methodology, procurement_deadline=EXCLUDED.procurement_deadline,
           evidence_confidence=EXCLUDED.evidence_confidence, classification_rationale=EXCLUDED.classification_rationale,
           source_url=EXCLUDED.source_url, source_document_url=EXCLUDED.source_document_url,
           source_payload=EXCLUDED.source_payload, last_verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
         RETURNING id, (xmax = 0) AS was_inserted`,
-        [sourceId, record.sourceRecordId, hash, record.title, record.summary || null, record.tradeSlug || null, record.classification, record.status, record.geographicScopeType, record.address || null, record.city || null, record.county || null, record.county ? [record.county] : [], record.zipCode || null, record.latitude ?? null, record.longitude ?? null, record.documentedValue ?? null, record.estimatedValue ?? null, record.valueEstimationMethodology || null, record.procurementDeadline || null, record.evidenceConfidence ?? null, record.classificationRationale, record.sourceUrl, record.sourceDocumentUrl || null, JSON.stringify(incomingPayload)],
+        [sourceId, record.sourceRecordId, hash, record.title, record.summary || null, record.tradeSlug || null, record.classification, record.status, record.geographicScopeType, record.address || null, record.city || null, record.county || null, record.county ? [record.county] : [], record.zipCode || null, record.latitude ?? null, record.longitude ?? null, record.parcelId || null, record.propertyType || null, record.parcelUseCode || null, record.parcelUseDescription || null, record.parcelEvidenceUrl || null, record.documentedValue ?? null, record.estimatedValue ?? null, record.valueEstimationMethodology || null, record.procurementDeadline || null, record.evidenceConfidence ?? null, record.classificationRationale, record.sourceUrl, record.sourceDocumentUrl || null, JSON.stringify(incomingPayload)],
       );
       if (rows[0]?.was_inserted) inserted++; else { updated++; duplicates++; }
       if (existing && existing.status !== record.status) {
