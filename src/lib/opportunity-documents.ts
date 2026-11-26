@@ -12,6 +12,21 @@ const queryDb = (query: string, params: unknown[] = []) =>
 
 const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 
+export interface StoredOpportunityDocumentInput {
+  sourceId: string;
+  opportunityId: string;
+  procurementRecordId?: string | null;
+  sourceRecordId: string;
+  documentUrl: string;
+  title: string;
+  documentType?: string;
+  versionLabel?: string | null;
+  publishedAt?: string | null;
+  contentType: string;
+  content: Buffer;
+  metadata?: Row;
+}
+
 export function plainHtml(value: string) {
   return value
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -90,6 +105,53 @@ async function extractText(buffer: Buffer, contentType: string, url: string, tit
     return { status: "extracted", text: buffer.toString("utf8").trim() };
   }
   return { status: "unsupported", text: null };
+}
+
+export async function storeOpportunityDocumentContent(input: StoredOpportunityDocumentInput) {
+  if (input.content.byteLength > MAX_DOCUMENT_BYTES) {
+    throw new Error(`Document exceeds ${MAX_DOCUMENT_BYTES} byte limit`);
+  }
+  const sha256 = createHash("sha256").update(input.content).digest("hex");
+  const current = await queryDb(
+    `SELECT id, sha256, version_number FROM oi_source_documents
+     WHERE source_id=$1 AND document_url=$2 AND is_current=TRUE
+     ORDER BY version_number DESC LIMIT 1`,
+    [input.sourceId, input.documentUrl],
+  );
+  if (current[0]?.sha256 === sha256) {
+    await queryDb(
+      `UPDATE oi_source_documents SET opportunity_id=$2, procurement_record_id=$3,
+       source_record_id=$4, fetched_at=CURRENT_TIMESTAMP, metadata=$5::jsonb,
+       updated_at=CURRENT_TIMESTAMP WHERE id=$1`,
+      [current[0].id, input.opportunityId, input.procurementRecordId || null,
+        input.sourceRecordId, JSON.stringify(input.metadata || {})],
+    );
+    return { id: String(current[0].id), version: Number(current[0].version_number || 1), unchanged: true };
+  }
+  const extracted = await extractText(input.content, input.contentType, input.documentUrl, input.title);
+  const safeText = extracted.text?.replace(/\u0000/g, "") || null;
+  const version = current.length ? Number(current[0].version_number || 1) + 1 : 1;
+  if (current.length) {
+    await queryDb(
+      "UPDATE oi_source_documents SET is_current=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=$1",
+      [current[0].id],
+    );
+  }
+  const rows = await queryDb(
+    `INSERT INTO oi_source_documents (
+      source_id, opportunity_id, procurement_record_id, source_record_id, document_url,
+      title, document_type, version_label, version_number, content_type, sha256,
+      byte_size, original_content, extracted_text, extraction_status, published_at,
+      fetched_at, is_current, metadata
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,CURRENT_TIMESTAMP,TRUE,$17::jsonb)
+    RETURNING id`,
+    [input.sourceId, input.opportunityId, input.procurementRecordId || null,
+      input.sourceRecordId, input.documentUrl, input.title, input.documentType || "attachment",
+      input.versionLabel || null, version, input.contentType, sha256, input.content.byteLength,
+      input.content, safeText, extracted.status, input.publishedAt || null,
+      JSON.stringify(input.metadata || {})],
+  );
+  return { id: String(rows[0].id), version, unchanged: false, extractionStatus: extracted.status };
 }
 
 export interface DocumentFetchOptions {

@@ -922,7 +922,7 @@ export function getOpportunitySourceAdapters() {
   return ADAPTERS;
 }
 
-async function persistSupplemental(sourceId: string, records: LiveSourceRecord[]) {
+export async function persistOpportunitySupplemental(sourceId: string, records: LiveSourceRecord[]) {
   let documentsSeen = 0;
   let amendmentsDetected = 0;
   let awardsDetected = 0;
@@ -1055,7 +1055,7 @@ export async function syncOpportunitySource(adapterKey: string, limit = 250) {
       adapter.sourceId, result.records.map((record) => record.opportunity),
       result.cursor ? JSON.stringify(result.cursor) : undefined,
     );
-    const supplemental = await persistSupplemental(adapter.sourceId, result.records);
+    const supplemental = await persistOpportunitySupplemental(adapter.sourceId, result.records);
     const metrics = { ...ingestion, ...supplemental, sourceCount: result.sourceCount ?? result.records.length };
     await queryDb(
       `UPDATE oi_source_sync_history SET documents_seen=$2, documents_changed=$3,

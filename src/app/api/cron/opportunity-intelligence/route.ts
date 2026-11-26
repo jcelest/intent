@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncDueOpportunitySources } from "@/lib/opportunity-live-sources";
 import { fetchPendingOpportunityDocuments } from "@/lib/opportunity-documents";
+import { recoverProcurementInbox } from "@/lib/procurement-inbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,5 +29,8 @@ export async function GET(request: Request) {
   const adapters = lanes[lane];
   const sources = await syncDueOpportunitySources({ force, limitPerSource: lane === "daily" ? 500 : 1000, adapters: adapters.length ? adapters : undefined });
   const documents = await fetchPendingOpportunityDocuments({ limit: 20, maxPerSource: 4 });
-  return NextResponse.json({ ok: true, lane, force, sources, documents });
+  const inbox = lane === "hourly" || lane === "scheduled"
+    ? await recoverProcurementInbox({ reconcile: true, limit: 20 })
+    : null;
+  return NextResponse.json({ ok: true, lane, force, sources, documents, inbox });
 }
