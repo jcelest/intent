@@ -1,5 +1,22 @@
 import { sql } from "@/lib/db";
 import { normalizeOwnerName } from "@/lib/sunbiz-matcher";
+import { createHash } from "node:crypto";
+
+const SERPER_FREE_QUERY_CAP = 2500;
+
+export class SearchBudgetExhaustedError extends Error {
+  code = "SEARCH_BUDGET_EXHAUSTED" as const;
+  constructor() {
+    super("Serper free-tier query budget exhausted");
+  }
+}
+
+export class SearchProviderNotConfiguredError extends Error {
+  code = "SEARCH_PROVIDER_NOT_CONFIGURED" as const;
+  constructor() {
+    super("SERPER_API_KEY is not configured");
+  }
+}
 
 export interface SearchVerificationEvidence {
   url: string;
@@ -81,31 +98,6 @@ export interface PluggableSearchProvider {
 }
 
 /**
- * Google Custom Search JSON API Provider
- */
-class GoogleCustomSearchProvider implements PluggableSearchProvider {
-  constructor(private apiKey: string, private cx: string) {}
-
-  async search(query: string): Promise<SearchResultItem[]> {
-    const url = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(
-      this.apiKey
-    )}&cx=${encodeURIComponent(this.cx)}&q=${encodeURIComponent(query)}&num=5`;
-
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) {
-      throw new Error(`Google Custom Search error: ${res.statusText}`);
-    }
-    const data = await res.json();
-    const items = data.items || [];
-    return items.map((i: { title?: string; link?: string; snippet?: string }) => ({
-      title: i.title || "",
-      link: i.link || "",
-      snippet: i.snippet || "",
-    }));
-  }
-}
-
-/**
  * Serper API Provider
  */
 class SerperSearchProvider implements PluggableSearchProvider {
@@ -140,9 +132,7 @@ class SerperSearchProvider implements PluggableSearchProvider {
  */
 class UnconfiguredSearchProvider implements PluggableSearchProvider {
   async search(): Promise<SearchResultItem[]> {
-    throw new Error(
-      "SEARCH_PROVIDER_NOT_CONFIGURED: set GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX, or SERPER_API_KEY",
-    );
+    throw new SearchProviderNotConfiguredError();
   }
 }
 
@@ -150,20 +140,90 @@ class UnconfiguredSearchProvider implements PluggableSearchProvider {
  * Factory for search provider
  */
 export function getPluggableSearchProvider(): PluggableSearchProvider {
-  if (process.env.GOOGLE_CUSTOM_SEARCH_API_KEY && process.env.GOOGLE_CUSTOM_SEARCH_CX) {
-    return new GoogleCustomSearchProvider(
-      process.env.GOOGLE_CUSTOM_SEARCH_API_KEY,
-      process.env.GOOGLE_CUSTOM_SEARCH_CX
-    );
-  }
   if (process.env.SERPER_API_KEY) {
     return new SerperSearchProvider(process.env.SERPER_API_KEY);
   }
   return new UnconfiguredSearchProvider();
 }
 
+export async function getSearchBudgetStatus(): Promise<{
+  provider: "serper";
+  queryCap: number;
+  queriesUsed: number;
+  queriesRemaining: number;
+}> {
+  await sql`
+    INSERT INTO oi_search_query_budgets(provider, query_cap, queries_used)
+    VALUES ('serper', ${SERPER_FREE_QUERY_CAP}, 0)
+    ON CONFLICT (provider) DO NOTHING
+  `;
+  const rows = await sql`
+    SELECT query_cap, queries_used
+    FROM oi_search_query_budgets
+    WHERE provider = 'serper'
+    LIMIT 1
+  `;
+  const queryCap = Number(rows[0]?.query_cap || SERPER_FREE_QUERY_CAP);
+  const queriesUsed = Number(rows[0]?.queries_used || 0);
+  return {
+    provider: "serper",
+    queryCap,
+    queriesUsed,
+    queriesRemaining: Math.max(0, queryCap - queriesUsed),
+  };
+}
+
+async function reserveSearchQuery(): Promise<void> {
+  await sql`
+    INSERT INTO oi_search_query_budgets(provider, query_cap, queries_used)
+    VALUES ('serper', ${SERPER_FREE_QUERY_CAP}, 0)
+    ON CONFLICT (provider) DO NOTHING
+  `;
+  const rows = await sql`
+    UPDATE oi_search_query_budgets
+    SET queries_used = queries_used + 1, updated_at = CURRENT_TIMESTAMP
+    WHERE provider = 'serper' AND queries_used < query_cap AND query_cap <= ${SERPER_FREE_QUERY_CAP}
+    RETURNING queries_used
+  `;
+  if (!rows.length) throw new SearchBudgetExhaustedError();
+}
+
+async function runBudgetedSearch(params: {
+  provider: PluggableSearchProvider;
+  query: string;
+  targetType: string;
+  targetId?: string | null;
+}): Promise<SearchResultItem[]> {
+  if (!process.env.SERPER_API_KEY) throw new SearchProviderNotConfiguredError();
+  await reserveSearchQuery();
+  const queryHash = createHash("sha256").update(params.query).digest("hex");
+  try {
+    const results = await params.provider.search(params.query);
+    await sql`
+      INSERT INTO oi_search_query_log(
+        provider, target_type, target_id, query_hash, query_text, status, result_count
+      ) VALUES (
+        'serper', ${params.targetType}, ${params.targetId || null}, ${queryHash},
+        ${params.query}, 'completed', ${results.length}
+      )
+    `;
+    return results;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await sql`
+      INSERT INTO oi_search_query_log(
+        provider, target_type, target_id, query_hash, query_text, status, error_message
+      ) VALUES (
+        'serper', ${params.targetType}, ${params.targetId || null}, ${queryHash},
+        ${params.query}, 'failed', ${message}
+      )
+    `;
+    throw error;
+  }
+}
+
 /**
- * Verifies business current activity using Google search results only (replaces Places API).
+ * Verifies business current activity using Serper search results only (no Places API).
  * Query pattern: "{exact business name}" {city} FL
  * Strictly cached: never re-run search for same normalized business name + city within 30 days unless forceRefresh = true.
  */
@@ -226,21 +286,24 @@ export async function verifyBusinessActivity(params: {
   const primaryQuery = `"${params.businessName}" ${city} FL`;
   const provider = getPluggableSearchProvider();
 
-  let results: SearchResultItem[] = [];
-  try {
-    results = await provider.search(primaryQuery);
-  } catch (err) {
-    console.error("Search provider error on primary query:", err);
-  }
+  let queryUsed = primaryQuery;
+  let results = await runBudgetedSearch({
+    provider,
+    query: primaryQuery,
+    targetType: params.targetType,
+    targetId: params.targetId,
+  });
 
   // If ambiguous (no results or too generic), run secondary query with streetAddress or county
   if (results.length === 0 && params.streetAddress) {
     const secondaryQuery = `"${params.businessName}" ${params.streetAddress} FL`;
-    try {
-      results = await provider.search(secondaryQuery);
-    } catch (err) {
-      console.error("Search provider error on secondary query:", err);
-    }
+    queryUsed = secondaryQuery;
+    results = await runBudgetedSearch({
+      provider,
+      query: secondaryQuery,
+      targetType: params.targetType,
+      targetId: params.targetId,
+    });
   }
 
   // 3. Extract signals strictly from search results
@@ -257,7 +320,7 @@ export async function verifyBusinessActivity(params: {
   for (const item of results) {
     evidenceList.push({
       url: item.link,
-      query: primaryQuery,
+      query: queryUsed,
       snippet: item.snippet,
       title: item.title,
       verified_at: now.toISOString(),
@@ -349,7 +412,7 @@ export async function verifyBusinessActivity(params: {
     county: params.county,
     target_type: params.targetType,
     target_id: params.targetId || null,
-    query_used: primaryQuery,
+    query_used: queryUsed,
     official_website_url: officialWebsite,
     has_website: Boolean(officialWebsite),
     gbp_signal: gbpSignal,

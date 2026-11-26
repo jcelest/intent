@@ -6,6 +6,7 @@ on:
     - cron: "37 */6 * * *"
     - cron: "57 6 * * *"
     - cron: "47 * * * *"
+    - cron: "27 7 * * *"
   workflow_dispatch:
     inputs:
       lane:
@@ -19,6 +20,7 @@ on:
           - periodic
           - daily
           - documents
+          - commercial-channels
 
 permissions:
   contents: read
@@ -43,6 +45,7 @@ jobs:
               "37 */6 * * *") lane="periodic" ;;
               "57 6 * * *") lane="daily" ;;
               "47 * * * *") lane="documents" ;;
+              "27 7 * * *") lane="commercial-channels" ;;
               *) lane="scheduled" ;;
             esac
           fi

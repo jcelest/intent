@@ -12,8 +12,6 @@ const DBPR_EVIDENCE_URL =
   "https://www2.myfloridalicense.com/community-association-managers-and-firms/public-records/";
 const CENSUS_BATCH_URL =
   "https://geocoding.geo.census.gov/geocoder/locations/addressbatch";
-const GOOGLE_TEXT_SEARCH_URL =
-  "https://places.googleapis.com/v1/places:searchText";
 
 type DbprCabFirm = {
   name: string;
@@ -41,9 +39,7 @@ type CensusMatch = {
 
 type SyncOptions = {
   dryRun: boolean;
-  skipGoogle: boolean;
   limit: number | null;
-  googleConcurrency: number;
 };
 
 export function parseCsv(input: string): string[][] {
@@ -209,76 +205,12 @@ async function geocodeWithCensus(firms: DbprCabFirm[]): Promise<Map<string, Cens
   return parseCensusBatchResponse(await response.text());
 }
 
-async function googlePlaceIdForFirm(
-  firm: DbprCabFirm,
-  apiKey: string,
-): Promise<string | null> {
-  const textQuery = [firm.dba || firm.name, firm.address, firm.city, firm.state, firm.zipCode]
-    .filter(Boolean)
-    .join(" ");
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await fetch(GOOGLE_TEXT_SEARCH_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.id",
-      },
-      body: JSON.stringify({
-        textQuery,
-        pageSize: 1,
-        languageCode: "en",
-        regionCode: "US",
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (response.ok) {
-      const result = (await response.json()) as { places?: Array<{ id?: string }> };
-      return clean(result.places?.[0]?.id) || null;
-    }
-    if (response.status !== 429 && response.status < 500) {
-      throw new Error(`Google Places returned HTTP ${response.status}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
-  }
-  return null;
-}
-
-async function mapWithConcurrency<T, R>(
-  values: T[],
-  concurrency: number,
-  worker: (value: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(values.length);
-  let nextIndex = 0;
-  async function runWorker() {
-    while (nextIndex < values.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await worker(values[index], index);
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, () => runWorker()),
-  );
-  return results;
-}
-
 function parseOptions(argv: string[]): SyncOptions {
   const limitArgument = argv.find((argument) => argument.startsWith("--limit="));
-  const concurrencyArgument = argv.find((argument) => argument.startsWith("--google-concurrency="));
   const limit = limitArgument ? Number(limitArgument.split("=", 2)[1]) : null;
-  const googleConcurrency = concurrencyArgument
-    ? Number(concurrencyArgument.split("=", 2)[1])
-    : 12;
   return {
     dryRun: argv.includes("--dry-run"),
-    skipGoogle: argv.includes("--skip-google"),
     limit: limit && limit > 0 ? Math.floor(limit) : null,
-    googleConcurrency:
-      Number.isFinite(googleConcurrency) && googleConcurrency > 0
-        ? Math.min(Math.floor(googleConcurrency), 30)
-        : 12,
   };
 }
 
@@ -307,41 +239,8 @@ async function run() {
   const geocodedFirms = firms.filter((firm) => censusMatches.has(firm.licenseNumber));
   console.log(`Census geocoded ${geocodedFirms.length}/${firms.length} firms.`);
 
-  const googleApiKey = clean(process.env.GOOGLE_MAPS_API_KEY);
-  if (!options.skipGoogle && !googleApiKey) {
-    throw new Error("GOOGLE_MAPS_API_KEY is required unless --skip-google is used");
-  }
-
-  const googlePlaceIds = new Map<string, string>();
-  if (!options.skipGoogle) {
-    let completed = 0;
-    const placeIds = await mapWithConcurrency(
-      geocodedFirms,
-      options.googleConcurrency,
-      async (firm) => {
-        try {
-          return await googlePlaceIdForFirm(firm, googleApiKey);
-        } catch (error) {
-          console.warn(`${firm.licenseNumber}: Google lookup failed:`, error);
-          return null;
-        } finally {
-          completed += 1;
-          if (completed % 100 === 0 || completed === geocodedFirms.length) {
-            console.log(`Checked Google listing IDs for ${completed}/${geocodedFirms.length} firms`);
-          }
-        }
-      },
-    );
-    geocodedFirms.forEach((firm, index) => {
-      const placeId = placeIds[index];
-      if (placeId) googlePlaceIds.set(firm.licenseNumber, placeId);
-    });
-  }
-
-  const checkedAt = new Date().toISOString();
   const records: ManagementFirmRecord[] = geocodedFirms.map((firm) => {
     const coordinates = censusMatches.get(firm.licenseNumber)!;
-    const googlePlaceId = googlePlaceIds.get(firm.licenseNumber) || null;
     return {
       name: firm.name,
       dba: firm.dba,
@@ -374,9 +273,7 @@ async function run() {
         coordinate_source: "US_CENSUS_GEOCODER",
         coordinate_match_type: coordinates.matchType,
         census_matched_address: coordinates.matchedAddress,
-        google_place_id: googlePlaceId,
-        google_listing_status: googlePlaceId ? "listing_found" : "not_found",
-        google_listing_checked_at: options.skipGoogle ? null : checkedAt,
+        search_verification_status: "PENDING",
       },
     };
   });
@@ -384,7 +281,6 @@ async function run() {
   const summary = {
     officialCurrentFloridaFirms: firms.length,
     mappedFirms: records.length,
-    googleListingsFound: googlePlaceIds.size,
     dryRun: options.dryRun,
   };
   if (options.dryRun) {
@@ -432,7 +328,6 @@ async function run() {
   const countRows = await sql`
     SELECT
       COUNT(*)::int AS mapped,
-      COUNT(*) FILTER (WHERE metadata->>'google_listing_status' = 'listing_found')::int AS google_listed,
       COUNT(DISTINCT county)::int AS counties
     FROM fl_management_firms
     WHERE source = 'FL_DBPR_CAB'

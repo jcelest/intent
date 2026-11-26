@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { syncDueOpportunitySources } from "@/lib/opportunity-live-sources";
 import { fetchPendingOpportunityDocuments } from "@/lib/opportunity-documents";
 import { recoverProcurementInbox } from "@/lib/procurement-inbox";
+import {
+  processChannelVerificationQueue,
+  refreshDirectAccountCoverage,
+  syncDbprCommercialChannels,
+} from "@/lib/commercial-channel-intelligence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +29,12 @@ export async function GET(request: Request) {
   if (lane === "documents") {
     const documents = await fetchPendingOpportunityDocuments({ limit: 60, maxPerSource: 10 });
     return NextResponse.json({ ok: true, lane, sources: null, documents });
+  }
+  if (lane === "commercial-channels") {
+    const dbpr = await syncDbprCommercialChannels();
+    await refreshDirectAccountCoverage();
+    const verification = await processChannelVerificationQueue(25);
+    return NextResponse.json({ ok: true, lane, dbpr, verification });
   }
   if (!(lane in lanes)) return NextResponse.json({ ok: false, error: "Unknown scheduler lane" }, { status: 400 });
   const adapters = lanes[lane];
