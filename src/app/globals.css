@@ -13,6 +13,8 @@
     --accent-glow: rgba(34, 211, 238, 0.5);
     --muted: #64748b;
     --border: #1e293b;
+    --font-display: system-ui;
+    --font-jetbrains: ui-monospace;
   }
 
   html {

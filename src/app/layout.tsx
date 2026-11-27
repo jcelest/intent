@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import {
@@ -8,18 +7,6 @@ import {
   SEO_TITLE_DEFAULT,
   DEFAULT_DESCRIPTION,
 } from "@/lib/seo";
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  weight: ["400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -98,7 +85,7 @@ export default function RootLayout({
         <link rel="canonical" href={SITE_URL} />
       </head>
       <body
-        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-display antialiased bg-oled text-foreground`}
+        className="font-display antialiased bg-oled text-foreground"
       >
         {/* Critical CSS fallback - ensures dark mode shows even if main stylesheet fails to load */}
         <style
