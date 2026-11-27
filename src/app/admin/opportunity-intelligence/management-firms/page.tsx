@@ -55,6 +55,12 @@ const LAYERS = [
   ["sunbiz_associations", "Florida Division of Corporations", "Sunbiz associations managed"],
   ["association_units", "Association parcel records", "Association units"],
   ["claimed_doors", "Firm-provided statement", "Self-reported"],
+  ["verified_managed_properties", "Published management records", "Verified managed properties"],
+  ["verified_association_units", "Florida DBPR with corroboration", "Verified association units"],
+  ["published_portfolio", "Published portfolio report", "Published or self-reported size"],
+  ["management_responsibilities", "Management evidence", "Documented management responsibilities"],
+  ["maintenance_responsibilities", "Maintenance evidence", "Documented maintenance responsibilities"],
+  ["vendor_accessible_portfolio", "Vendor-access evidence", "Confirmed vendor-accessible portfolio"],
 ] as const;
 
 function tierLabel(tier: PortfolioTier) {

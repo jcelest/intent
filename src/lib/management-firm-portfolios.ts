@@ -9,6 +9,11 @@ export type PortfolioEvidenceCounts = {
   sunbizAssociationsManaged: number | null;
   associationUnitsTotal: number | null;
   claimedDoors: number | null;
+  verifiedManagedProperties?: number | null;
+  verifiedAssociationUnits?: number | null;
+  verifiedRentalUnits?: number | null;
+  verifiedCondominiumUnits?: number | null;
+  verifiedCommercialLocations?: number | null;
 };
 
 export type PortfolioSummary = {
@@ -55,6 +60,27 @@ type AssociationRelationshipRow = {
   association_metadata: Record<string, unknown> | null;
 };
 
+type CollectedRelationshipRow = {
+  firm_id: string;
+  canonical_property_key: string;
+  property_kind: string;
+  property_name: string | null;
+  county: string | null;
+  zip_code: string | null;
+  unit_count: number | null;
+  published_portfolio_size: number | null;
+  commercial_classification: string;
+  management_responsibility: boolean;
+  maintenance_responsibility: boolean;
+  vendor_accessible: boolean;
+  source_key: string;
+  source_name: string;
+  source_url: string;
+  source_as_of_date: string | Date;
+  relationship_kind: string;
+  is_verified_management: boolean;
+};
+
 const FL_DOR_SOURCE = "https://floridarevenue.com/property/Pages/DataPortal.aspx";
 const DBPR_CAM_SOURCE = "https://www2.myfloridalicense.com/community-association-managers-and-firms/public-records/";
 
@@ -92,22 +118,18 @@ export function positiveInteger(value: unknown): number | null {
 
 export function calculatePortfolioSummary(counts: PortfolioEvidenceCounts): PortfolioSummary {
   const verifiedCounts = [
-    counts.parcelsMatchedByMailingAddress,
-    counts.permitPropertiesTrailing12mo,
     counts.sunbizAssociationsManaged,
     counts.associationUnitsTotal,
+    counts.verifiedManagedProperties,
+    counts.verifiedAssociationUnits,
+    counts.verifiedRentalUnits,
+    counts.verifiedCondominiumUnits,
+    counts.verifiedCommercialLocations,
   ].map(positiveInteger).filter((value): value is number => value !== null);
 
   const portfolioFloor = verifiedCounts.length ? Math.max(...verifiedCounts) : null;
-  const filings = positiveInteger(counts.evictionFilingsTrailing12mo);
-  const evictionRangeLow = filings === null ? null : Math.ceil(filings / 0.08);
-  const evictionRangeHigh = filings === null ? null : Math.ceil(filings / 0.03);
-  const portfolioRangeLow = portfolioFloor === null && evictionRangeLow === null
-    ? null
-    : Math.max(portfolioFloor || 0, evictionRangeLow || 0);
-  const portfolioRangeHigh = evictionRangeHigh === null || portfolioRangeLow === null
-    ? null
-    : Math.max(portfolioRangeLow, evictionRangeHigh);
+  const portfolioRangeLow = portfolioFloor;
+  const portfolioRangeHigh = null;
 
   let portfolioTier: PortfolioTier = "UNKNOWN";
   if (portfolioFloor !== null) {
@@ -324,7 +346,7 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
   layerCounts: Record<string, number>;
 }> {
   const imported = await importCanonicalFirms();
-  const [firms, parcels, permits, relationships] = await Promise.all([
+  const [firms, parcels, permits, relationships, collectedRelationships] = await Promise.all([
     sql`SELECT id, name, address, zip_code, license_number, claimed_doors, eviction_filings_trailing_12mo FROM fl_management_firms ORDER BY id`,
     sql`
       SELECT county, parcel_id, owner_mailing_address, location_source_url, updated_at
@@ -346,30 +368,82 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       FROM oi_channel_relationships relationship
       JOIN oi_channel_entities from_entity ON from_entity.id = relationship.from_entity_id
       JOIN oi_channel_entities to_entity ON to_entity.id = relationship.to_entity_id
-      WHERE relationship.relationship_type IN ('registered_agent', 'manager_of_record', 'manages_association')
+      WHERE relationship.relationship_type IN ('manager_of_record', 'manages_association')
     `,
-  ]) as [FirmRow[], ParcelRow[], PermitRow[], AssociationRelationshipRow[]];
+    sql`
+      SELECT relationship.firm_id, relationship.canonical_property_key,
+             relationship.property_kind, relationship.property_name,
+             relationship.county, relationship.zip_code, relationship.unit_count,
+             relationship.published_portfolio_size, relationship.commercial_classification,
+             relationship.management_responsibility, relationship.maintenance_responsibility,
+             relationship.vendor_accessible, relationship.source_key,
+             source.source_name, relationship.source_url, relationship.source_as_of_date,
+             relationship.relationship_kind, relationship.is_verified_management
+      FROM fl_management_portfolio_relationships relationship
+      JOIN fl_management_portfolio_sources source ON source.source_key = relationship.source_key
+      WHERE relationship.is_current = TRUE
+    `,
+  ]) as [FirmRow[], ParcelRow[], PermitRow[], AssociationRelationshipRow[], CollectedRelationshipRow[]];
 
   const tierCounts: Record<PortfolioTier, number> = { UNDER_100: 0, FROM_100_TO_300: 0, OVER_300: 0, UNKNOWN: 0 };
-  const layerCounts: Record<string, number> = { taxMailing: 0, permits: 0, associations: 0, associationUnits: 0 };
+  const layerCounts: Record<string, number> = { taxMailing: 0, permits: 0, associations: 0, associationUnits: 0, verifiedManagement: 0, publishedPortfolio: 0 };
   const today = new Date().toISOString().slice(0, 10);
   const summaries: Array<Record<string, unknown>> = [];
   const evidenceRows: Array<Record<string, unknown>> = [];
 
+  const firmsByZip = new Map<string, FirmRow[]>();
   for (const firm of firms) {
-    const parcelMatches = parcels.filter((parcel) =>
-      mailingAddressMatchesFirm(parcel.owner_mailing_address, firm.address, firm.zip_code),
-    );
+    const zip = firm.zip_code?.replace(/\D/g, "").slice(0, 5);
+    if (!zip || zip.length !== 5 || !firm.address) continue;
+    const candidates = firmsByZip.get(zip) || [];
+    candidates.push(firm);
+    firmsByZip.set(zip, candidates);
+  }
+  const parcelMatchesByFirm = new Map<string, ParcelRow[]>();
+  for (const parcel of parcels) {
+    const zipMatches = parcel.owner_mailing_address
+      ? Array.from(parcel.owner_mailing_address.matchAll(/\b(3[2-4]\d{3})(?:-\d{4})?\b/g))
+      : [];
+    const zip = zipMatches.length ? zipMatches[zipMatches.length - 1][1] : null;
+    if (!zip) continue;
+    for (const firm of firmsByZip.get(zip) || []) {
+      if (!mailingAddressMatchesFirm(parcel.owner_mailing_address, firm.address, firm.zip_code)) continue;
+      const matches = parcelMatchesByFirm.get(firm.id) || [];
+      matches.push(parcel);
+      parcelMatchesByFirm.set(firm.id, matches);
+    }
+  }
+  const relationshipsByLicense = new Map<string, AssociationRelationshipRow[]>();
+  const relationshipsByName = new Map<string, AssociationRelationshipRow[]>();
+  for (const relationship of relationships) {
+    if (relationship.firm_license_number) {
+      const rows = relationshipsByLicense.get(relationship.firm_license_number) || [];
+      rows.push(relationship);
+      relationshipsByLicense.set(relationship.firm_license_number, rows);
+    }
+    const name = normalizeFirmName(relationship.firm_name);
+    const rows = relationshipsByName.get(name) || [];
+    rows.push(relationship);
+    relationshipsByName.set(name, rows);
+  }
+  const collectedByFirm = new Map<string, CollectedRelationshipRow[]>();
+  for (const relationship of collectedRelationships) {
+    const rows = collectedByFirm.get(relationship.firm_id) || [];
+    rows.push(relationship);
+    collectedByFirm.set(relationship.firm_id, rows);
+  }
+
+  for (const firm of firms) {
+    const parcelMatches = parcelMatchesByFirm.get(firm.id) || [];
     const parcelKeys = new Set(parcelMatches.map((parcel) => `${parcel.county}:${parcel.parcel_id}`));
     const permitMatches = permits.filter((permit) => permitNamesMatchFirm(permit.raw_data, firm.name));
     const permitAddresses = new Set(
       permitMatches.map((permit) => normalizeStreetAddress(permit.address || "")).filter(Boolean),
     );
     const normalizedName = normalizeFirmName(firm.name);
-    const associationMatches = relationships.filter((relationship) =>
-      (firm.license_number && relationship.firm_license_number === firm.license_number)
-      || normalizeFirmName(relationship.firm_name) === normalizedName,
-    );
+    const associationMatches = firm.license_number && relationshipsByLicense.has(firm.license_number)
+      ? relationshipsByLicense.get(firm.license_number) || []
+      : relationshipsByName.get(normalizedName) || [];
     const associationIds = new Set(associationMatches.map((relationship) => relationship.association_id));
     let associationUnits = 0;
     let hasAssociationUnits = false;
@@ -384,7 +458,67 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
     const parcelCount = parcelKeys.size || null;
     const permitCount = permitAddresses.size || null;
     const associationCount = associationIds.size || null;
-    const associationUnitsTotal = hasAssociationUnits ? associationUnits : null;
+    const collectedForFirm = collectedByFirm.get(firm.id) || [];
+    const verifiedForFirm = collectedForFirm.filter((relationship) => relationship.is_verified_management);
+    const verifiedProperties = new Map<string, CollectedRelationshipRow[]>();
+    for (const relationship of verifiedForFirm) {
+      const rows = verifiedProperties.get(relationship.canonical_property_key) || [];
+      rows.push(relationship);
+      verifiedProperties.set(relationship.canonical_property_key, rows);
+    }
+    let collectedAssociationUnits = 0;
+    let verifiedRentalUnits = 0;
+    let verifiedCondominiumUnits = 0;
+    let verifiedCommercialLocations = 0;
+    let verifiedCommunities = 0;
+    let verifiedBuildings = 0;
+    let verifiedResidentialProperties = 0;
+    let verifiedCommercialProperties = 0;
+    let managementResponsibilities = 0;
+    let maintenanceResponsibilities = 0;
+    let vendorAccessibleProperties = 0;
+    const byCounty: Record<string, { managedProperties: number; associationUnits: number; commercial: number; residential: number }> = {};
+    const byZip: Record<string, { managedProperties: number; associationUnits: number }> = {};
+    for (const rows of Array.from(verifiedProperties.values())) {
+      const representative = rows.find((row) => row.unit_count) || rows[0];
+      const units = Math.max(0, ...rows.map((row) => positiveInteger(row.unit_count) || 0));
+      collectedAssociationUnits += units;
+      if (representative.property_kind === "rental_unit") verifiedRentalUnits += Math.max(1, units);
+      if (representative.property_kind === "condominium_unit") verifiedCondominiumUnits += Math.max(1, units);
+      if (representative.property_kind === "commercial_location") verifiedCommercialLocations += Math.max(1, units);
+      if (["community", "association"].includes(representative.property_kind)) verifiedCommunities += 1;
+      if (representative.property_kind === "building") verifiedBuildings += 1;
+      if (representative.commercial_classification === "residential") verifiedResidentialProperties += 1;
+      if (representative.commercial_classification === "commercial") verifiedCommercialProperties += 1;
+      if (rows.some((row) => row.management_responsibility)) managementResponsibilities += 1;
+      if (rows.some((row) => row.maintenance_responsibility)) maintenanceResponsibilities += 1;
+      if (rows.some((row) => row.vendor_accessible)) vendorAccessibleProperties += Math.max(1, units);
+      if (representative.county) {
+        const metric = byCounty[representative.county] || { managedProperties: 0, associationUnits: 0, commercial: 0, residential: 0 };
+        metric.managedProperties += 1;
+        metric.associationUnits += units;
+        if (representative.commercial_classification === "commercial") metric.commercial += 1;
+        if (representative.commercial_classification === "residential") metric.residential += 1;
+        byCounty[representative.county] = metric;
+      }
+      if (representative.zip_code) {
+        const metric = byZip[representative.zip_code] || { managedProperties: 0, associationUnits: 0 };
+        metric.managedProperties += 1;
+        metric.associationUnits += units;
+        byZip[representative.zip_code] = metric;
+      }
+    }
+    const verifiedManagedPropertyCount = verifiedProperties.size || null;
+    const publishedPortfolioSize = collectedForFirm.reduce((maximum, relationship) => Math.max(maximum, positiveInteger(relationship.published_portfolio_size) || 0), 0) || null;
+    maintenanceResponsibilities = Math.max(
+      maintenanceResponsibilities,
+      new Set(collectedForFirm.filter((row) => row.maintenance_responsibility).map((row) => row.canonical_property_key)).size,
+    );
+    vendorAccessibleProperties = Math.max(
+      vendorAccessibleProperties,
+      new Set(collectedForFirm.filter((row) => row.vendor_accessible).map((row) => row.canonical_property_key)).size,
+    );
+    const associationUnitsTotal = Math.max(hasAssociationUnits ? associationUnits : 0, collectedAssociationUnits) || null;
 
     const counts: PortfolioEvidenceCounts = {
       parcelsMatchedByMailingAddress: parcelCount,
@@ -393,6 +527,11 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       sunbizAssociationsManaged: associationCount,
       associationUnitsTotal,
       claimedDoors: positiveInteger(firm.claimed_doors),
+      verifiedManagedProperties: Math.max(verifiedManagedPropertyCount || 0, associationCount || 0) || null,
+      verifiedAssociationUnits: associationUnitsTotal,
+      verifiedRentalUnits: verifiedRentalUnits || null,
+      verifiedCondominiumUnits: verifiedCondominiumUnits || null,
+      verifiedCommercialLocations: verifiedCommercialLocations || null,
     };
     const summary = calculatePortfolioSummary(counts);
     tierCounts[summary.portfolioTier] += 1;
@@ -400,6 +539,8 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
     if (permitCount) layerCounts.permits += 1;
     if (associationCount) layerCounts.associations += 1;
     if (associationUnitsTotal) layerCounts.associationUnits += 1;
+    if (verifiedManagedPropertyCount) layerCounts.verifiedManagement += 1;
+    if (publishedPortfolioSize) layerCounts.publishedPortfolio += 1;
 
     summaries.push({
       id: firm.id,
@@ -411,6 +552,21 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       permit_properties_trailing_12mo: permitCount,
       sunbiz_associations_managed: associationCount,
       association_units_total: associationUnitsTotal,
+      published_portfolio_size: publishedPortfolioSize,
+      individually_verified_managed_properties: verifiedManagedPropertyCount,
+      verified_association_units: collectedAssociationUnits || null,
+      verified_communities: verifiedCommunities || null,
+      verified_buildings: verifiedBuildings || null,
+      verified_rental_units: verifiedRentalUnits || null,
+      verified_condominium_units: verifiedCondominiumUnits || null,
+      verified_commercial_locations: verifiedCommercialLocations || null,
+      verified_residential_properties: verifiedResidentialProperties || null,
+      verified_commercial_properties: verifiedCommercialProperties || null,
+      documented_management_responsibilities: managementResponsibilities || null,
+      documented_maintenance_responsibilities: maintenanceResponsibilities || null,
+      vendor_accessible_portfolio_size: vendorAccessibleProperties || null,
+      portfolio_by_county: byCounty,
+      portfolio_by_zip: byZip,
     });
 
     if (parcelCount) {
@@ -465,12 +621,12 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
         metadata: { association_ids: Array.from(associationIds).slice(0, 100) },
       });
     }
-    if (associationUnitsTotal) {
+    if (hasAssociationUnits && associationUnits > 0) {
       const relationship = associationMatches[0];
       evidenceRows.push({
         firm_id: firm.id,
         evidence_layer: "association_units",
-        evidence_count: associationUnitsTotal,
+        evidence_count: associationUnits,
         range_low: null,
         range_high: null,
         source_name: "Association parcel unit records",
@@ -478,6 +634,96 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
         as_of_date: dateOnly(relationship.source_snapshot_date),
         methodology: "Sum of documented parcel unit counts for associations connected to the CAM firm.",
         metadata: { association_ids: Array.from(associationIds).slice(0, 100) },
+      });
+    }
+    if (verifiedManagedPropertyCount) {
+      const latest = verifiedForFirm.reduce((value, row) => Math.max(value, new Date(row.source_as_of_date).getTime()), 0);
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_managed_properties",
+        evidence_count: verifiedManagedPropertyCount,
+        range_low: null,
+        range_high: null,
+        source_name: "Explicit published management relationships",
+        source_url: verifiedForFirm[0]?.source_url || null,
+        as_of_date: dateOnly(latest ? new Date(latest) : today),
+        methodology: "Distinct properties or communities explicitly identified as managed by the firm. Duplicate source records share one canonical property key.",
+        metadata: { property_keys: Array.from(verifiedProperties.keys()).slice(0, 250), sources: Array.from(new Set(verifiedForFirm.map((row) => row.source_key))) },
+      });
+    }
+    if (collectedAssociationUnits) {
+      const unitRows = verifiedForFirm.filter((row) => positiveInteger(row.unit_count));
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_association_units",
+        evidence_count: collectedAssociationUnits,
+        range_low: null,
+        range_high: null,
+        source_name: "Florida DBPR condominium directory with management corroboration",
+        source_url: unitRows[0]?.source_url || DBPR_CAM_SOURCE,
+        as_of_date: dateOnly(unitRows[0]?.source_as_of_date || today),
+        methodology: "Sum of the highest official unit count for each deduplicated association with an explicit or independently corroborated management relationship.",
+        metadata: { property_keys: Array.from(verifiedProperties.entries()).filter(([, rows]) => rows.some((row) => positiveInteger(row.unit_count))).map(([key]) => key).slice(0, 250) },
+      });
+    }
+    if (publishedPortfolioSize) {
+      const published = collectedForFirm.find((row) => positiveInteger(row.published_portfolio_size));
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "published_portfolio",
+        evidence_count: publishedPortfolioSize,
+        range_low: null,
+        range_high: null,
+        source_name: published?.source_name || "Firm-published portfolio statement",
+        source_url: published?.source_url || null,
+        as_of_date: dateOnly(published?.source_as_of_date || today),
+        methodology: "Published or self-reported portfolio size, displayed separately and excluded from the verified floor.",
+        metadata: { excluded_from_verified_floor: true },
+      });
+    }
+    if (managementResponsibilities) {
+      const documented = collectedForFirm.filter((row) => row.management_responsibility);
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "management_responsibilities",
+        evidence_count: managementResponsibilities,
+        range_low: null,
+        range_high: null,
+        source_name: "Documented management responsibilities",
+        source_url: documented[0]?.source_url || null,
+        as_of_date: dateOnly(documented[0]?.source_as_of_date || today),
+        methodology: "Deduplicated managed properties with an explicit source statement assigning management responsibility.",
+        metadata: { property_keys: Array.from(new Set(documented.map((row) => row.canonical_property_key))).slice(0, 250) },
+      });
+    }
+    if (maintenanceResponsibilities) {
+      const documented = collectedForFirm.filter((row) => row.maintenance_responsibility);
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "maintenance_responsibilities",
+        evidence_count: maintenanceResponsibilities,
+        range_low: null,
+        range_high: null,
+        source_name: "Documented maintenance responsibilities",
+        source_url: documented[0]?.source_url || null,
+        as_of_date: dateOnly(documented[0]?.source_as_of_date || today),
+        methodology: "Distinct source records documenting maintenance responsibility. Firm-level capability does not imply every managed property is covered.",
+        metadata: { property_keys: Array.from(new Set(documented.map((row) => row.canonical_property_key))).slice(0, 250) },
+      });
+    }
+    if (vendorAccessibleProperties) {
+      const documented = collectedForFirm.filter((row) => row.vendor_accessible);
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "vendor_accessible_portfolio",
+        evidence_count: vendorAccessibleProperties,
+        range_low: null,
+        range_high: null,
+        source_name: "Confirmed vendor-accessible portfolio",
+        source_url: documented[0]?.source_url || null,
+        as_of_date: dateOnly(documented[0]?.source_as_of_date || today),
+        methodology: "Deduplicated properties for which the source explicitly documents vendor access or vendor onboarding.",
+        metadata: { property_keys: Array.from(new Set(documented.map((row) => row.canonical_property_key))).slice(0, 250) },
       });
     }
   }
@@ -495,6 +741,21 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
           permit_properties_trailing_12mo = incoming.permit_properties_trailing_12mo,
           sunbiz_associations_managed = incoming.sunbiz_associations_managed,
           association_units_total = incoming.association_units_total,
+          published_portfolio_size = incoming.published_portfolio_size,
+          individually_verified_managed_properties = incoming.individually_verified_managed_properties,
+          verified_association_units = incoming.verified_association_units,
+          verified_communities = incoming.verified_communities,
+          verified_buildings = incoming.verified_buildings,
+          verified_rental_units = incoming.verified_rental_units,
+          verified_condominium_units = incoming.verified_condominium_units,
+          verified_commercial_locations = incoming.verified_commercial_locations,
+          verified_residential_properties = incoming.verified_residential_properties,
+          verified_commercial_properties = incoming.verified_commercial_properties,
+          documented_management_responsibilities = incoming.documented_management_responsibilities,
+          documented_maintenance_responsibilities = incoming.documented_maintenance_responsibilities,
+          vendor_accessible_portfolio_size = incoming.vendor_accessible_portfolio_size,
+          portfolio_by_county = incoming.portfolio_by_county,
+          portfolio_by_zip = incoming.portfolio_by_zip,
           managed_properties_count = NULL,
           portfolio_calculated_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
@@ -508,6 +769,21 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
         permit_properties_trailing_12mo integer,
         sunbiz_associations_managed integer,
         association_units_total integer
+        ,published_portfolio_size integer
+        ,individually_verified_managed_properties integer
+        ,verified_association_units integer
+        ,verified_communities integer
+        ,verified_buildings integer
+        ,verified_rental_units integer
+        ,verified_condominium_units integer
+        ,verified_commercial_locations integer
+        ,verified_residential_properties integer
+        ,verified_commercial_properties integer
+        ,documented_management_responsibilities integer
+        ,documented_maintenance_responsibilities integer
+        ,vendor_accessible_portfolio_size integer
+        ,portfolio_by_county jsonb
+        ,portfolio_by_zip jsonb
       )
       WHERE firm.id = incoming.id
     `;
@@ -515,7 +791,12 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
 
   await sql`
     DELETE FROM fl_management_firm_portfolio_evidence
-    WHERE evidence_layer IN ('tax_mailing_address', 'permit_contact', 'sunbiz_associations', 'association_units')
+    WHERE evidence_layer IN (
+      'tax_mailing_address', 'permit_contact', 'sunbiz_associations', 'association_units',
+      'verified_managed_properties', 'verified_association_units', 'published_portfolio',
+      'verified_communities', 'management_responsibilities', 'maintenance_responsibilities',
+      'vendor_accessible_portfolio'
+    )
   `;
   for (let index = 0; index < evidenceRows.length; index += batchSize) {
     const batch = evidenceRows.slice(index, index + batchSize);
@@ -573,6 +854,9 @@ export async function getManagementFirmPortfolioEvidence(firmId: string) {
       WHEN 'sunbiz_associations' THEN 4
       WHEN 'association_units' THEN 5
       WHEN 'claimed_doors' THEN 6
+      WHEN 'verified_managed_properties' THEN 7
+      WHEN 'verified_association_units' THEN 8
+      WHEN 'published_portfolio' THEN 9
       ELSE 7 END
   `;
 }

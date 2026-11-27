@@ -38,7 +38,15 @@ export async function GET(request: Request) {
                portfolio_floor, portfolio_range_low, portfolio_range_high, portfolio_tier,
                parcels_matched_by_mailing_address, eviction_filings_trailing_12mo,
                permit_properties_trailing_12mo, sunbiz_associations_managed,
-               association_units_total, portfolio_calculated_at
+               association_units_total, published_portfolio_size,
+               individually_verified_managed_properties, verified_association_units,
+               verified_communities, verified_buildings, verified_rental_units,
+               verified_condominium_units, verified_commercial_locations,
+               verified_residential_properties, verified_commercial_properties,
+               documented_management_responsibilities,
+               documented_maintenance_responsibilities,
+               vendor_accessible_portfolio_size, portfolio_by_county, portfolio_by_zip,
+               portfolio_calculated_at
         FROM fl_management_firms
         WHERE (${county} = '' OR LOWER(county) = LOWER(${county}))
           AND (${firmType} = '' OR firm_type = ${firmType})

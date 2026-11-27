@@ -27,24 +27,30 @@ test("no evidence remains UNKNOWN and never renders as zero", () => {
 });
 
 test("verified layers set the floor and exact tier boundaries", () => {
-  assert.equal(calculatePortfolioSummary({ ...empty, parcelsMatchedByMailingAddress: 99 }).portfolioTier, "UNDER_100");
-  assert.equal(calculatePortfolioSummary({ ...empty, permitPropertiesTrailing12mo: 100 }).portfolioTier, "FROM_100_TO_300");
-  assert.equal(calculatePortfolioSummary({ ...empty, associationUnitsTotal: 300 }).portfolioTier, "FROM_100_TO_300");
-  assert.equal(calculatePortfolioSummary({ ...empty, associationUnitsTotal: 301 }).portfolioTier, "OVER_300");
+  assert.equal(calculatePortfolioSummary({ ...empty, verifiedManagedProperties: 99 }).portfolioTier, "UNDER_100");
+  assert.equal(calculatePortfolioSummary({ ...empty, verifiedAssociationUnits: 100 }).portfolioTier, "FROM_100_TO_300");
+  assert.equal(calculatePortfolioSummary({ ...empty, verifiedAssociationUnits: 300 }).portfolioTier, "FROM_100_TO_300");
+  assert.equal(calculatePortfolioSummary({ ...empty, verifiedAssociationUnits: 301 }).portfolioTier, "OVER_300");
 });
 
 test("claimed doors never increase the verified floor", () => {
-  const summary = calculatePortfolioSummary({ ...empty, parcelsMatchedByMailingAddress: 20, claimedDoors: 900 });
+  const summary = calculatePortfolioSummary({ ...empty, verifiedManagedProperties: 20, claimedDoors: 900 });
   assert.equal(summary.portfolioFloor, 20);
   assert.equal(summary.portfolioTier, "UNDER_100");
 });
 
-test("eviction filings widen the estimated range without changing the floor", () => {
-  const summary = calculatePortfolioSummary({ ...empty, parcelsMatchedByMailingAddress: 50, evictionFilingsTrailing12mo: 24 });
-  assert.equal(summary.portfolioFloor, 50);
-  assert.equal(summary.portfolioRangeLow, 300);
-  assert.equal(summary.portfolioRangeHigh, 800);
-  assert.equal(summary.portfolioTier, "UNDER_100");
+test("mailing, permit, eviction, and self-reported signals never establish a verified floor", () => {
+  const summary = calculatePortfolioSummary({
+    ...empty,
+    parcelsMatchedByMailingAddress: 500,
+    permitPropertiesTrailing12mo: 300,
+    evictionFilingsTrailing12mo: 24,
+    claimedDoors: 900,
+  });
+  assert.equal(summary.portfolioFloor, null);
+  assert.equal(summary.portfolioRangeLow, null);
+  assert.equal(summary.portfolioRangeHigh, null);
+  assert.equal(summary.portfolioTier, "UNKNOWN");
 });
 
 test("mailing joins require the same normalized street and ZIP", () => {
