@@ -21,8 +21,8 @@ test("CSV parser preserves quoted commas without inventing values", () => {
   assert.deepEqual(parseDelimitedCsv('"A, INC","","FL"\n'), [["A, INC", "", "FL"]]);
 });
 
-test("verification priority follows the authorized county and channel order", () => {
-  assert.ok(verificationPriority("property_managers", "Osceola") < verificationPriority("property_managers", "Orange"));
-  assert.ok(verificationPriority("property_managers", "Santa Rosa") < verificationPriority("cam_firms", "Osceola"));
-  assert.ok(verificationPriority("cam_firms", "Santa Rosa") < verificationPriority("restoration", "Osceola"));
+test("verification priority is geographically and commercially neutral", () => {
+  assert.equal(verificationPriority("property_managers", "Osceola"), 100);
+  assert.equal(verificationPriority("cam_firms", "Santa Rosa"), 100);
+  assert.equal(verificationPriority("restoration", "Liberty"), 100);
 });

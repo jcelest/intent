@@ -6,6 +6,7 @@ import { ensureDBPRLicensesIngested } from "./dbpr-licenses";
 import { ensurePermitsIngested } from "./permits-and-registrations";
 import { verifyBusinessActivity } from "./search-verification-provider";
 import type { ParcelRecord } from "./opportunity-parcels";
+import { DOR_CODE_TO_COUNTY } from "./florida-dor-meta";
 
 export type IngestionLayer = "parcels" | "entities" | "licenses" | "permits" | "verifications";
 
@@ -64,8 +65,8 @@ export const CADENCE_DAYS: Record<IngestionLayer, number> = {
 
 /**
  * Ensures all 67 counties across all 5 layers are present in fl_ingestion_queue.
- * Priority counties (Orange, Osceola, Seminole, Escambia, Santa Rosa) receive priority_order 1..5.
- * The remaining 62 receive priority_order 6..67 in population rank order.
+ * Every county receives the same infrastructure priority. Administrators control
+ * geographic focus through query and client filters, not collector ordering.
  */
 export async function ensureIngestionQueueSeeded(): Promise<void> {
   const existingRows = await sql`SELECT COUNT(*)::int as count FROM fl_ingestion_queue`;
@@ -78,9 +79,8 @@ export async function ensureIngestionQueueSeeded(): Promise<void> {
 
   const layers: IngestionLayer[] = ["parcels", "entities", "licenses", "permits", "verifications"];
 
-  for (let idx = 0; idx < FLORIDA_PARCEL_REGISTRY_SPECS.length; idx++) {
-    const spec = FLORIDA_PARCEL_REGISTRY_SPECS[idx];
-    const priorityOrder = idx + 1; // 1-5 for priority counties, 6-67 for remaining
+  for (const spec of [...FLORIDA_PARCEL_REGISTRY_SPECS].sort((a, b) => a.county.localeCompare(b.county))) {
+    const priorityOrder = 100;
 
     for (const layer of layers) {
       await sql`
@@ -145,7 +145,7 @@ export async function getIngestionQueueStatus(): Promise<QueueSummary> {
     SELECT county, layer, next_run_at
     FROM fl_ingestion_queue
     WHERE status IN ('QUEUED', 'WAITING_CADENCE')
-    ORDER BY next_run_at ASC, priority_order ASC
+    ORDER BY next_run_at ASC, priority_order ASC, county ASC, layer ASC
     LIMIT 1
   `;
   const nextScheduledJob = nextRows.length > 0 ? {
@@ -354,8 +354,8 @@ export async function processQueueBatch(limit: number = 3): Promise<{
           `;
         } else {
           // Direct download via cadastral service
-          const dorCountySpec = FLORIDA_PARCEL_REGISTRY_SPECS.findIndex((s) => s.county.toLowerCase() === county.toLowerCase());
-          const calculatedDorCode = dorCountySpec >= 0 ? dorCountySpec + 11 : 11;
+          const calculatedDorCode = Number(Object.entries(DOR_CODE_TO_COUNTY).find(([, name]) => name.toLowerCase() === county.toLowerCase())?.[0]);
+          if (!Number.isFinite(calculatedDorCode)) throw new Error(`No Florida DOR county code is registered for ${county}`);
 
           const parcels = await fetchCadastralCommercialParcels(
             calculatedDorCode,

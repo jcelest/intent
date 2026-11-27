@@ -31,7 +31,7 @@ interface RegisteredClient {
 export default function UnifiedOutreachDatabasePage() {
   const [clients, setClients] = useState<RegisteredClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("all");
-  const [territoryOverride, setTerritoryOverride] = useState<string>("Orange, Seminole");
+  const [territoryOverride, setTerritoryOverride] = useState<string>("");
   const [tradeOverride, setTradeOverride] = useState<string>("all");
   const [targetType, setTargetType] = useState<string>("all");
   const [verificationStatus, setVerificationStatus] = useState<string>("all");

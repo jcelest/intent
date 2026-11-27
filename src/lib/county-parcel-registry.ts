@@ -44,9 +44,8 @@ const DEFAULT_FIELD_MAPPING = {
 
 /**
  * All 67 Florida Counties Property Appraiser Registry Specifications
- * Ranked in Queue Rollout Order:
- * 1. The 5 priority counties first (Orange, Osceola, Seminole, Escambia, Santa Rosa)
- * 2. The remaining 62 counties in strict population order.
+ * Complete county registry. Array order is descriptive only and must not control
+ * collection priority; the statewide queue assigns equal priority to all counties.
  */
 export const FLORIDA_PARCEL_REGISTRY_SPECS: Array<{
   county: string;
@@ -1027,7 +1026,7 @@ export async function ensureCountyParcelRegistrySeeded(): Promise<void> {
         ${spec.appraiserName}, ${spec.officialPortalUrl}, ${spec.gisDownloadUrl},
         ${spec.fileFormat}, ${JSON.stringify(DEFAULT_FIELD_MAPPING)}::jsonb, ${status},
         ${spec.recordsRequestProcedure || null}, ${spec.recordsRequestContact || null},
-        ${currentCount}, ${spec.fullDepthThreshold}, ${spec.isPriority}, CURRENT_TIMESTAMP
+        ${currentCount}, ${spec.fullDepthThreshold}, FALSE, CURRENT_TIMESTAMP
       )
       ON CONFLICT (county) DO UPDATE SET
         population_rank = EXCLUDED.population_rank,

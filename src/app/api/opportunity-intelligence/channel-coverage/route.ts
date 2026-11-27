@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const unauthorized = await requireAdminSession(request);
   if (unauthorized) return unauthorized;
   try {
-    const clientName = new URL(request.url).searchParams.get("client") || "Novation";
+    const clientName = new URL(request.url).searchParams.get("client");
     const [coverage, platformCoverage] = await Promise.all([
       getChannelCoverageReport(),
       getPlatformCoverage(clientName),

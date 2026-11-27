@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 
 async function main() {
-  const [overall, relationshipKinds, sources, counties, priorityCounties, thresholdFirms, sourceGaps, responsibilityCoverage] = await Promise.all([
+  const [overall, relationshipKinds, sources, counties, thresholdFirms, sourceGaps, responsibilityCoverage] = await Promise.all([
     sql`
       SELECT COUNT(*)::int AS firms_total,
              COUNT(*) FILTER (WHERE portfolio_floor IS NOT NULL)::int AS verified_portfolio_firms,
@@ -57,20 +57,6 @@ async function main() {
       ORDER BY county
     `,
     sql`
-      SELECT relationship.county,
-             COUNT(DISTINCT relationship.firm_id)::int AS verified_firms,
-             COUNT(DISTINCT relationship.firm_id) FILTER (WHERE firm.portfolio_floor >= 100)::int AS firms_total_portfolio_100_plus,
-             COUNT(DISTINCT relationship.firm_id) FILTER (WHERE firm.portfolio_floor >= 200)::int AS firms_total_portfolio_200_plus,
-             COALESCE(SUM(relationship.location_count), 0)::bigint AS verified_properties_in_county,
-             COALESCE(SUM(relationship.unit_count), 0)::bigint AS verified_units_in_county
-      FROM fl_management_portfolio_relationships relationship
-      JOIN fl_management_firms firm ON firm.id = relationship.firm_id
-      WHERE relationship.is_current = TRUE AND relationship.is_verified_portfolio = TRUE
-        AND relationship.county IN ('Escambia', 'Santa Rosa')
-      GROUP BY relationship.county
-      ORDER BY relationship.county
-    `,
-    sql`
       SELECT firm.id, firm.name, firm.dba, firm.firm_type, firm.portfolio_floor, firm.portfolio_tier,
              firm.verified_properties_total, firm.verified_units_total,
              firm.service_relevant_properties, firm.service_relevant_units,
@@ -114,7 +100,6 @@ async function main() {
     relationshipKinds,
     sources,
     counties,
-    priorityCounties,
     thresholdFirms,
     sourceGaps,
     responsibilityCoverage: responsibilityCoverage[0],

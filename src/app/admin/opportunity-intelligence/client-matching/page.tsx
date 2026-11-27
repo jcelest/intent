@@ -12,8 +12,8 @@ interface ClientMatchResult {
 }
 
 export default function ClientMatchingPage() {
-  const [selectedTrade, setSelectedTrade] = useState("hvac");
-  const [selectedCounty, setSelectedCounty] = useState("Orange");
+  const [selectedTrade, setSelectedTrade] = useState("");
+  const [selectedCounty, setSelectedCounty] = useState("");
   const [matches, setMatches] = useState<ClientMatchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -54,6 +54,7 @@ export default function ClientMatchingPage() {
             onChange={(e) => setSelectedTrade(e.target.value)}
             className="w-full rounded-xl border border-white/10 bg-black/40 p-2.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
           >
+            <option value="">All trades</option>
             <option value="hvac">HVAC / Mechanical</option>
             <option value="roofing">Roofing & Waterproofing</option>
             <option value="electrical">Electrical & Generator</option>
@@ -70,6 +71,7 @@ export default function ClientMatchingPage() {
             onChange={(e) => setSelectedCounty(e.target.value)}
             className="w-full rounded-xl border border-white/10 bg-black/40 p-2.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
           >
+            <option value="">All Florida counties</option>
             {FLORIDA_COUNTIES.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name} County ({c.region.replace(/_/g, " ")})
@@ -83,7 +85,7 @@ export default function ClientMatchingPage() {
       <div className="rounded-2xl border border-white/10 bg-[#0d1424] overflow-hidden">
         <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
           <h3 className="text-sm font-bold text-white">
-            Matching Client Profiles for {selectedTrade.toUpperCase()} in {selectedCounty} County
+            Matching Client Profiles for {selectedTrade ? selectedTrade.toUpperCase() : "ALL TRADES"} in {selectedCounty ? `${selectedCounty} County` : "Florida"}
           </h3>
           <span className="text-xs font-mono text-cyan-400">{matches.length} Eligible Clients</span>
         </div>

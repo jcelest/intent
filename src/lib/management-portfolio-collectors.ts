@@ -46,7 +46,7 @@ const DBPR_CONDO_REGIONS = [
   ["broward-palm-beach", "https://www2.myfloridalicense.com/sto/file_download/extracts/condo_PB.csv", "Broward and Palm Beach"],
 ] as const;
 
-const DBPR_LODGING_DISTRICTS = [6, 4, 1, 2, 3, 5, 7].map((district) => {
+const DBPR_LODGING_DISTRICTS = [1, 2, 3, 4, 5, 6, 7].map((district) => {
   return {
     key: `dbpr-lodging-district-${district}`,
     name: `Florida DBPR active lodging licenses, district ${district}`,

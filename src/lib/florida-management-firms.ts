@@ -509,12 +509,11 @@ export async function initializeStatewideManagementFirms(): Promise<{
   // 1. Ingest verified DBPR CAB firms
   const cabLoaded = await saveManagementFirms(VERIFIED_FLORIDA_CAB_FIRMS);
 
-  // 2. Sample pull from major Florida population counties via Statewide Cadastral
-  // 58: Orange, 6: Broward, 23: Miami-Dade, 39: Hillsborough, 60: Palm Beach, 16: Duval, 62: Pinellas, 17: Escambia
-  const priorityDorCodes = [58, 6, 23, 39, 60, 16, 62, 17];
+  // 2. Uniform sample pull from every Florida county via Statewide Cadastral.
+  const statewideDorCodes = Object.keys(DOR_CODE_TO_COUNTY).map(Number).sort((a, b) => a - b);
   let cadastralLoaded = 0;
 
-  for (const dorCode of priorityDorCodes) {
+  for (const dorCode of statewideDorCodes) {
     const records = await fetchCadastralManagementFirms(dorCode, 25);
     if (records.length > 0) {
       const saved = await saveManagementFirms(records);

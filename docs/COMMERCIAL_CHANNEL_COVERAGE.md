@@ -1,6 +1,6 @@
 # Tier 1 and Tier 2 Commercial Channel Coverage
 
-Last production verification: 2026-11-26 09:43 UTC
+Last production verification: 2026-11-27 15:25 UTC
 
 This workstream is separate from procurement and solicitation ingestion. Procurement records never count toward the channel totals below.
 
@@ -17,11 +17,11 @@ This workstream is separate from procurement and solicitation ingestion. Procure
 | Channel | Stage A | Stage B | Current state |
 |---|---:|---:|---|
 | Property managers | 0 | 0 | Not connected. The 1,783 relationship records and 1,807 management-firm records remain legacy candidates and are excluded from the authoritative denominator. |
-| CAM firms and individual licensees | 21,068 | 0 | DBPR reconciled: 2,016 active CAM firms and 19,052 active CAM individuals. Verification queue: 2,016 firms. |
+| CAM firms and individual licensees | 21,068 | 5 | DBPR reconciled: 2,016 active CAM firms and 19,052 active CAM individuals. |
 | HOA and condominium associations | 0 | 0 | Sunbiz nonprofit universe not yet ingested. |
 | Direct commercial accounts | 11,845 parcels | 0 | Partial. 26 parcel owners are business-matched and 5 of 67 counties meet the full-depth threshold. |
-| Restoration | 5,829 DBPR licenses | 0 | DBPR reconciled: 2,964 mold assessors and 2,865 mold remediators. Franchise locator and Sunbiz reconciliation remain open. |
-| FM aggregator platforms | 10 | 0 registered | Novation has all 10 required tracker rows. |
+| Restoration | 5,829 DBPR licenses | 1 | DBPR reconciled: 2,964 mold assessors and 2,865 mold remediators. Franchise locator and Sunbiz reconciliation remain open. |
+| FM aggregator platforms | 10 | 0 registered | The active client platform tracker contains all 10 required platform rows. |
 | Chains and facility operators | 0 | 0 | Operator and location universe not yet ingested. |
 
 Authoritative connected sources:
@@ -30,7 +30,7 @@ Authoritative connected sources:
 - [Florida DBPR Mold-Related Services public records](https://www2.myfloridalicense.com/mold-related-services/public-records/), source snapshot 2026-11-21. Source and database counts both equal 5,829.
 - [Florida Department of Revenue Property Data Portal](https://floridarevenue.com/property/Pages/DataPortal.aspx), current database row sum 11,845.
 
-Priority-county direct account reconciliation:
+Example direct-account reconciliation:
 
 | County | Parcels | Business matched | Verified active | Source state |
 |---|---:|---:|---:|---|
@@ -41,21 +41,27 @@ The earlier conflicting direct-account totals are resolved by using the live cou
 
 ## Search verification
 
-The free-tier ledger is initialized at 0 of 2,500 queries. `SERPER_API_KEY` is not configured, so Stage B is intentionally zero. The system currently holds:
+The production `SERPER_API_KEY` is configured as a protected hosting secret. The first bounded run consumed 25 of 2,500 queries and produced 22 verified-active results plus 3 human-review results. The remaining budget is 2,475 queries.
 
-- 25 real CAM-firm records in the acceptance cohort.
-- 2,016 CAM firms as `PROVIDER_NOT_CONFIGURED`.
-- 5,829 restoration licenses as `PROVIDER_NOT_CONFIGURED`.
+- All pending firm and restoration records stay in the dated verification queue.
+- Every county and channel receives priority 100. Queue order is cadence, creation time, and stable identifiers, not a client, trade, or county preference.
+- Results are cached for 30 days. Ambiguous matches go to human review.
 
-Once a Serper free-tier key is configured, run `npm run data:verify-commercial-channels`. The worker processes the 25-record acceptance cohort first, then property managers in Osceola, Orange, Escambia, and Santa Rosa, followed by CAM firms and restoration records in the same county order. Ambiguous matches enter human review. If the 2,500-query cap is reached, all remaining rows become `UNVERIFIED_BUDGET`.
+Run `npm run data:verify-commercial-channels` for a bounded 25-record production batch. If the 2,500-query cap is reached, all remaining rows become `UNVERIFIED_BUDGET`; the system never silently substitutes unverified records.
 
 ## FM platform tracker
 
-The fixed list is ServiceChannel, Lessen, CorrigoPro, Vixxo, DMG Pro, SMS Assist, Chain Store Maintenance, Ferrandino and Son, CBRE vendor system, and JLL/Corrigo. Each Novation row supports `NOT_REGISTERED`, `IN_PROGRESS`, or `REGISTERED`, with date and notes.
+The fixed list is ServiceChannel, Lessen, CorrigoPro, Vixxo, DMG Pro, SMS Assist, Chain Store Maintenance, Ferrandino and Son, CBRE vendor system, and JLL/Corrigo. Each active-client row supports `NOT_REGISTERED`, `IN_PROGRESS`, or `REGISTERED`, with date and notes.
 
 ## Automated schedule
 
-The authenticated `commercial-channels` scheduler lane runs daily at 07:27 UTC. It refreshes the official DBPR files, reconciles direct-account county counts, updates the dated queue, and processes up to 25 verification records when Serper is configured.
+The authenticated `commercial-channels` scheduler lane runs daily at 07:27 UTC. It refreshes official DBPR files, portfolio sources, maintenance-purchasing evidence, the cached official-website discovery queue, direct-account county counts, and up to 25 Serper verification records. GitHub Actions supplies `CRON_SECRET`; Vercel independently stores the same protected secret.
+
+## Maintenance purchasing intelligence
+
+Production reconciliation on 2026-11-27 contains 24,451 current evidence records across 18,871 firms. Of these, 24,426 records are authoritative portfolio-type relationships and 25 are explicitly labeled first-party self-reported maintenance or portfolio facts. Current purchasing-specific coverage is intentionally narrow: 3 firms have documented maintenance responsibility, 1 has public vendor onboarding, 1 has documented purchasing activity, and 1 has a documented contractor relationship. Etheridge Property Management and NFI Property Management Solutions are both above the verified 200-unit threshold; Associa Gulf Coast has documented maintenance and vendor facts but an unknown verified portfolio floor.
+
+The automatic official-website scanner checked 7 exact-license-matched firms: 4 yielded 13 attributable facts, 2 yielded no qualifying facts, and 1 retrieval failed. It caches successful scans for 30 days and failed scans for 7 days. A CBRE supplier page currently returns HTTP 403 and remains a visible source failure; no bypass is attempted.
 
 ## Remaining Stage A work
 

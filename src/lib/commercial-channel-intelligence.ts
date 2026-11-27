@@ -274,23 +274,15 @@ export async function syncDbprCommercialChannels(): Promise<{
 }
 
 function verificationPriority(channelKey: string, county: string | null): number {
-  const countyIndex = ["Osceola", "Orange", "Escambia", "Santa Rosa"].indexOf(county || "");
-  const countyScore = countyIndex < 0 ? 80 : countyIndex * 2;
-  const channelScore = channelKey === "property_managers" ? 10 : channelKey === "cam_firms" ? 30 : channelKey === "restoration" ? 50 : 70;
-  return channelScore + countyScore;
+  void channelKey;
+  void county;
+  return 100;
 }
 
 export async function refreshChannelVerificationQueue(): Promise<number> {
   const rows = await sql`
     INSERT INTO oi_channel_verification_queue(entity_id, county, channel_key, priority)
-    SELECT entity.id, entity.county, entity.channel_key,
-      CASE
-        WHEN entity.channel_key='property_managers' THEN 10
-        WHEN entity.channel_key='cam_firms' THEN 30
-        WHEN entity.channel_key='restoration' THEN 50
-        ELSE 70
-      END
-      + CASE entity.county WHEN 'Osceola' THEN 0 WHEN 'Orange' THEN 2 WHEN 'Escambia' THEN 4 WHEN 'Santa Rosa' THEN 6 ELSE 80 END
+    SELECT entity.id, entity.county, entity.channel_key, 100
     FROM oi_channel_entities entity
     LEFT JOIN fl_search_verifications verification
       ON verification.target_type='channel_entity'
@@ -310,23 +302,7 @@ export async function refreshChannelVerificationQueue(): Promise<number> {
       updated_at=CURRENT_TIMESTAMP
     RETURNING id
   `;
-  await sql`
-    WITH acceptance AS (
-      SELECT queue.id
-      FROM oi_channel_verification_queue queue
-      JOIN oi_channel_entities entity ON entity.id=queue.entity_id
-      WHERE entity.entity_type='cam_firm'
-        AND entity.county IN ('Osceola','Orange','Escambia','Santa Rosa')
-        AND entity.address IS NOT NULL
-      ORDER BY CASE entity.county WHEN 'Osceola' THEN 1 WHEN 'Orange' THEN 2 WHEN 'Escambia' THEN 3 ELSE 4 END,
-        entity.source_record_id
-      LIMIT 25
-    )
-    UPDATE oi_channel_verification_queue queue
-    SET priority=1, is_acceptance_test=TRUE, updated_at=CURRENT_TIMESTAMP
-    FROM acceptance
-    WHERE queue.id=acceptance.id
-  `;
+  await sql`UPDATE oi_channel_verification_queue SET priority=100, is_acceptance_test=FALSE, updated_at=CURRENT_TIMESTAMP`;
   const budget = await getSearchBudgetStatus();
   if (budget.queriesRemaining === 0) {
     await sql`
@@ -414,10 +390,7 @@ export async function processChannelVerificationQueue(limit = 25): Promise<{
 
 export async function seedClientPlatformCoverage(): Promise<void> {
   const clients = await sql`SELECT id, name FROM trade_demand_clients WHERE active=TRUE ORDER BY name`;
-  const clientRows = clients.length ? clients : [{ id: null, name: "Novation" }];
-  if (!(clientRows as Array<Record<string, unknown>>).some((row) => clean(row.name).toLowerCase() === "novation")) {
-    clientRows.push({ id: null, name: "Novation" });
-  }
+  const clientRows = clients.length ? clients : [{ id: null, name: "Intent Platform" }];
   for (const client of clientRows as Array<Record<string, unknown>>) {
     for (let index = 0; index < PLATFORM_LIST.length; index += 1) {
       const [platformKey, platformName] = PLATFORM_LIST[index];
@@ -479,16 +452,20 @@ export async function refreshDirectAccountCoverage(): Promise<void> {
   `;
 }
 
-export async function getPlatformCoverage(clientName = "Novation") {
+export async function getPlatformCoverage(clientName?: string | null) {
   await seedClientPlatformCoverage();
+  const resolvedName = clientName?.trim() || String((await sql`
+    SELECT client_name FROM oi_client_platform_coverage
+    ORDER BY (client_id IS NULL), client_name LIMIT 1
+  `)[0]?.client_name || "Intent Platform");
   const rows = await sql`
     SELECT id, client_id, client_name, platform_key, platform_name, status, status_date, notes, updated_at
     FROM oi_client_platform_coverage
-    WHERE LOWER(client_name)=LOWER(${clientName})
+    WHERE LOWER(client_name)=LOWER(${resolvedName})
     ORDER BY sort_order
   `;
   return {
-    clientName,
+    clientName: resolvedName,
     registered: rows.filter((row) => row.status === "REGISTERED").length,
     total: PLATFORM_LIST.length,
     rows,
@@ -536,7 +513,7 @@ export async function getChannelCoverageReport(): Promise<{
     `,
     sql`SELECT channel_key, county, status, COUNT(*)::int count FROM oi_channel_verification_queue GROUP BY channel_key, county, status`,
     sql`SELECT COALESCE(SUM(parcels_count),0)::bigint parcels, COALESCE(SUM(business_matched_count),0)::bigint matched, COALESCE(SUM(verified_active_count),0)::bigint verified, COUNT(*) FILTER (WHERE source_status='INGESTED')::int covered_counties FROM oi_direct_account_county_coverage`,
-    getPlatformCoverage("Novation"),
+    getPlatformCoverage(),
   ]);
   const sourceByKey = new Map((sources as Array<Record<string, unknown>>).map((row) => [String(row.source_key), row]));
   const countFor = (channel: string, entityType?: string) => (entityCounts as Array<Record<string, unknown>>)
@@ -546,9 +523,8 @@ export async function getChannelCoverageReport(): Promise<{
   const queueFor = (channel: string, statuses?: string[]) => (queueCounts as Array<Record<string, unknown>>)
     .filter((row) => row.channel_key === channel && (!statuses || statuses.includes(String(row.status))))
     .reduce((sum, row) => sum + Number(row.count || 0), 0);
-  const activeCountyQueueFor = (channel: string) => (queueCounts as Array<Record<string, unknown>>)
+  const activeQueueFor = (channel: string) => (queueCounts as Array<Record<string, unknown>>)
     .filter((row) => row.channel_key === channel
-      && ["Osceola", "Orange", "Escambia", "Santa Rosa"].includes(String(row.county || ""))
       && ["PENDING", "PROCESSING", "FAILED", "PROVIDER_NOT_CONFIGURED", "UNVERIFIED_BUDGET"].includes(String(row.status)))
     .reduce((sum, row) => sum + Number(row.count || 0), 0);
   const direct = directTotals[0] || {};
@@ -564,7 +540,7 @@ export async function getChannelCoverageReport(): Promise<{
     const sourceCount = source.source_reported_count == null ? null : Number(source.source_reported_count);
     const databaseCount = Number(source.database_count || 0);
     const reconciled = sourceCount !== null && sourceCount === databaseCount;
-    const covered = Boolean(config.completeWhen) && reconciled && (config.channelKey === "fm_platforms" || (searchConfigured && activeCountyQueueFor(config.channelKey) === 0));
+    const covered = Boolean(config.completeWhen) && reconciled && (config.channelKey === "fm_platforms" || (searchConfigured && activeQueueFor(config.channelKey) === 0));
     const rawSourceDate = source.snapshot_date;
     const parsedSourceDate = rawSourceDate ? new Date(String(rawSourceDate)) : null;
     return {
@@ -582,7 +558,7 @@ export async function getChannelCoverageReport(): Promise<{
       coverageStatus: covered ? "covered" : status === "not_connected" ? "not_connected" : "partial",
       reason: config.channelKey !== "fm_platforms" && !searchConfigured
         ? `${config.reason || "Coverage is incomplete."} Stage B is zero because SERPER_API_KEY is not configured.`
-        : config.reason || (covered ? "Stage A source count reconciles and the active-county Stage B queue is complete." : "Coverage is incomplete. Missing records remain visible in the dated queue."),
+        : config.reason || (covered ? "Stage A source count reconciles and the statewide Stage B queue is complete." : "Coverage is incomplete. Missing records remain visible in the dated queue."),
     };
   };
   const rows: ChannelCoverageRow[] = [
@@ -591,7 +567,7 @@ export async function getChannelCoverageReport(): Promise<{
     buildRow({ channelKey: "associations", tier: 1, label: "HOA and condominium associations", sourceKey: "sunbiz-associations", count: countFor("associations"), completeWhen: false }),
     buildRow({ channelKey: "direct_accounts", tier: 1, label: "Direct commercial accounts", sourceKey: "fl-cadastral-direct", count: Number(direct.parcels || 0), verified: Number(direct.verified || 0), completeWhen: Number(direct.covered_counties || 0) === 67, reason: `${Number(direct.matched || 0).toLocaleString()} parcel owners are business-matched. ${Number(direct.covered_counties || 0)} of 67 counties meet the full-depth threshold.` }),
     buildRow({ channelKey: "restoration", tier: 2, label: "Restoration companies", sourceKey: "dbpr-mold", count: countFor("restoration"), completeWhen: false, reason: "DBPR mold licenses are connected only after a successful sync. Official SERVPRO, Paul Davis, BELFOR, and Sunbiz reconciliation remain separate required sources." }),
-    buildRow({ channelKey: "fm_platforms", tier: 2, label: "FM aggregator platforms", sourceKey: "fm-platform-fixed", count: platform.total, verified: platform.registered, completeWhen: platform.total === 10, reason: `Platform coverage: Novation ${platform.registered} of ${platform.total}. This measures registration, not search verification.` }),
+    buildRow({ channelKey: "fm_platforms", tier: 2, label: "FM aggregator platforms", sourceKey: "fm-platform-fixed", count: platform.total, verified: platform.registered, completeWhen: platform.total === 10, reason: `Platform coverage: ${platform.clientName} ${platform.registered} of ${platform.total}. This measures registration, not search verification.` }),
     buildRow({ channelKey: "chains_operators", tier: 2, label: "Chains and facility operators", sourceKey: "chain-operator-composite", count: countFor("chains_operators"), completeWhen: false }),
   ];
   const directAccountCounties = await sql`SELECT * FROM oi_direct_account_county_coverage ORDER BY county`;

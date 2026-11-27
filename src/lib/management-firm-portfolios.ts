@@ -93,33 +93,6 @@ type CollectedRelationshipRow = {
 const FL_DOR_SOURCE = "https://floridarevenue.com/property/Pages/DataPortal.aspx";
 const DBPR_CAM_SOURCE = "https://www2.myfloridalicense.com/community-association-managers-and-firms/public-records/";
 
-const ACCEPTANCE_FIRMS = [
-  {
-    name: "CONDO METROPOLIS LLC",
-    dba: "Winter Garden Realty Execs.",
-    licenseNumber: "CQ1028137",
-    address: "2510 ROBERT TRENT JONES DRIVE",
-    city: "Orlando",
-    county: "Orange",
-    zipCode: "32835",
-    source: "FL_DBPR_REAL_ESTATE",
-    evidenceUrl: "https://www.myfloridalicense.com/licenseRelation.asp?SID=&licid=3500700",
-    metadata: { official_record_type: "Florida real estate corporation license" },
-  },
-  {
-    name: "VERANDAH PROPERTIES, LLC",
-    dba: "Verandah Properties",
-    licenseNumber: "SUNBIZ-L09000035369",
-    address: "4767 NEW BROAD STREET",
-    city: "Orlando",
-    county: "Orange",
-    zipCode: "32814",
-    source: "FL_SUNBIZ",
-    evidenceUrl: "https://search.sunbiz.org/Inquiry/CorporationSearch/GetDocument?aggregateId=flal-l09000035369-c917c8f0-7f5d-4f6a-a722-18859982cb75&formatType=PDF&transactionId=l09000035369-33c26480-c1df-4294-b4f5-db09bea610ae",
-    metadata: { document_number: "L09000035369", official_record_type: "Florida limited liability company annual report" },
-  },
-] as const;
-
 export function positiveInteger(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -305,35 +278,7 @@ async function importCanonicalFirms(): Promise<{ camFirms: number; acceptanceFir
     WHERE source = 'FL_DBPR_CAB' AND license_number LIKE 'CAB%'
   `;
 
-  let acceptanceFirms = 0;
-  for (const firm of ACCEPTANCE_FIRMS) {
-    await sql`
-      INSERT INTO fl_management_firms(
-        name, dba, firm_type, license_number, license_type, status,
-        address, city, state, zip_code, county, latitude, longitude,
-        source, evidence_url, metadata, managed_properties_count, updated_at
-      ) VALUES (
-        ${firm.name}, ${firm.dba}, 'commercial_property_management', ${firm.licenseNumber},
-        'Property Management Firm', 'Current,Active', ${firm.address}, ${firm.city}, 'FL',
-        ${firm.zipCode}, ${firm.county}, NULL, NULL, ${firm.source}, ${firm.evidenceUrl},
-        ${JSON.stringify(firm.metadata)}::jsonb, NULL, CURRENT_TIMESTAMP
-      )
-      ON CONFLICT (license_number) WHERE license_number IS NOT NULL DO UPDATE SET
-        name = EXCLUDED.name,
-        dba = EXCLUDED.dba,
-        address = EXCLUDED.address,
-        city = EXCLUDED.city,
-        county = EXCLUDED.county,
-        zip_code = EXCLUDED.zip_code,
-        status = EXCLUDED.status,
-        evidence_url = EXCLUDED.evidence_url,
-        metadata = fl_management_firms.metadata || EXCLUDED.metadata,
-        managed_properties_count = NULL,
-        updated_at = CURRENT_TIMESTAMP
-    `;
-    acceptanceFirms += 1;
-  }
-  return { camFirms: Number(camRows[0]?.count || 0), acceptanceFirms };
+  return { camFirms: Number(camRows[0]?.count || 0), acceptanceFirms: 0 };
 }
 
 function dateOnly(value: string | Date | null | undefined): string {

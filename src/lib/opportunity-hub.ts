@@ -12,7 +12,7 @@ export type OpportunityClassification =
 
 export interface OpportunityRecord {
   id: string;
-  sourceType: "universal" | "legacy_procurement";
+  sourceType: "universal" | "legacy_procurement" | "maintenance_intelligence";
   title: string;
   summary: string | null;
   tradeSlug: string | null;
@@ -205,6 +205,59 @@ const UNIVERSAL_FEED_SQL = `
       WHERE migrated.source_id = 'legacy:' || ps.id
         AND migrated.source_record_id = b.id::text
     )
+
+  UNION ALL
+
+  SELECT
+    intelligence.id::text AS id,
+    'maintenance_intelligence'::text AS source_type,
+    firm.name || ': ' || intelligence.title AS title,
+    intelligence.summary,
+    COALESCE(intelligence.trade_category, 'property_maintenance') AS trade_slug,
+    COALESCE(intelligence.service_category, replace(intelligence.intelligence_type, '_', ' ')) AS service_category,
+    'relationship'::text AS classification,
+    CASE WHEN intelligence.is_current THEN 'active' ELSE 'stale' END AS status,
+    CASE WHEN intelligence.zip_code IS NOT NULL THEN 'property' WHEN intelligence.county IS NOT NULL OR firm.county IS NOT NULL THEN 'county' ELSE 'statewide' END AS geographic_scope_type,
+    firm.address,
+    firm.city,
+    COALESCE(intelligence.county, firm.county) AS county,
+    CASE WHEN COALESCE(intelligence.county, firm.county) IS NULL THEN '{}'::text[] ELSE ARRAY[COALESCE(intelligence.county, firm.county)]::text[] END AS counties,
+    COALESCE(intelligence.zip_code, firm.zip_code) AS zip_code,
+    firm.latitude,
+    firm.longitude,
+    NULL::text AS parcel_id,
+    intelligence.portfolio_type AS property_type,
+    NULL::text AS parcel_use_code,
+    NULL::text AS parcel_use_description,
+    NULL::text AS parcel_evidence_url,
+    NULL::numeric AS documented_value,
+    NULL::numeric AS estimated_value,
+    NULL::text AS value_estimation_methodology,
+    'unknown'::text AS recurring_revenue_potential,
+    'unknown'::text AS physical_labor,
+    'unknown'::text AS technical_complexity,
+    NULL::timestamptz AS procurement_deadline,
+    NULL::date AS contract_award_date,
+    NULL::date AS contract_expiration_date,
+    FALSE AS expiration_is_estimated,
+    CASE intelligence.verification_class WHEN 'manual_confirmed' THEN 98 WHEN 'authoritative' THEN 95 WHEN 'first_party_self_reported' THEN 80 ELSE 55 END::smallint AS evidence_confidence,
+    CASE intelligence.verification_class
+      WHEN 'manual_confirmed' THEN 'Administrator-confirmed, source-attributed maintenance purchasing intelligence. This is relationship evidence, not an active solicitation unless a separate procurement record proves demand.'
+      WHEN 'authoritative' THEN 'Authoritative source evidence describing a portfolio or purchasing relationship. This is not an active solicitation.'
+      WHEN 'first_party_self_reported' THEN 'The organization publishes this maintenance or purchasing statement on its official site. It remains first-party information and is not an active solicitation.'
+      ELSE 'Indirect relationship evidence. Verify scope and current applicability before outreach.'
+    END::text AS classification_rationale,
+    source.source_name,
+    intelligence.source_url,
+    NULL::text AS source_document_url,
+    (NOT intelligence.is_current OR intelligence.source_as_of_date < CURRENT_DATE - (source.refresh_interval_hours * INTERVAL '2 hours')) AS is_stale,
+    0::integer AS amendment_count,
+    intelligence.first_seen_at AS discovered_at,
+    intelligence.last_seen_at AS last_verified_at
+  FROM fl_maintenance_purchasing_intelligence intelligence
+  JOIN fl_management_firms firm ON firm.id=intelligence.firm_id
+  JOIN fl_maintenance_intelligence_sources source ON source.source_key=intelligence.source_key
+  WHERE intelligence.intelligence_type <> 'portfolio_type'
 `;
 
 function text(value: unknown): string | null {
@@ -226,7 +279,11 @@ function number(value: unknown): number | null {
 function mapOpportunity(row: DbRow): OpportunityRecord {
   return {
     id: String(row.id),
-    sourceType: row.source_type === "legacy_procurement" ? "legacy_procurement" : "universal",
+    sourceType: row.source_type === "legacy_procurement"
+      ? "legacy_procurement"
+      : row.source_type === "maintenance_intelligence"
+        ? "maintenance_intelligence"
+        : "universal",
     title: String(row.title),
     summary: text(row.summary),
     tradeSlug: text(row.trade_slug),
@@ -374,7 +431,7 @@ export async function getOpportunityDetail(id: string) {
   if (!rows.length) return null;
   const opportunity = mapOpportunity(rows[0]);
 
-  if (opportunity.sourceType === "legacy_procurement") {
+  if (opportunity.sourceType === "legacy_procurement" || opportunity.sourceType === "maintenance_intelligence") {
     return { opportunity, properties: [], organizations: [], evidence: [], equipment: [], documents: [], statusHistory: [] };
   }
 
@@ -614,6 +671,12 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
               verified_commercial_properties, documented_management_responsibilities,
               documented_maintenance_responsibilities, vendor_accessible_portfolio_size,
               portfolio_by_county, portfolio_by_zip,
+              portfolio_types, maintenance_trades, maintenance_delivery_model,
+              vendor_onboarding_status, vendor_registration_url,
+              purchasing_contact_name, purchasing_contact_email, purchasing_contact_phone,
+              documented_maintenance_contracts, documented_purchasing_activities,
+              documented_contractor_relationships, documented_service_volume,
+              portfolio_by_service_category,
               managed_portfolio_sqft, latitude, longitude, source, evidence_url,
               metadata
        FROM fl_management_firms
@@ -674,6 +737,19 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
           vendorAccessiblePortfolioSize: row.vendor_accessible_portfolio_size,
           portfolioByCounty: row.portfolio_by_county,
           portfolioByZip: row.portfolio_by_zip,
+          portfolioTypes: row.portfolio_types,
+          maintenanceTrades: row.maintenance_trades,
+          maintenanceDeliveryModel: row.maintenance_delivery_model,
+          vendorOnboardingStatus: row.vendor_onboarding_status,
+          vendorRegistrationUrl: row.vendor_registration_url,
+          purchasingContactName: row.purchasing_contact_name,
+          purchasingContactEmail: row.purchasing_contact_email,
+          purchasingContactPhone: row.purchasing_contact_phone,
+          documentedMaintenanceContracts: row.documented_maintenance_contracts,
+          documentedPurchasingActivities: row.documented_purchasing_activities,
+          documentedContractorRelationships: row.documented_contractor_relationships,
+          documentedServiceVolume: row.documented_service_volume,
+          portfolioByServiceCategory: row.portfolio_by_service_category,
           portfolioSqft: row.managed_portfolio_sqft,
           googlePlaceId: metadata.google_place_id || null,
           googleListingStatus: metadata.google_listing_status || "not_checked",
@@ -701,9 +777,23 @@ export async function getAtlasData(filters: AtlasQuery = {}) {
 }
 
 export async function getSourceCoverage() {
-  const [sources, procurementSources, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen] = await Promise.all([
+  const [sources, procurementSources, maintenanceSources, maintenanceCountyCoverage, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen] = await Promise.all([
     queryDb(`SELECT * FROM oi_data_sources ORDER BY source_category, source_name`),
     queryDb(`SELECT id, agency_name AS source_name, portal_url AS source_url, 'procurement' AS source_category, collection_method AS access_method, supported_format AS data_format, collection_frequency AS update_frequency, status, (last_successful_at IS NOT NULL) AS is_operational, last_attempted_at, last_successful_at, indexed_bids_count AS records_ingested, error_status AS limitations FROM fl_procurement_sources ORDER BY agency_type, agency_name`),
+    queryDb(`SELECT source_key AS id, source_name, source_url, source_type AS source_category,
+                    'public_source' AS access_method, 'html_or_document' AS data_format,
+                    (refresh_interval_hours::text || ' hours') AS update_frequency,
+                    CASE WHEN consecutive_failures > 0 THEN 'error'
+                         WHEN last_success_at IS NULL THEN 'not_connected'
+                         WHEN next_refresh_at < CURRENT_TIMESTAMP THEN 'connected_stale'
+                         ELSE 'connected_current' END AS status,
+                    (last_success_at IS NOT NULL AND consecutive_failures = 0) AS is_operational,
+                    last_attempt_at AS last_attempted_at, last_success_at AS last_successful_at,
+                    last_record_count AS records_ingested, last_error AS limitations
+             FROM fl_maintenance_intelligence_sources ORDER BY source_name`),
+    queryDb(`SELECT source_key, county, source_records, accepted_records, firms_with_evidence,
+                    status, limitation, last_success_at, updated_at
+             FROM fl_maintenance_intelligence_county_coverage ORDER BY county, source_key`),
     queryDb(`SELECT county, fips, official_portal_url, gis_download_url, file_format, status, commercial_parcels_count, last_parcels_pull_at, last_permits_pull_at, last_licenses_pull_at FROM fl_county_parcel_registry ORDER BY population_rank`),
     queryDb(`SELECT * FROM oi_source_sync_history ORDER BY started_at DESC LIMIT 100`),
     queryDb(`SELECT * FROM oi_source_sync_state ORDER BY next_run_at, source_id`),
@@ -712,7 +802,7 @@ export async function getSourceCoverage() {
              ORDER BY (alert.resolved_at IS NULL) DESC, alert.last_seen_at DESC LIMIT 100`),
     getPermitPropertyScreenSummary(),
   ]);
-  return { sources, procurementSources, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen };
+  return { sources, procurementSources, maintenanceSources, maintenanceCountyCoverage, countyRegistry, syncHistory, syncState, alerts, permitPropertyScreen };
 }
 
 export async function getTaxonomy() {

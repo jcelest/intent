@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { getManagementFirmPortfolioEvidence } from "@/lib/management-firm-portfolios";
+import {
+  createManualMaintenanceIntelligence,
+  getFirmMaintenancePurchasingIntelligence,
+} from "@/lib/maintenance-purchasing-intelligence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +20,10 @@ export async function GET(request: Request) {
     const id = url.searchParams.get("id")?.trim() || "";
     const firmType = url.searchParams.get("type")?.trim() || "";
     const portfolioTier = url.searchParams.get("portfolioTier")?.trim() || "";
+    const portfolioType = url.searchParams.get("portfolioType")?.trim() || "";
+    const maintenanceTrade = url.searchParams.get("maintenanceTrade")?.trim() || "";
+    const deliveryModel = url.searchParams.get("deliveryModel")?.trim() || "";
+    const vendorOnboarding = url.searchParams.get("vendorOnboarding")?.trim() || "";
     const sort = url.searchParams.get("sort") === "name" ? "name" : "portfolio";
     const search = url.searchParams.get("search")?.trim() || "";
     const googleListedOnly = url.searchParams.get("googleListed") === "true";
@@ -26,8 +34,11 @@ export async function GET(request: Request) {
     if (id) {
       const rows = await sql`SELECT * FROM fl_management_firms WHERE id = ${id}::uuid LIMIT 1`;
       if (!rows.length) return NextResponse.json({ ok: false, error: "Firm not found" }, { status: 404 });
-      const evidence = await getManagementFirmPortfolioEvidence(id);
-      return NextResponse.json({ ok: true, firm: rows[0], evidence });
+      const [evidence, purchasingIntelligence] = await Promise.all([
+        getManagementFirmPortfolioEvidence(id),
+        getFirmMaintenancePurchasingIntelligence(id),
+      ]);
+      return NextResponse.json({ ok: true, firm: rows[0], evidence, purchasingIntelligence });
     }
 
     const [firms, countRow, countiesRow, tierRows] = await Promise.all([
@@ -46,13 +57,23 @@ export async function GET(request: Request) {
                documented_management_responsibilities,
                documented_maintenance_responsibilities,
                vendor_accessible_portfolio_size, portfolio_by_county, portfolio_by_zip,
+               portfolio_types, maintenance_trades, maintenance_delivery_model,
+               vendor_onboarding_status, vendor_registration_url,
+               purchasing_contact_name, purchasing_contact_email, purchasing_contact_phone,
+               documented_maintenance_contracts, documented_purchasing_activities,
+               documented_contractor_relationships, documented_service_volume,
+               portfolio_by_service_category, maintenance_intelligence_updated_at,
                portfolio_calculated_at
         FROM fl_management_firms
         WHERE (${county} = '' OR LOWER(county) = LOWER(${county}))
           AND (${firmType} = '' OR firm_type = ${firmType})
           AND (${portfolioTier} = '' OR portfolio_tier = ${portfolioTier})
+          AND (${portfolioType} = '' OR ${portfolioType} = ANY(portfolio_types))
+          AND (${maintenanceTrade} = '' OR ${maintenanceTrade} = ANY(maintenance_trades))
+          AND (${deliveryModel} = '' OR maintenance_delivery_model = ${deliveryModel})
+          AND (${vendorOnboarding} = '' OR vendor_onboarding_status = ${vendorOnboarding})
           AND (${googleListedOnly} = FALSE OR metadata->>'google_listing_status' = 'listing_found')
-          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm}))
+          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm} OR array_to_string(portfolio_types, ' ') ILIKE ${searchTerm} OR array_to_string(maintenance_trades, ' ') ILIKE ${searchTerm} OR COALESCE(purchasing_contact_email, '') ILIKE ${searchTerm}))
         ORDER BY
           CASE WHEN ${sort} = 'portfolio' THEN portfolio_floor END DESC NULLS LAST,
           name ASC
@@ -64,8 +85,12 @@ export async function GET(request: Request) {
         WHERE (${county} = '' OR LOWER(county) = LOWER(${county}))
           AND (${firmType} = '' OR firm_type = ${firmType})
           AND (${portfolioTier} = '' OR portfolio_tier = ${portfolioTier})
+          AND (${portfolioType} = '' OR ${portfolioType} = ANY(portfolio_types))
+          AND (${maintenanceTrade} = '' OR ${maintenanceTrade} = ANY(maintenance_trades))
+          AND (${deliveryModel} = '' OR maintenance_delivery_model = ${deliveryModel})
+          AND (${vendorOnboarding} = '' OR vendor_onboarding_status = ${vendorOnboarding})
           AND (${googleListedOnly} = FALSE OR metadata->>'google_listing_status' = 'listing_found')
-          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm}))
+          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm} OR array_to_string(portfolio_types, ' ') ILIKE ${searchTerm} OR array_to_string(maintenance_trades, ' ') ILIKE ${searchTerm} OR COALESCE(purchasing_contact_email, '') ILIKE ${searchTerm}))
       `,
       sql`
         SELECT county, COUNT(*)::int AS count
@@ -78,8 +103,12 @@ export async function GET(request: Request) {
         FROM fl_management_firms
         WHERE (${county} = '' OR LOWER(county) = LOWER(${county}))
           AND (${firmType} = '' OR firm_type = ${firmType})
+          AND (${portfolioType} = '' OR ${portfolioType} = ANY(portfolio_types))
+          AND (${maintenanceTrade} = '' OR ${maintenanceTrade} = ANY(maintenance_trades))
+          AND (${deliveryModel} = '' OR maintenance_delivery_model = ${deliveryModel})
+          AND (${vendorOnboarding} = '' OR vendor_onboarding_status = ${vendorOnboarding})
           AND (${googleListedOnly} = FALSE OR metadata->>'google_listing_status' = 'listing_found')
-          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm}))
+          AND (${search} = '' OR (name ILIKE ${searchTerm} OR address ILIKE ${searchTerm} OR city ILIKE ${searchTerm} OR COALESCE(license_number, '') ILIKE ${searchTerm} OR array_to_string(portfolio_types, ' ') ILIKE ${searchTerm} OR array_to_string(maintenance_trades, ' ') ILIKE ${searchTerm} OR COALESCE(purchasing_contact_email, '') ILIKE ${searchTerm}))
         GROUP BY portfolio_tier
       `,
     ]);
@@ -101,11 +130,28 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const unauthorized = await requireAdminSession(request);
   if (unauthorized) return unauthorized;
-  return NextResponse.json(
-    {
-      ok: false,
-      error: "Statewide synchronization runs through the audited DBPR/Census ingestion job.",
-    },
-    { status: 405, headers: { Allow: "GET" } },
-  );
+  try {
+    const body = await request.json();
+    const result = await createManualMaintenanceIntelligence({
+      firmId: String(body.firmId || ""),
+      intelligenceType: body.intelligenceType,
+      title: String(body.title || ""),
+      summary: String(body.summary || ""),
+      sourceName: String(body.sourceName || ""),
+      sourceUrl: String(body.sourceUrl || ""),
+      sourceAsOfDate: String(body.sourceAsOfDate || new Date().toISOString().slice(0, 10)),
+      portfolioType: body.portfolioType || null,
+      tradeCategory: body.tradeCategory || null,
+      serviceCategory: body.serviceCategory || null,
+      county: body.county || null,
+      zipCode: body.zipCode || null,
+      deliveryModel: body.deliveryModel || null,
+      vendorRegistrationUrl: body.vendorRegistrationUrl || null,
+      confirmedBy: "Intent administrator",
+    });
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not save confirmed intelligence";
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+  }
 }

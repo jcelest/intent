@@ -9,6 +9,7 @@ import {
 } from "@/lib/commercial-channel-intelligence";
 import { reconcileManagementFirmPortfolios } from "@/lib/management-firm-portfolios";
 import { syncManagementPortfolioSources } from "@/lib/management-portfolio-collectors";
+import { syncStatewideMaintenancePurchasingIntelligence } from "@/lib/maintenance-purchasing-intelligence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,9 +37,10 @@ export async function GET(request: Request) {
     const dbpr = await syncDbprCommercialChannels();
     const portfolioSources = await syncManagementPortfolioSources({ force });
     const portfolios = await reconcileManagementFirmPortfolios();
+    const maintenanceIntelligence = await syncStatewideMaintenancePurchasingIntelligence({ force });
     await refreshDirectAccountCoverage();
     const verification = await processChannelVerificationQueue(25);
-    return NextResponse.json({ ok: true, lane, dbpr, portfolioSources, portfolios, verification });
+    return NextResponse.json({ ok: true, lane, dbpr, portfolioSources, portfolios, maintenanceIntelligence, verification });
   }
   if (!(lane in lanes)) return NextResponse.json({ ok: false, error: "Unknown scheduler lane" }, { status: 400 });
   const adapters = lanes[lane];
