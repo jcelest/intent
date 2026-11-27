@@ -6,9 +6,15 @@ async function main() {
   const countiesArg = process.argv.find((argument) => argument.startsWith("--counties="));
   const counties = countiesArg
     ? countiesArg.slice("--counties=".length).split(",").map((county) => county.trim()).filter(Boolean)
-    : ["Escambia", "Santa Rosa"];
-  const collection = await syncManagementPortfolioSources({ force, counties });
-  const reconciliation = await reconcileManagementFirmPortfolios();
+    : undefined;
+  const sourcesArg = process.argv.find((argument) => argument.startsWith("--sources="));
+  const sourceKeys = sourcesArg
+    ? sourcesArg.slice("--sources=".length).split(",").map((source) => source.trim()).filter(Boolean)
+    : undefined;
+  const collection = await syncManagementPortfolioSources({ force, counties, sourceKeys });
+  const reconciliation = process.argv.includes("--skip-reconcile")
+    ? null
+    : await reconcileManagementFirmPortfolios();
   console.log(JSON.stringify({ collection, reconciliation }, null, 2));
 }
 

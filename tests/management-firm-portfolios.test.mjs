@@ -39,6 +39,12 @@ test("claimed doors never increase the verified floor", () => {
   assert.equal(summary.portfolioTier, "UNDER_100");
 });
 
+test("authoritative operator units establish a portfolio floor without becoming management evidence", () => {
+  const summary = calculatePortfolioSummary({ ...empty, verifiedProperties: 12, verifiedUnits: 240 });
+  assert.equal(summary.portfolioFloor, 240);
+  assert.equal(summary.portfolioTier, "FROM_100_TO_300");
+});
+
 test("mailing, permit, eviction, and self-reported signals never establish a verified floor", () => {
   const summary = calculatePortfolioSummary({
     ...empty,

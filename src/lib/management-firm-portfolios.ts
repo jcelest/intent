@@ -14,6 +14,9 @@ export type PortfolioEvidenceCounts = {
   verifiedRentalUnits?: number | null;
   verifiedCondominiumUnits?: number | null;
   verifiedCommercialLocations?: number | null;
+  verifiedProperties?: number | null;
+  verifiedUnits?: number | null;
+  verifiedBuildings?: number | null;
 };
 
 export type PortfolioSummary = {
@@ -67,11 +70,16 @@ type CollectedRelationshipRow = {
   property_name: string | null;
   county: string | null;
   zip_code: string | null;
+  location_count: number | null;
+  building_count: number | null;
   unit_count: number | null;
+  square_feet: number | null;
   published_portfolio_size: number | null;
   commercial_classification: string;
   management_responsibility: boolean;
   maintenance_responsibility: boolean;
+  service_relevant: boolean;
+  maintenance_scope: Record<string, boolean> | null;
   vendor_accessible: boolean;
   source_key: string;
   source_name: string;
@@ -79,6 +87,7 @@ type CollectedRelationshipRow = {
   source_as_of_date: string | Date;
   relationship_kind: string;
   is_verified_management: boolean;
+  is_verified_portfolio: boolean;
 };
 
 const FL_DOR_SOURCE = "https://floridarevenue.com/property/Pages/DataPortal.aspx";
@@ -125,6 +134,9 @@ export function calculatePortfolioSummary(counts: PortfolioEvidenceCounts): Port
     counts.verifiedRentalUnits,
     counts.verifiedCondominiumUnits,
     counts.verifiedCommercialLocations,
+    counts.verifiedProperties,
+    counts.verifiedUnits,
+    counts.verifiedBuildings,
   ].map(positiveInteger).filter((value): value is number => value !== null);
 
   const portfolioFloor = verifiedCounts.length ? Math.max(...verifiedCounts) : null;
@@ -338,6 +350,44 @@ function metadataUnitCount(metadata: Record<string, unknown> | null): number | n
   return null;
 }
 
+async function enrichVerifiedPortfolioPropertiesFromParcels() {
+  const rows = await sql`
+    UPDATE fl_management_portfolio_relationships relationship
+    SET parcel_id = parcel.parcel_id,
+        square_feet = parcel.building_sqft,
+        building_count = CASE WHEN parcel.building_sqft > 0 THEN 1 ELSE relationship.building_count END,
+        metadata = relationship.metadata || jsonb_build_object(
+          'parcel_evidence', jsonb_build_object(
+            'county', parcel.county,
+            'parcel_id', parcel.parcel_id,
+            'use_code', parcel.use_code,
+            'use_description', parcel.use_description,
+            'source_url', parcel.location_source_url,
+            'join_method', 'exact_normalized_situs_address_and_zip'
+          )
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    FROM fl_parcels parcel
+    WHERE relationship.is_current = TRUE
+      AND relationship.is_verified_portfolio = TRUE
+      AND relationship.property_address IS NOT NULL
+      AND relationship.zip_code IS NOT NULL
+      AND parcel.building_sqft IS NOT NULL
+      AND parcel.building_sqft > 0
+      AND LOWER(parcel.county) = LOWER(relationship.county)
+      AND LEFT(REGEXP_REPLACE(parcel.situs_zip, '[^0-9]', '', 'g'), 5) = LEFT(REGEXP_REPLACE(relationship.zip_code, '[^0-9]', '', 'g'), 5)
+      AND REGEXP_REPLACE(UPPER(parcel.situs_address), '[^A-Z0-9]', '', 'g') =
+          REGEXP_REPLACE(UPPER(relationship.property_address), '[^A-Z0-9]', '', 'g')
+      AND (
+        relationship.parcel_id IS DISTINCT FROM parcel.parcel_id
+        OR relationship.square_feet IS DISTINCT FROM parcel.building_sqft
+        OR relationship.building_count IS DISTINCT FROM 1
+      )
+    RETURNING relationship.id
+  `;
+  return rows.length;
+}
+
 export async function reconcileManagementFirmPortfolios(): Promise<{
   firms: number;
   importedCamFirms: number;
@@ -346,6 +396,7 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
   layerCounts: Record<string, number>;
 }> {
   const imported = await importCanonicalFirms();
+  await enrichVerifiedPortfolioPropertiesFromParcels();
   const [firms, parcels, permits, relationships, collectedRelationships] = await Promise.all([
     sql`SELECT id, name, address, zip_code, license_number, claimed_doors, eviction_filings_trailing_12mo FROM fl_management_firms ORDER BY id`,
     sql`
@@ -373,12 +424,15 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
     sql`
       SELECT relationship.firm_id, relationship.canonical_property_key,
              relationship.property_kind, relationship.property_name,
-             relationship.county, relationship.zip_code, relationship.unit_count,
+             relationship.county, relationship.zip_code, relationship.location_count,
+             relationship.building_count, relationship.unit_count, relationship.square_feet,
              relationship.published_portfolio_size, relationship.commercial_classification,
              relationship.management_responsibility, relationship.maintenance_responsibility,
+             relationship.service_relevant, relationship.maintenance_scope,
              relationship.vendor_accessible, relationship.source_key,
              source.source_name, relationship.source_url, relationship.source_as_of_date,
-             relationship.relationship_kind, relationship.is_verified_management
+             relationship.relationship_kind, relationship.is_verified_management,
+             relationship.is_verified_portfolio
       FROM fl_management_portfolio_relationships relationship
       JOIN fl_management_portfolio_sources source ON source.source_key = relationship.source_key
       WHERE relationship.is_current = TRUE
@@ -459,7 +513,7 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
     const permitCount = permitAddresses.size || null;
     const associationCount = associationIds.size || null;
     const collectedForFirm = collectedByFirm.get(firm.id) || [];
-    const verifiedForFirm = collectedForFirm.filter((relationship) => relationship.is_verified_management);
+    const verifiedForFirm = collectedForFirm.filter((relationship) => relationship.is_verified_portfolio);
     const verifiedProperties = new Map<string, CollectedRelationshipRow[]>();
     for (const relationship of verifiedForFirm) {
       const rows = verifiedProperties.get(relationship.canonical_property_key) || [];
@@ -467,6 +521,10 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       verifiedProperties.set(relationship.canonical_property_key, rows);
     }
     let collectedAssociationUnits = 0;
+    let verifiedPropertyLocations = 0;
+    let verifiedUnitsTotal = 0;
+    let verifiedBuildingsTotal = 0;
+    let verifiedSquareFeetTotal = 0;
     let verifiedRentalUnits = 0;
     let verifiedCondominiumUnits = 0;
     let verifiedCommercialLocations = 0;
@@ -477,46 +535,75 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
     let managementResponsibilities = 0;
     let maintenanceResponsibilities = 0;
     let vendorAccessibleProperties = 0;
-    const byCounty: Record<string, { managedProperties: number; associationUnits: number; commercial: number; residential: number }> = {};
-    const byZip: Record<string, { managedProperties: number; associationUnits: number }> = {};
+    let vendorAccessibleUnits = 0;
+    let vendorAccessibleBuildings = 0;
+    let vendorAccessibleSquareFeet = 0;
+    let serviceRelevantProperties = 0;
+    let serviceRelevantUnits = 0;
+    let serviceRelevantBuildings = 0;
+    let serviceRelevantSquareFeet = 0;
+    let verifiedManagementProperties = 0;
+    const byCounty: Record<string, { managedProperties: number; units: number; buildings: number; squareFeet: number; associationUnits: number; commercial: number; residential: number; serviceRelevantProperties: number }> = {};
+    const byZip: Record<string, { managedProperties: number; units: number; buildings: number; squareFeet: number }> = {};
     for (const rows of Array.from(verifiedProperties.values())) {
       const representative = rows.find((row) => row.unit_count) || rows[0];
+      const locations = Math.max(1, ...rows.map((row) => positiveInteger(row.location_count) || 1));
       const units = Math.max(0, ...rows.map((row) => positiveInteger(row.unit_count) || 0));
-      collectedAssociationUnits += units;
-      if (representative.property_kind === "rental_unit") verifiedRentalUnits += Math.max(1, units);
+      const buildings = Math.max(0, ...rows.map((row) => positiveInteger(row.building_count) || 0));
+      const squareFeet = Math.max(0, ...rows.map((row) => positiveInteger(row.square_feet) || 0));
+      verifiedPropertyLocations += locations;
+      verifiedUnitsTotal += units;
+      verifiedBuildingsTotal += buildings;
+      verifiedSquareFeetTotal += squareFeet;
+      if (["community", "association", "condominium_unit"].includes(representative.property_kind)) collectedAssociationUnits += units;
+      if (["rental_unit", "multifamily_property", "vacation_rental_portfolio"].includes(representative.property_kind)) verifiedRentalUnits += units;
       if (representative.property_kind === "condominium_unit") verifiedCondominiumUnits += Math.max(1, units);
-      if (representative.property_kind === "commercial_location") verifiedCommercialLocations += Math.max(1, units);
-      if (["community", "association"].includes(representative.property_kind)) verifiedCommunities += 1;
-      if (representative.property_kind === "building") verifiedBuildings += 1;
-      if (representative.commercial_classification === "residential") verifiedResidentialProperties += 1;
-      if (representative.commercial_classification === "commercial") verifiedCommercialProperties += 1;
-      if (rows.some((row) => row.management_responsibility)) managementResponsibilities += 1;
-      if (rows.some((row) => row.maintenance_responsibility)) maintenanceResponsibilities += 1;
-      if (rows.some((row) => row.vendor_accessible)) vendorAccessibleProperties += Math.max(1, units);
+      if (representative.property_kind === "commercial_location") verifiedCommercialLocations += locations;
+      if (["community", "association"].includes(representative.property_kind)) verifiedCommunities += locations;
+      if (representative.property_kind === "building") verifiedBuildings += Math.max(1, buildings);
+      if (representative.commercial_classification === "residential") verifiedResidentialProperties += locations;
+      if (representative.commercial_classification === "commercial") verifiedCommercialProperties += locations;
+      if (rows.some((row) => row.is_verified_management)) verifiedManagementProperties += locations;
+      if (rows.some((row) => row.management_responsibility)) managementResponsibilities += locations;
+      if (rows.some((row) => row.maintenance_responsibility)) maintenanceResponsibilities += locations;
+      if (rows.some((row) => row.service_relevant)) {
+        serviceRelevantProperties += locations;
+        serviceRelevantUnits += units;
+        serviceRelevantBuildings += buildings;
+        serviceRelevantSquareFeet += squareFeet;
+      }
+      if (rows.some((row) => row.vendor_accessible)) {
+        vendorAccessibleProperties += locations;
+        vendorAccessibleUnits += units;
+        vendorAccessibleBuildings += buildings;
+        vendorAccessibleSquareFeet += squareFeet;
+      }
       if (representative.county) {
-        const metric = byCounty[representative.county] || { managedProperties: 0, associationUnits: 0, commercial: 0, residential: 0 };
-        metric.managedProperties += 1;
-        metric.associationUnits += units;
-        if (representative.commercial_classification === "commercial") metric.commercial += 1;
-        if (representative.commercial_classification === "residential") metric.residential += 1;
+        const metric = byCounty[representative.county] || { managedProperties: 0, units: 0, buildings: 0, squareFeet: 0, associationUnits: 0, commercial: 0, residential: 0, serviceRelevantProperties: 0 };
+        metric.managedProperties += locations;
+        metric.units += units;
+        metric.buildings += buildings;
+        metric.squareFeet += squareFeet;
+        if (["community", "association", "condominium_unit"].includes(representative.property_kind)) metric.associationUnits += units;
+        if (representative.commercial_classification === "commercial") metric.commercial += locations;
+        if (representative.commercial_classification === "residential") metric.residential += locations;
+        if (rows.some((row) => row.service_relevant)) metric.serviceRelevantProperties += locations;
         byCounty[representative.county] = metric;
       }
       if (representative.zip_code) {
-        const metric = byZip[representative.zip_code] || { managedProperties: 0, associationUnits: 0 };
-        metric.managedProperties += 1;
-        metric.associationUnits += units;
+        const metric = byZip[representative.zip_code] || { managedProperties: 0, units: 0, buildings: 0, squareFeet: 0 };
+        metric.managedProperties += locations;
+        metric.units += units;
+        metric.buildings += buildings;
+        metric.squareFeet += squareFeet;
         byZip[representative.zip_code] = metric;
       }
     }
-    const verifiedManagedPropertyCount = verifiedProperties.size || null;
+    const verifiedManagedPropertyCount = verifiedManagementProperties || null;
     const publishedPortfolioSize = collectedForFirm.reduce((maximum, relationship) => Math.max(maximum, positiveInteger(relationship.published_portfolio_size) || 0), 0) || null;
     maintenanceResponsibilities = Math.max(
       maintenanceResponsibilities,
       new Set(collectedForFirm.filter((row) => row.maintenance_responsibility).map((row) => row.canonical_property_key)).size,
-    );
-    vendorAccessibleProperties = Math.max(
-      vendorAccessibleProperties,
-      new Set(collectedForFirm.filter((row) => row.vendor_accessible).map((row) => row.canonical_property_key)).size,
     );
     const associationUnitsTotal = Math.max(hasAssociationUnits ? associationUnits : 0, collectedAssociationUnits) || null;
 
@@ -532,6 +619,9 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       verifiedRentalUnits: verifiedRentalUnits || null,
       verifiedCondominiumUnits: verifiedCondominiumUnits || null,
       verifiedCommercialLocations: verifiedCommercialLocations || null,
+      verifiedProperties: verifiedPropertyLocations || null,
+      verifiedUnits: verifiedUnitsTotal || null,
+      verifiedBuildings: verifiedBuildingsTotal || null,
     };
     const summary = calculatePortfolioSummary(counts);
     tierCounts[summary.portfolioTier] += 1;
@@ -565,6 +655,18 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       documented_management_responsibilities: managementResponsibilities || null,
       documented_maintenance_responsibilities: maintenanceResponsibilities || null,
       vendor_accessible_portfolio_size: vendorAccessibleProperties || null,
+      verified_properties_total: verifiedPropertyLocations || null,
+      verified_units_total: verifiedUnitsTotal || null,
+      verified_buildings_total: verifiedBuildingsTotal || null,
+      verified_square_feet_total: verifiedSquareFeetTotal || null,
+      service_relevant_properties: serviceRelevantProperties || null,
+      service_relevant_units: serviceRelevantUnits || null,
+      service_relevant_buildings: serviceRelevantBuildings || null,
+      service_relevant_square_feet: serviceRelevantSquareFeet || null,
+      vendor_accessible_properties: vendorAccessibleProperties || null,
+      vendor_accessible_units: vendorAccessibleUnits || null,
+      vendor_accessible_buildings: vendorAccessibleBuildings || null,
+      vendor_accessible_square_feet: vendorAccessibleSquareFeet || null,
       portfolio_by_county: byCounty,
       portfolio_by_zip: byZip,
     });
@@ -637,7 +739,8 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       });
     }
     if (verifiedManagedPropertyCount) {
-      const latest = verifiedForFirm.reduce((value, row) => Math.max(value, new Date(row.source_as_of_date).getTime()), 0);
+      const managementRows = verifiedForFirm.filter((row) => row.is_verified_management);
+      const latest = managementRows.reduce((value, row) => Math.max(value, new Date(row.source_as_of_date).getTime()), 0);
       evidenceRows.push({
         firm_id: firm.id,
         evidence_layer: "verified_managed_properties",
@@ -645,10 +748,80 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
         range_low: null,
         range_high: null,
         source_name: "Explicit published management relationships",
-        source_url: verifiedForFirm[0]?.source_url || null,
+        source_url: managementRows[0]?.source_url || null,
         as_of_date: dateOnly(latest ? new Date(latest) : today),
         methodology: "Distinct properties or communities explicitly identified as managed by the firm. Duplicate source records share one canonical property key.",
+        metadata: { property_keys: Array.from(new Set(managementRows.map((row) => row.canonical_property_key))).slice(0, 250), sources: Array.from(new Set(managementRows.map((row) => row.source_key))) },
+      });
+    }
+    if (verifiedPropertyLocations) {
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_properties",
+        evidence_count: verifiedPropertyLocations,
+        range_low: null,
+        range_high: null,
+        source_name: "Direct management and licensed-operator records",
+        source_url: verifiedForFirm[0]?.source_url || null,
+        as_of_date: dateOnly(verifiedForFirm[0]?.source_as_of_date || today),
+        methodology: "Sum of deduplicated, explicitly documented property locations. Licensed operators are kept distinct from third-party managers in the underlying relationship.",
         metadata: { property_keys: Array.from(verifiedProperties.keys()).slice(0, 250), sources: Array.from(new Set(verifiedForFirm.map((row) => row.source_key))) },
+      });
+    }
+    if (verifiedUnitsTotal) {
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_units",
+        evidence_count: verifiedUnitsTotal,
+        range_low: null,
+        range_high: null,
+        source_name: "Authoritative property and operator unit records",
+        source_url: verifiedForFirm.find((row) => positiveInteger(row.unit_count))?.source_url || null,
+        as_of_date: dateOnly(verifiedForFirm[0]?.source_as_of_date || today),
+        methodology: "Sum of the highest authoritative unit count for each deduplicated property key. Units are never added to property, building, or square-foot totals.",
+        metadata: { property_keys: Array.from(verifiedProperties.keys()).slice(0, 250), sources: Array.from(new Set(verifiedForFirm.map((row) => row.source_key))) },
+      });
+    }
+    if (verifiedBuildingsTotal) {
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_buildings",
+        evidence_count: verifiedBuildingsTotal,
+        range_low: null,
+        range_high: null,
+        source_name: "Authoritative building records",
+        source_url: verifiedForFirm.find((row) => positiveInteger(row.building_count))?.source_url || null,
+        as_of_date: dateOnly(verifiedForFirm[0]?.source_as_of_date || today),
+        methodology: "Sum of separately documented building counts for deduplicated properties.",
+        metadata: { separate_measurement: true },
+      });
+    }
+    if (verifiedSquareFeetTotal) {
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "verified_square_feet",
+        evidence_count: verifiedSquareFeetTotal,
+        range_low: null,
+        range_high: null,
+        source_name: "Authoritative parcel or property area records",
+        source_url: verifiedForFirm.find((row) => positiveInteger(row.square_feet))?.source_url || null,
+        as_of_date: dateOnly(verifiedForFirm[0]?.source_as_of_date || today),
+        methodology: "Sum of separately documented building square footage for deduplicated properties.",
+        metadata: { unit: "square_feet", separate_measurement: true },
+      });
+    }
+    if (serviceRelevantProperties) {
+      evidenceRows.push({
+        firm_id: firm.id,
+        evidence_layer: "service_relevant_portfolio",
+        evidence_count: serviceRelevantProperties,
+        range_low: null,
+        range_high: null,
+        source_name: "Service-relevant verified portfolio",
+        source_url: verifiedForFirm.find((row) => row.service_relevant)?.source_url || null,
+        as_of_date: dateOnly(verifiedForFirm[0]?.source_as_of_date || today),
+        methodology: "Deduplicated verified properties whose documented property type is relevant to maintenance services. This is not vendor-access evidence.",
+        metadata: { units: serviceRelevantUnits, buildings: serviceRelevantBuildings, square_feet: serviceRelevantSquareFeet },
       });
     }
     if (collectedAssociationUnits) {
@@ -754,6 +927,18 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
           documented_management_responsibilities = incoming.documented_management_responsibilities,
           documented_maintenance_responsibilities = incoming.documented_maintenance_responsibilities,
           vendor_accessible_portfolio_size = incoming.vendor_accessible_portfolio_size,
+          verified_properties_total = incoming.verified_properties_total,
+          verified_units_total = incoming.verified_units_total,
+          verified_buildings_total = incoming.verified_buildings_total,
+          verified_square_feet_total = incoming.verified_square_feet_total,
+          service_relevant_properties = incoming.service_relevant_properties,
+          service_relevant_units = incoming.service_relevant_units,
+          service_relevant_buildings = incoming.service_relevant_buildings,
+          service_relevant_square_feet = incoming.service_relevant_square_feet,
+          vendor_accessible_properties = incoming.vendor_accessible_properties,
+          vendor_accessible_units = incoming.vendor_accessible_units,
+          vendor_accessible_buildings = incoming.vendor_accessible_buildings,
+          vendor_accessible_square_feet = incoming.vendor_accessible_square_feet,
           portfolio_by_county = incoming.portfolio_by_county,
           portfolio_by_zip = incoming.portfolio_by_zip,
           managed_properties_count = NULL,
@@ -782,6 +967,18 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
         ,documented_management_responsibilities integer
         ,documented_maintenance_responsibilities integer
         ,vendor_accessible_portfolio_size integer
+        ,verified_properties_total integer
+        ,verified_units_total integer
+        ,verified_buildings_total integer
+        ,verified_square_feet_total bigint
+        ,service_relevant_properties integer
+        ,service_relevant_units integer
+        ,service_relevant_buildings integer
+        ,service_relevant_square_feet bigint
+        ,vendor_accessible_properties integer
+        ,vendor_accessible_units integer
+        ,vendor_accessible_buildings integer
+        ,vendor_accessible_square_feet bigint
         ,portfolio_by_county jsonb
         ,portfolio_by_zip jsonb
       )
@@ -795,7 +992,8 @@ export async function reconcileManagementFirmPortfolios(): Promise<{
       'tax_mailing_address', 'permit_contact', 'sunbiz_associations', 'association_units',
       'verified_managed_properties', 'verified_association_units', 'published_portfolio',
       'verified_communities', 'management_responsibilities', 'maintenance_responsibilities',
-      'vendor_accessible_portfolio'
+      'vendor_accessible_portfolio', 'verified_properties', 'verified_units',
+      'verified_buildings', 'verified_square_feet', 'service_relevant_portfolio'
     )
   `;
   for (let index = 0; index < evidenceRows.length; index += batchSize) {

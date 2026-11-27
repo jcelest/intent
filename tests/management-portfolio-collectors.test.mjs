@@ -7,6 +7,7 @@ import {
   parseEtheridgeAssociations,
   parseNfiAssociations,
   propertySimilarity,
+  rowValue,
 } from "../src/lib/management-portfolio-collectors.ts";
 
 test("DBPR CSV parser preserves quoted addresses and managing entity fields", () => {
@@ -14,6 +15,17 @@ test("DBPR CSV parser preserves quoted addresses and managing entity fields", ()
   assert.equal(rows.length, 1);
   assert.equal(rows[0]["Condo Name"], "Bay Club, A Condo");
   assert.equal(rows[0]["Managing Entity Name"], "Example Management, Inc.");
+});
+
+test("DBPR lodging rows resolve documented headers without positional assumptions", () => {
+  const row = {
+    "License Type Code": "2007",
+    "Modifier Code": "CLCT",
+    "Number of Seats (food service) or Rental Units (lodging)": "42",
+  };
+  assert.equal(rowValue(row, "License Type Code"), "2007");
+  assert.equal(rowValue(row, "Modifier Code"), "CLCT");
+  assert.equal(rowValue(row, "Number of Seats (food service) or Rental Units (lodging)"), "42");
 });
 
 test("published portfolio parsers extract associations without treating accounting-only work as full management", () => {
